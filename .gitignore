@@ -26,6 +26,16 @@ coverage/
 /backend/dist/
 /frontend/build/
 
+# Uploads
+/backend/uploads/temp/*
+!/backend/uploads/temp/.gitkeep
+/backend/uploads/processed/*
+!/backend/uploads/processed/.gitkeep
+
+# Logs
+/backend/logs/*
+!/backend/logs/.gitkeep
+
 # Next.js
 .next/
 out/
