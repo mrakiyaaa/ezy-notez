@@ -1,0 +1,27 @@
+{
+  "name": "ezy-notez",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "lint:frontend": "cd frontend && npm run lint",
+    "build:backend": "cd backend && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrakiyaaa/ezy-notez.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mrakiyaaa/ezy-notez/issues"
+  },
+  "homepage": "https://github.com/mrakiyaaa/ezy-notez#readme",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
