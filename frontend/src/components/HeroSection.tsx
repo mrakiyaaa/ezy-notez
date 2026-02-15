@@ -1,40 +1,47 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+import { Button } from "./ui/button";
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-6 pt-32 pb-20">
+    <section className="w-full bg-[var(--color-bg-main)] px-6 py-24 mt-10">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="relative min-h-[420px] md:min-h-[520px] rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl">
-          <div className="absolute inset-0">
-            <Image
-              src="/images/landing/carosel.png"
-              alt="Ezy Note"
-              fill
-              className="object-cover"
-              priority
-            />
+        {/* Top Split Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Heading */}
+          <div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--color-text-primary)] leading-tight max-w-xl">
+              Built on Trust and Standards
+            </h1>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
 
-          <div className="relative z-10 flex min-h-[420px] md:min-h-[520px] items-center justify-center px-8 py-16 md:px-16 md:py-24 text-center">
-            <div>
-              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-                Built on Trust and Standards
-              </h1>
+          {/* Right: Subtitle + CTA */}
+          <div className="flex flex-col lg:items-end text-left lg:text-right gap-6">
+            <p className="text-base md:text-lg text-[var(--color-text-secondary)] max-w-md">
+              Create a powerful AI-driven workspace to manage your study
+              materials efficiently and collaborate smarter.
+            </p>
 
-              <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto">
-                Create a Ezy Notez Workspace to Manage your Material
-              </p>
+            <Button variant="hero" className="h-12 w-60" size="default" asChild>
+              <Link href="/login">Get Started</Link>
+            </Button>
+          </div>
+        </div>
 
-              <Link
-                href="/register"
-                className="inline-block px-12 py-4 bg-blue-600/80 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-300 backdrop-blur-xl border border-blue-400/30 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105"
-              >
-                Get Started
-              </Link>
+        {/* Product Visual Below */}
+        <div className="mt-10">
+          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-b from-[#111721] to-[#263546] shadow-2xl">
+            <div className="relative w-full h-[500px] flex items-center justify-center">
+              <Image
+                src="/images/landing/hero-2.svg"
+                alt="Ezy Note Preview"
+                width={900}
+                height={600}
+                className="h-[400px] w-auto object-contain"
+                priority
+              />
             </div>
           </div>
         </div>

@@ -8,9 +8,9 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-4xl px-2">
+    <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 mx-auto w-full max-w-7xl px-2">
       <div className="w-full">
-        <div className="flex items-center justify-between backdrop-blur-xl bg-white/5 border border-white/10 rounded-full px-8 py-4 shadow-2xl">
+        <div className="flex items-center justify-between backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl px-8 py-2 shadow-2xl">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <Image src="/images/logo/logo.svg" alt="Ezy Notez" width={100} height={60} />
@@ -20,19 +20,19 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-8">
             <Link
               href="#faq"
-              className="text-white/80 hover:text-white transition-colors text-md font-medium"
+              className="text-text-primary hover:text-accent transition-colors text-md font-medium"
             >
               FAQ
             </Link>
             <Link
               href="#about"
-              className="text-white/80 hover:text-white transition-colors text-md font-medium"
+              className="text-text-primary hover:text-accent transition-colors text-md font-medium"
             >
               About
             </Link>
             <Link
               href="#contact"
-              className="text-white/80 hover:text-white transition-colors text-md font-medium"
+              className="text-text-primary hover:text-accent transition-colors text-md font-medium"
             >
               Contact
             </Link>
