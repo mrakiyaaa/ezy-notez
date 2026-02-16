@@ -1,8 +1,4 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Run lint in frontend
 cd frontend && npm run lint && cd ..
 
-# Run build check in backend
-cd backend && npm run build && cd ..
+# Backend build step removed (no build script defined)
