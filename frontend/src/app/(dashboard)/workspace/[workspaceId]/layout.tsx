@@ -10,14 +10,14 @@ const navItems = [
   { label: "Chatie", path: "chatie" },
 ];
 
-export default function WorkspaceLayout({
+export default async function WorkspaceLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { workspaceId: string };
+  params: Promise<{ workspaceId: string }>;
 }) {
-  const { workspaceId } = params;
+  const { workspaceId } = await params;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
