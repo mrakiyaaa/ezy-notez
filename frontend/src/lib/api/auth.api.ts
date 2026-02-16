@@ -1,28 +1,37 @@
 import { apiClient } from "./axios-config";
 
-export interface LoginCredentials {
+export interface RequestOtpPayload {
   email: string;
-  password: string;
+  redirectTo?: string;
 }
 
-export interface RegisterData {
+export interface VerifyOtpPayload {
   email: string;
-  password: string;
-  name: string;
+  token: string;
+}
+
+export interface UpdateProfilePayload {
+  full_name: string;
 }
 
 export const authApi = {
-  async login(credentials: LoginCredentials) {
-    const response = await apiClient.post("/auth/login", credentials);
+  async requestOtp(payload: RequestOtpPayload) {
+    const response = await apiClient.post("/auth/request-otp", payload);
     return response.data;
   },
 
-  async register(data: RegisterData) {
-    const response = await apiClient.post("/auth/register", data);
+  async verifyOtp(payload: VerifyOtpPayload) {
+    const response = await apiClient.post("/auth/verify-otp", payload);
     return response.data;
   },
 
-  async logout() {
-    localStorage.removeItem("token");
+  async getCurrentUser() {
+    const response = await apiClient.get("/auth/me");
+    return response.data;
+  },
+
+  async updateProfile(payload: UpdateProfilePayload) {
+    const response = await apiClient.put("/auth/update-profile", payload);
+    return response.data;
   },
 };

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { authApi } from "@/lib/api/auth.api";
 
 export default function LoginPage() {
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+  const router = useRouter();
   const [showOtp, setShowOtp] = useState(false);
   const [email, setEmail] = useState("");
   const [otpValues, setOtpValues] = useState(Array(6).fill(""));
@@ -53,16 +55,7 @@ export default function LoginPage() {
     setOtpMessage("");
 
     try {
-      const response = await fetch(`${backendUrl}/auth/magic-link`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to send OTP.");
-      }
+      await authApi.requestOtp({ email });
 
       setOtpValues(Array(6).fill(""));
       setShowOtp(true);
@@ -86,18 +79,9 @@ export default function LoginPage() {
     setOtpMessage("");
 
     try {
-      const response = await fetch(`${backendUrl}/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.message || "OTP verification failed.");
-      }
-
+      await authApi.verifyOtp({ email, token });
       setOtpMessage("OTP verified. You're logged in.");
+      router.push("/workspaces");
     } catch (error) {
       setOtpMessage((error as Error).message);
     } finally {

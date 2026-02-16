@@ -15,7 +15,7 @@
   --breakpoint-lg: 1024px;
 
   /* Backgrounds */
-  --color-bg-main: #04080f;
+  --main: #04080f;
   --color-bg-card: #111721;
 
   /* Accent */
@@ -47,7 +47,7 @@ html {
 }
 
 body {
-  background-color: var(--color-bg-main);
+  background-color: var(--main);
   color: var(--color-text-primary);
   font-family: var(--font-outfit);
   min-height: 100vh;
