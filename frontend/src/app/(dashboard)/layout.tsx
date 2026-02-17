@@ -30,9 +30,9 @@ export default function DashboardLayout({
     updateProfile({ full_name: fullName });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-bg-primary text-text-white">
       {/* TODO: add auth guard when available. */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/80 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-bg-main-slate-950/8 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-4 md:px-6">
           <Link href="/" className="text-lg font-semibold">
             EzyNotez
@@ -49,7 +49,7 @@ export default function DashboardLayout({
             <button
               type="button"
               onClick={handleOpenDrawer}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-white transition hover:border-white/40"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-main text-xs font-semibold text-white transition hover:border-white/40"
               aria-label="Open profile"
             >
               {profile?.avatar_url ? (

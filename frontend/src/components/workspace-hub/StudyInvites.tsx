@@ -12,7 +12,7 @@ export default function StudyInvites({
   onDecline,
 }: StudyInvitesProps) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.4)]">
+    <div className="rounded-2xl border border-white/10 bg-bg-card p-5 shadow-[0_18px_50px_rgba(15,23,42,0.4)]">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-white">Study Room Invites</h3>
         <span className="text-xs text-white/50">{invites.length} pending</span>

@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import express, { Request, Response } from "express";
 import { Pool } from "pg";
 import authRoutes from "./routes/auth.routes";
+import workspaceRoutes from "./routes/workspace.routes";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -35,6 +36,7 @@ app.get("/db/health", async (_req: Request, res: Response) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/workspaces", workspaceRoutes);
 
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);

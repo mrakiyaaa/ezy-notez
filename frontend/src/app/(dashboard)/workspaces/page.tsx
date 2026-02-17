@@ -2,17 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import CreateWorkspaceModal from "@/components/workspace-hub/CreateWorkspaceModal";
+import { Button } from "@/components/ui/button";
+import CreateWorkspaceModal from "@/components/workspaces/CreateWorkspaceModal";
 import DailyBriefing from "@/components/workspace-hub/DailyBriefing";
 import StudyInvites from "@/components/workspace-hub/StudyInvites";
 import UpcomingActivities from "@/components/workspace-hub/UpcomingActivities";
 import WorkspaceGrid from "@/components/workspace-hub/WorkspaceGrid";
+import { getWorkspacesApi } from "@/lib/api/workspace.api";
 import { workspaceService } from "@/lib/services/workspace.service";
 import type { Activity } from "@/types/activity";
 import type { Invite } from "@/types/invite";
 import type { Workspace } from "@/types/workspace";
 
-export default function DashboardPage() {
+export default function WorkspacesPage() {
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -20,21 +22,28 @@ export default function DashboardPage() {
   const [dailyBriefing, setDailyBriefing] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
-      const [workspaceList, inviteList, activityList, briefing] =
-        await Promise.all([
-          workspaceService.getWorkspaces(),
-          workspaceService.getInvites(),
-          workspaceService.getActivities(),
-          workspaceService.getDailyBriefing(),
-        ]);
+      try {
+        const [workspaceList, inviteList, activityList, briefing] =
+          await Promise.all([
+            getWorkspacesApi(),
+            workspaceService.getInvites(),
+            workspaceService.getActivities(),
+            workspaceService.getDailyBriefing(),
+          ]);
 
-      setWorkspaces(workspaceList);
-      setInvites(inviteList);
-      setActivities(activityList);
-      setDailyBriefing(briefing);
+        setWorkspaces(workspaceList);
+        setInvites(inviteList);
+        setActivities(activityList);
+        setDailyBriefing(briefing);
+      } catch (error) {
+        console.error("Failed to load workspaces:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     void loadData();
@@ -54,16 +63,22 @@ export default function DashboardPage() {
     );
   }, [searchQuery, workspaces]);
 
-  const handleCreate = (workspace: Workspace) => {
-    setWorkspaces((current) => [workspace, ...current]);
+  const handleWorkspaceCreated = (slug: string) => {
+    // Reload workspaces after creation
+    getWorkspacesApi()
+      .then(setWorkspaces)
+      .catch((error) => console.error("Failed to reload workspaces:", error));
+    
+    // Navigate to the new workspace
+    router.push(`/workspaces/${slug}`);
   };
 
-  const handleWorkspaceOpen = (workspaceId: string) => {
-    router.push(`/${workspaceId}`);
+  const handleWorkspaceOpen = (slug: string) => {
+    router.push(`/workspaces/${slug}`);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-white md:px-6">
+    <div className="min-h-screen bg-main px-4 py-10 text-text-white md:px-6">
       <div className="grid w-full gap-10 lg:grid-cols-[1.50fr_0.6fr]">
         <div className="flex flex-col gap-8">
           <header className="flex flex-col gap-6">
@@ -81,48 +96,63 @@ export default function DashboardPage() {
                 <input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search projects"
+                  placeholder="Search workspaces"
                   className="w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
                 />
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-linear-to-br from-slate-900 via-slate-900/60 to-slate-950 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
+            <div className="rounded-2xl border border-white/10 bg-linear-to-br bg-bg-card from-slate-900 via-bg-card to-bg-card-slate-950 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm text-white/70">Hello, Alice</p>
+                  <p className="text-sm text-white/70">Welcome to your spaces</p>
                   <h2 className="mt-2 text-xl font-semibold">
-                    Your friend has a new quiz waiting.
+                    Create or join a workspace to get started.
                   </h2>
                   <p className="mt-1 text-sm text-white/50">
-                    Stay ahead with the latest AI-guided review prompts.
+                    Organize your study materials with collaborative workspaces.
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Button
                   onClick={() => setIsModalOpen(true)}
-                  className="rounded-xl bg-blue-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500"
+                  className="bg-blue-accent hover:bg-blue-accent/90"
                 >
                   Create workspace
-                </button>
+                </Button>
               </div>
             </div>
           </header>
 
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Recent Workspaces</h2>
-              <button
-                type="button"
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 hover:bg-white/10"
-              >
-                View all
-              </button>
+              <h2 className="text-lg font-semibold">
+                Your Workspaces {!isLoading && `(${filteredWorkspaces.length})`}
+              </h2>
             </div>
-            <WorkspaceGrid
-              workspaces={filteredWorkspaces}
-              onOpenCreate={() => setIsModalOpen(true)}
-              onSelectWorkspace={handleWorkspaceOpen}
-            />
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-white/50">Loading workspaces...</p>
+              </div>
+            ) : filteredWorkspaces.length > 0 ? (
+              <WorkspaceGrid
+                workspaces={filteredWorkspaces}
+                onOpenCreate={() => setIsModalOpen(true)}
+                onSelectWorkspace={handleWorkspaceOpen}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 py-12">
+                <p className="text-center text-white/50">
+                  {searchQuery ? "No workspaces found" : "No workspaces yet"}
+                </p>
+                {!searchQuery && (
+                  <Button
+                    onClick={() => setIsModalOpen(true)}
+                    className="mt-4 bg-blue-accent hover:bg-blue-accent/90"
+                  >
+                    Create your first workspace
+                  </Button>
+                )}
+              </div>
+            )}
           </section>
         </div>
 
@@ -136,7 +166,7 @@ export default function DashboardPage() {
       <CreateWorkspaceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onCreate={handleCreate}
+        onSuccess={handleWorkspaceCreated}
       />
     </div>
   );
