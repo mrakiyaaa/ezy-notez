@@ -13,15 +13,23 @@ const mapWorkspaces = (): Workspace[] => workspacesData.map(asWorkspace);
 const mapInvites = (): Invite[] => invitesData.map(asInvite);
 const mapActivities = (): Activity[] => (activitiesData as Activity[]);
 
+const toSlug = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
 const createWorkspace = async (
   input: CreateWorkspaceInput,
 ): Promise<Workspace> => {
   const created: Workspace = {
     id: `ws-${Date.now()}`,
     name: input.name.trim(),
-    description: input.description.trim(),
+    slug: toSlug(input.name),
+    description: input.description?.trim() || "",
     createdAt: new Date().toISOString(),
-    sourcesCount: 0,
     aura: input.aura,
   };
 
