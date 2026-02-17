@@ -1,14 +1,15 @@
 export interface Workspace {
   id: string;
   name: string;
-  description: string;
-  createdAt: string;
-  sourcesCount: number;
+  slug: string;
+  description?: string;
   aura: string;
+  createdAt: string;
+  user_id?: string;
 }
 
 export interface CreateWorkspaceInput {
   name: string;
-  description: string;
+  description?: string;
   aura: string;
 }

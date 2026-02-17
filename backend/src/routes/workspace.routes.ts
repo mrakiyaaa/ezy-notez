@@ -1,15 +1,23 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import { authenticateUser } from "../middleware/auth.middleware";
+import {
+  createWorkspaceHandler,
+  getWorkspacesHandler,
+  getWorkspaceBySlugHandler,
+} from "../controllers/workspace.controller";
 
 const router = Router();
 
-router.get("/", authenticateUser, async (req: Request, res: Response) => {
-  const userId = req.user?.id;
+// All routes require authentication
+router.use(authenticateUser);
 
-  return res.json({
-    message: "Workspaces fetched successfully",
-    userId,
-  });
-});
+// List all workspaces for authenticated user
+router.get("/", getWorkspacesHandler);
+
+// Create new workspace
+router.post("/", createWorkspaceHandler);
+
+// Get workspace by slug
+router.get("/:slug", getWorkspaceBySlugHandler);
 
 export default router;

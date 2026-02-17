@@ -27,7 +27,7 @@ const getAura = (aura: string) => auraStyles[aura] ?? auraStyles.blue;
 
 interface WorkspaceCardProps {
   workspace: Workspace;
-  onOpen?: (workspaceId: string) => void;
+  onOpen?: (slug: string) => void;
 }
 
 export default function WorkspaceCard({
@@ -40,7 +40,7 @@ export default function WorkspaceCard({
   return (
     <button
       type="button"
-      onClick={() => onOpen?.(workspace.id)}
+      onClick={() => onOpen?.(workspace.slug)}
       className={`group h-50 w-full rounded-2xl border border-white/10 bg-linear-to-br ${aura.bg} p-5 text-left shadow-[0_18px_60px_rgba(15,23,42,0.45)] ring-1 ${aura.ring} transition hover:-translate-y-1 hover:border-white/20`}
     >
       <div className="flex items-start justify-between">
@@ -52,14 +52,13 @@ export default function WorkspaceCard({
             {workspace.name}
           </h3>
         </div>
-        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
-          {workspace.sourcesCount} sources
-        </div>
       </div>
-      <p className="mt-3 text-sm text-white/70">{workspace.description}</p>
+      {workspace.description && (
+        <p className="mt-3 text-sm text-white/70">{workspace.description}</p>
+      )}
       <div className="mt-5 flex items-center justify-between text-xs text-white/50">
         <span>Created {created}</span>
-        <span className="rounded-full bg-white/5 px-2 py-1 text-white/60">
+        <span className="rounded-full bg-bg-card px-2 py-1 text-white/60">
           Open
         </span>
       </div>

@@ -1,13 +1,31 @@
 import { apiClient } from "./axios-config";
+import { CreateWorkspaceInput, Workspace } from "@/types/workspace";
 
-export interface Workspace {
-  id: string;
-  name: string;
-  description?: string;
-  color: string;
-  createdAt: string;
-  updatedAt: string;
-}
+/**
+ * Get all workspaces for the authenticated user
+ */
+export const getWorkspacesApi = async (): Promise<Workspace[]> => {
+  const response = await apiClient.get("/workspaces");
+  return response.data.data;
+};
+
+/**
+ * Get a single workspace by slug
+ */
+export const getWorkspaceBySlugApi = async (slug: string): Promise<Workspace> => {
+  const response = await apiClient.get(`/workspaces/${slug}`);
+  return response.data.data;
+};
+
+/**
+ * Create a new workspace
+ */
+export const createWorkspaceApi = async (
+  data: CreateWorkspaceInput
+): Promise<Workspace> => {
+  const response = await apiClient.post("/workspaces", data);
+  return response.data.data;
+};
 
 export const workspaceApi = {
   async getAll(): Promise<Workspace[]> {
@@ -15,29 +33,13 @@ export const workspaceApi = {
     return response.data.data;
   },
 
-  async getById(id: string): Promise<Workspace> {
-    const response = await apiClient.get(`/workspaces/${id}`);
+  async getBySlug(slug: string): Promise<Workspace> {
+    const response = await apiClient.get(`/workspaces/${slug}`);
     return response.data.data;
   },
 
-  async create(data: {
-    name: string;
-    description?: string;
-    color?: string;
-  }): Promise<Workspace> {
+  async create(data: CreateWorkspaceInput): Promise<Workspace> {
     const response = await apiClient.post("/workspaces", data);
     return response.data.data;
-  },
-
-  async update(
-    id: string,
-    data: Partial<{ name: string; description: string; color: string }>
-  ): Promise<Workspace> {
-    const response = await apiClient.patch(`/workspaces/${id}`, data);
-    return response.data.data;
-  },
-
-  async delete(id: string): Promise<void> {
-    await apiClient.delete(`/workspaces/${id}`);
   },
 };
