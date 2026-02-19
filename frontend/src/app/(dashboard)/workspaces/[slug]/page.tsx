@@ -1,165 +1,269 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { getWorkspaceBySlugApi } from "@/lib/api/workspace.api";
-import { Workspace } from "@/types/workspace";
+import { useState } from "react";
+import {
+  LayoutDashboard,
+  BookOpen,
+  MessageCircle,
+  Brain,
+  ClipboardList,
+  Settings,
+  Upload,
+  Search,
+  Bell,
+  Sparkles,
+  Layers,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+
+type NavItem = "home" | "resources" | "chattie" | "studyroom" | "quiz";
+type TabItem = "all" | "pdfs" | "ppts" | "audio" | "youtube";
+
+const navItems: { id: NavItem; icon: React.ElementType; label: string }[] = [
+  { id: "home", icon: LayoutDashboard, label: "Home" },
+  { id: "resources", icon: BookOpen, label: "Resources" },
+  { id: "chattie", icon: MessageCircle, label: "Chattie" },
+  { id: "studyroom", icon: Brain, label: "Study Room" },
+  { id: "quiz", icon: ClipboardList, label: "Quiz" },
+];
+
+const filterTabs: { id: TabItem; label: string }[] = [
+  { id: "all", label: "All Files" },
+  { id: "pdfs", label: "PDFs" },
+  { id: "ppts", label: "PPTs" },
+  { id: "audio", label: "Audio" },
+  { id: "youtube", label: "Youtube" },
+];
 
 export default function WorkspacePage() {
-  const params = useParams();
-  const slug = params.slug as string;
-  
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadWorkspace = async () => {
-      try {
-        setLoading(true);
-        const data = await getWorkspaceBySlugApi(slug);
-        setWorkspace(data);
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to load workspace";
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (slug) {
-      void loadWorkspace();
-    }
-  }, [slug]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <p className="text-white/50">Loading workspace...</p>
-      </div>
-    );
-  }
-
-  if (error || !workspace) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">{error || "Workspace not found"}</p>
-          <Link
-            href="/workspaces"
-            className="text-blue-500 hover:text-blue-400 underline"
-          >
-            Back to workspaces
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const auraColor = workspace.aura;
+  const [activeNav, setActiveNav] = useState<NavItem>("resources");
+  const [activeTab, setActiveTab] = useState<TabItem>("all");
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
-      <header className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div
-            className="h-16 rounded-lg mb-6"
-            style={{ backgroundColor: auraColor }}
-          />
+    <div className="flex min-h-screen bg-[#04080f]">
+      {/* Left Sidebar */}
+      <TooltipProvider delayDuration={0}>
+        <aside className="w-16 flex flex-col items-center border-r border-[#1c2530] bg-[#04080f] py-4">
+          {/* Top nav icons */}
+          <div className="flex flex-col items-center gap-2 flex-1">
+            {navItems.map(({ id, icon: Icon, label }) => (
+              <Tooltip key={id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveNav(id)}
+                    className={
+                      activeNav === id
+                        ? "bg-[#111721] text-[#507DBC] rounded-xl p-2"
+                        : "text-[#848484] p-2 hover:text-[#507DBC] transition-colors"
+                    }
+                  >
+                    <Icon className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{label}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+
+          {/* Bottom icons */}
+          <div className="flex flex-col items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-[#848484] p-2 hover:text-[#507DBC] transition-colors">
+                  <Settings className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Settings</p>
+              </TooltipContent>
+            </Tooltip>
+            <div className="bg-[#507DBC] w-8 h-8 rounded-full" />
+          </div>
+        </aside>
+      </TooltipProvider>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Header */}
+        <header className="w-full bg-[#04080f] border-b border-[#1c2530] px-6 py-4 flex items-center justify-between">
+          {/* Left */}
           <div>
-            <h1 className="text-4xl font-bold mb-2">{workspace.name}</h1>
-            {workspace.description && (
-              <p className="text-white/70 max-w-2xl">{workspace.description}</p>
-            )}
-            <p className="text-sm text-white/50 mt-4">
-              Created: {new Date(workspace.createdAt).toLocaleDateString()}
-            </p>
+            <h1 className="text-white font-bold text-lg">Full Stack</h1>
+            <p className="text-[#848484] text-sm">Resource Management</p>
           </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {/* Navigation Cards */}
-          <NavigationCard
-            title="Study Room"
-            description="Collaborative learning space"
-            href={`/workspaces/${slug}/study-room`}
-            icon="🏫"
-          />
-          <NavigationCard
-            title="Resources"
-            description="Manage learning materials"
-            href={`/workspaces/${slug}/resources`}
-            icon="📚"
-          />
-          <NavigationCard
-            title="Quiz"
-            description="Generate & take quizzes"
-            href={`/workspaces/${slug}/quiz`}
-            icon="📝"
-          />
-          <NavigationCard
-            title="Flashcards"
-            description="Create & review flashcards"
-            href={`/workspaces/${slug}/flashcards`}
-            icon="🎯"
-          />
-        </div>
-
-        {/* Demo Content Section */}
-        <section className="rounded-lg border border-white/10 bg-white/5 p-8">
-          <h2 className="text-2xl font-semibold mb-4">Workspace Overview</h2>
-          <div className="space-y-4 text-white/70">
-            <p>
-              Welcome to <strong>{workspace.name}</strong>! This is your dedicated
-              learning space where you can:
-            </p>
-            <ul className="list-disc list-inside space-y-2 ml-2">
-              <li>Create and manage study materials</li>
-              <li>Collaborate with others in real-time</li>
-              <li>Generate AI-powered quizzes and flashcards</li>
-              <li>Track your progress and learning goals</li>
-              <li>Access all your resources in one place</li>
-            </ul>
-            <p className="mt-6">
-              Use the navigation above to get started, or explore the sidebar for
-              additional features and settings.
-            </p>
+          {/* Center search */}
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#848484]" />
+            <input
+              type="text"
+              placeholder="Search Projects"
+              className="w-full bg-[#111721] border border-[#1c2530] rounded-lg pl-10 pr-4 py-2 text-white text-sm placeholder:text-[#848484] focus:outline-none focus:border-[#507DBC]"
+            />
           </div>
-        </section>
-      </main>
+
+          {/* Right */}
+          <div className="flex items-center gap-4">
+            <Bell className="w-5 h-5 text-[#848484] cursor-pointer hover:text-[#507DBC] transition-colors" />
+            <div className="bg-[#507DBC] w-9 h-9 rounded-full" />
+          </div>
+        </header>
+
+        {/* View Content */}
+        <main className="flex-1 overflow-y-auto">
+          {activeNav === "resources" && (
+            <ResourcesView activeTab={activeTab} setActiveTab={setActiveTab} />
+          )}
+          {activeNav === "home" && <HomeView />}
+          {activeNav === "chattie" && <ChattieView />}
+          {activeNav === "studyroom" && <StudyRoomView />}
+          {activeNav === "quiz" && <QuizView />}
+        </main>
+      </div>
     </div>
   );
 }
 
-interface NavigationCardProps {
-  title: string;
-  description: string;
-  href: string;
-  icon: string;
+/* ─── Resources View ─── */
+function ResourcesView({
+  activeTab,
+  setActiveTab,
+}: {
+  activeTab: TabItem;
+  setActiveTab: (tab: TabItem) => void;
+}) {
+  return (
+    <>
+      {/* Upload Card */}
+      <div className="mx-6 mt-6 border-2 border-dashed border-[#1c2530] bg-[#111721] rounded-xl p-12 text-center">
+        <div className="bg-[#1c2530] p-4 rounded-full mx-auto mb-4 w-fit">
+          <Upload className="w-8 h-8 text-[#507DBC]" />
+        </div>
+        <h2 className="text-white font-bold text-xl">
+          Upload Academic Resources
+        </h2>
+        <p className="text-[#848484] text-sm mt-2">
+          Drag and drop PDFs, PPTs, or paste YouTube links to start AI
+          processing.
+        </p>
+        <Button className="bg-[#507DBC] text-white rounded-lg px-8 py-2 mt-6 mx-auto block hover:bg-[#507DBC]/90">
+          Select Files
+        </Button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="mx-6 mt-4 flex items-center gap-1">
+        {filterTabs.map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={
+              activeTab === id
+                ? "bg-[#507DBC] text-white rounded-full px-4 py-1 text-sm"
+                : "text-[#848484] px-4 py-1 text-sm hover:text-white transition-colors"
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Empty State */}
+      <div className="flex flex-col items-center justify-center mt-20">
+        <h3 className="text-white font-semibold text-xl">
+          Your resources are empty
+        </h3>
+        <p className="text-[#848484] text-sm mt-2">Upload resources first</p>
+      </div>
+    </>
+  );
 }
 
-function NavigationCard({
-  title,
-  description,
-  href,
-  icon,
-}: NavigationCardProps) {
+/* ─── Home View ─── */
+function HomeView() {
   return (
-    <a
-      href={href}
-      className="group rounded-lg border border-white/10 bg-white/5 p-6 transition hover:bg-white/10 hover:border-white/20"
-    >
-      <div className="text-4xl mb-3">{icon}</div>
-      <h3 className="text-lg font-semibold mb-1 group-hover:text-blue-400 transition">
-        {title}
-      </h3>
-      <p className="text-sm text-white/60">{description}</p>
-    </a>
+    <>
+      <h2 className="text-white font-bold text-2xl mx-6 mt-6">
+        Dashboard Home
+      </h2>
+      <div className="grid grid-cols-2 gap-4 mx-6 mt-4">
+        {/* Generate Summary Card */}
+        <div className="bg-[#111721] border border-[#1c2530] rounded-xl p-6">
+          <Sparkles className="w-8 h-8 text-[#507DBC]" />
+          <h3 className="text-white font-semibold text-lg mt-3">
+            Generate Summary
+          </h3>
+          <p className="text-[#848484] text-sm mt-1">
+            Summarize your uploaded resources instantly.
+          </p>
+          <Button className="bg-[#507DBC] text-white mt-4 rounded-lg px-4 py-2 hover:bg-[#507DBC]/90">
+            Generate
+          </Button>
+        </div>
+
+        {/* Generate Flashcards Card */}
+        <div className="bg-[#111721] border border-[#1c2530] rounded-xl p-6">
+          <Layers className="w-8 h-8 text-[#507DBC]" />
+          <h3 className="text-white font-semibold text-lg mt-3">
+            Generate Flashcards
+          </h3>
+          <p className="text-[#848484] text-sm mt-1">
+            Create flashcards from your study material.
+          </p>
+          <Button className="bg-[#507DBC] text-white mt-4 rounded-lg px-4 py-2 hover:bg-[#507DBC]/90">
+            Generate
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Chattie View ─── */
+function ChattieView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
+      <MessageCircle className="w-12 h-12 text-[#507DBC]" />
+      <h2 className="text-white font-bold text-xl mt-4">
+        Chattie - AI Chatbot
+      </h2>
+      <p className="text-[#848484] text-sm mt-2">
+        Your AI-powered study assistant will appear here.
+      </p>
+    </div>
+  );
+}
+
+/* ─── Study Room View ─── */
+function StudyRoomView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
+      <Brain className="w-12 h-12 text-[#507DBC]" />
+      <h2 className="text-white font-bold text-xl mt-4">Study Room</h2>
+      <p className="text-[#848484] text-sm mt-2">
+        Collaborative study sessions will appear here.
+      </p>
+    </div>
+  );
+}
+
+/* ─── Quiz View ─── */
+function QuizView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
+      <ClipboardList className="w-12 h-12 text-[#507DBC]" />
+      <h2 className="text-white font-bold text-xl mt-4">Quiz</h2>
+      <p className="text-[#848484] text-sm mt-2">
+        AI-generated quizzes will appear here.
+      </p>
+    </div>
   );
 }
