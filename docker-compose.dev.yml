@@ -16,6 +16,7 @@ services:
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - UPLOADTHING_TOKEN=${UPLOADTHING_TOKEN}
     volumes:
       # Mount source code for live reloading
       - ./backend/src:/app/src

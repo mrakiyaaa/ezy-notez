@@ -1,6 +1,7 @@
  "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
@@ -12,6 +13,12 @@ import {
   Search,
   Sparkles,
   Layers,
+  FileText,
+  Presentation,
+  Image as ImageIcon,
+  Music,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -20,6 +27,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/hooks/useAuth";
+import {
+  Resource,
+  ResourceType,
+  ResourceStatus,
+  getWorkspaceResources,
+  getWorkspaceIdBySlug,
+  insertResource,
+  updateResourceStatus,
+  deleteResource,
+} from "@/lib/resources";
+import { useUploadThing } from "@/lib/uploadthing-hook";
 
 type NavItem = "home" | "resources" | "chattie" | "studyroom" | "quiz";
 type TabItem = "all" | "pdfs" | "ppts" | "audio" | "youtube";
@@ -39,6 +58,46 @@ const filterTabs: { id: TabItem; label: string }[] = [
   { id: "audio", label: "Audio" },
   { id: "youtube", label: "Youtube" },
 ];
+
+// ─── Helpers ─────────────────────────────────────────────
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+function timeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH} hour${diffH > 1 ? "s" : ""} ago`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return "Yesterday";
+  return `${diffD} days ago`;
+}
+
+function getMimeType(file: File): ResourceType {
+  const mime = file.type.toLowerCase();
+  if (mime === "application/pdf") return "pdf";
+  if (
+    mime === "application/vnd.ms-powerpoint" ||
+    mime ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  )
+    return "ppt";
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("audio/")) return "audio";
+  return "pdf"; // fallback
+}
+
+// ─── Main Page ───────────────────────────────────────────
 
 export default function WorkspacePage() {
   const [activeNav, setActiveNav] = useState<NavItem>("resources");
@@ -133,8 +192,187 @@ function ResourcesView({
   activeTab: TabItem;
   setActiveTab: (tab: TabItem) => void;
 }) {
+  const params = useParams();
+  const slug = params.slug as string;
+  const { user } = useAuth();
+
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Resolve workspace id from slug via backend API
+  useEffect(() => {
+    if (!slug) {
+      setLoadError("No workspace slug provided");
+      setIsLoading(false);
+      return;
+    }
+    
+    let mounted = true;
+    
+    console.log(`Loading workspace with slug: ${slug}`);
+    
+    getWorkspaceIdBySlug(slug)
+      .then((id) => {
+        if (!mounted) return;
+        if (!id) {
+          setLoadError(`Workspace not found for slug: ${slug}`);
+          setIsLoading(false);
+        } else {
+          console.log(`Workspace loaded: ${id}`);
+          setWorkspaceId(id);
+        }
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        console.error("Failed to get workspace ID:", err);
+        setLoadError(`Failed to load workspace: ${err.message}`);
+        setIsLoading(false);
+      });
+    
+    return () => {
+      mounted = false;
+    };
+  }, [slug]);
+
+  // Load existing resources
+  const loadResources = useCallback(async () => {
+    if (!workspaceId) {
+      console.log("Skipping resource load - no workspace ID yet");
+      return;
+    }
+    
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await getWorkspaceResources(workspaceId);
+      setResources(data);
+    } catch (err) {
+      console.error("Failed to load resources:", err);
+      setLoadError(`Failed to load resources: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadResources();
+  }, [loadResources]);
+
+  // UploadThing hook
+  const { startUpload, isUploading } = useUploadThing("resourceUploader", {
+    onClientUploadComplete: async (res: { name: string; url: string; ufsUrl?: string }[]) => {
+      if (!res) return;
+      // Update each uploaded file's status to "ready"
+      for (const file of res) {
+        const url = file.ufsUrl ?? file.url;
+        // Find matching resource in local state by name
+        setResources((prev) =>
+          prev.map((r) =>
+            r.name === file.name && r.status !== "ready"
+              ? { ...r, status: "ready" as ResourceStatus, url }
+              : r
+          )
+        );
+        // Update in Supabase – find existing resource by name
+        const match = resources.find(
+          (r) => r.name === file.name && r.status !== "ready"
+        );
+        if (match) {
+          await updateResourceStatus(match.id, "ready", url);
+        }
+      }
+    },
+    onUploadError: (err: Error) => {
+      console.error("Upload error:", err);
+    },
+  });
+
+  // Handle file selection
+  const handleSelectFiles = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !workspaceId || !user) return;
+
+    const fileArray = Array.from(files);
+
+    // 1. Insert rows with "uploading" status
+    const newResources: Resource[] = [];
+    for (const file of fileArray) {
+      const resourceType = getMimeType(file);
+      try {
+        const resource = await insertResource({
+          user_id: user.id,
+          workspace_id: workspaceId,
+          name: file.name,
+          url: "",
+          size: file.size,
+          type: resourceType,
+          status: "uploading",
+        });
+        newResources.push(resource);
+      } catch (err) {
+        console.error("Failed to insert resource:", err);
+      }
+    }
+
+    // Add to local state
+    setResources((prev) => [...newResources, ...prev]);
+
+    // 2. Start upload
+    try {
+      await startUpload(fileArray);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    }
+
+    // Reset input
+    e.target.value = "";
+  };
+
+  // Handle delete
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteResource(id);
+      setResources((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      console.error("Failed to delete:", err);
+    }
+  };
+
+  // Filter resources
+  const tabTypeMap: Record<TabItem, ResourceType | null> = {
+    all: null,
+    pdfs: "pdf",
+    ppts: "ppt",
+    audio: "audio",
+    youtube: "youtube",
+  };
+
+  const filtered =
+    activeTab === "all"
+      ? resources
+      : resources.filter((r) => r.type === tabTypeMap[activeTab]);
+
   return (
     <>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        multiple
+        accept=".pdf,.ppt,.pptx,image/*,audio/*"
+        onChange={handleFilesSelected}
+      />
+
       {/* Upload Card */}
       <div className="mx-6 mt-6 border-2 border-dashed border-fade-border bg-bg-card rounded-xl p-12 text-center">
         <div className="bg-fade-border p-4 rounded-full mx-auto mb-4 w-fit">
@@ -147,8 +385,19 @@ function ResourcesView({
           Drag and drop PDFs, PPTs, or paste YouTube links to start AI
           processing.
         </p>
-        <Button className="bg-blue-accent text-text-primary rounded-lg px-8 py-2 mt-6 mx-auto block hover:bg-blue-accent/90">
-          Select Files
+        <Button
+          onClick={handleSelectFiles}
+          disabled={isUploading || !workspaceId}
+          className="bg-blue-accent text-text-primary rounded-lg px-8 py-2 mt-6 mx-auto block hover:bg-blue-accent/90 disabled:opacity-50"
+        >
+          {isUploading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Uploading...
+            </span>
+          ) : (
+            "Select Files"
+          )}
         </Button>
       </div>
 
@@ -169,94 +418,184 @@ function ResourcesView({
         ))}
       </div>
 
-      {/* Empty State */}
-      <div className="flex flex-col items-center justify-center mt-20">
-        <h3 className="text-text-primary font-semibold text-xl">
-          Your resources are empty
-        </h3>
-        <p className="text-text-muted text-sm mt-2">Upload resources first</p>
-      </div>
+      {/* Resource List */}
+      {loadError ? (
+        <div className="flex flex-col items-center justify-center mt-20">
+          <div className="text-red-400 text-center max-w-md">
+            <p className="font-semibold mb-2">Unable to Load Resources</p>
+            <p className="text-sm">{loadError}</p>
+            <details className="text-xs text-text-muted mt-4 cursor-pointer">
+              <summary>Debug Info</summary>
+              <pre className="mt-2 bg-main p-2 rounded text-left text-xs overflow-auto">
+Workspace slug: {slug}
+Current URL: {typeof window !== "undefined" ? window.location.pathname : "N/A"}
+              </pre>
+            </details>
+            <p className="text-xs text-text-muted mt-4">1. Open browser DevTools (F12)</p>
+            <p className="text-xs text-text-muted">2. Check Console tab for detailed Supabase errors</p>
+            <p className="text-xs text-text-muted">3. Verify workspace exists in Supabase dashboard</p>
+          </div>
+        </div>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center mt-20">
+          <Loader2 className="w-8 h-8 text-blue-accent animate-spin" />
+        </div>
+      ) : filtered.length > 0 ? (
+        <div className="mx-6 mt-4 flex flex-col gap-3 pb-6">
+          {filtered.map((resource) => (
+            <ResourceItem
+              key={resource.id}
+              resource={resource}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center mt-20">
+          <h3 className="text-text-primary font-semibold text-xl">
+            {activeTab === "all"
+              ? "Your resources are empty"
+              : `No ${activeTab} files`}
+          </h3>
+          <p className="text-text-muted text-sm mt-2">
+            Upload resources first
+          </p>
+        </div>
+      )}
     </>
   );
 }
 
-/* ─── Home View ─── */
+/* ─── Resource Item ─── */
+function ResourceItem({
+  resource,
+  onDelete,
+}: {
+  resource: Resource;
+  onDelete: (id: string) => void;
+}) {
+  const iconConfig: Record<
+    ResourceType,
+    { bg: string; icon: React.ElementType; color: string }
+  > = {
+    pdf: { bg: "bg-red-900/40", icon: FileText, color: "text-red-400" },
+    ppt: {
+      bg: "bg-orange-900/40",
+      icon: Presentation,
+      color: "text-orange-400",
+    },
+    image: {
+      bg: "bg-purple-900/40",
+      icon: ImageIcon,
+      color: "text-purple-400",
+    },
+    audio: { bg: "bg-blue-900/40", icon: Music, color: "text-blue-400" },
+    youtube: { bg: "bg-red-900/40", icon: FileText, color: "text-red-400" },
+  };
+
+  const statusConfig: Record<
+    ResourceStatus,
+    { bg: string; color: string; label: string; pulse: boolean }
+  > = {
+    uploading: {
+      bg: "bg-yellow-900/40",
+      color: "text-yellow-400",
+      label: "Uploading",
+      pulse: true,
+    },
+    processing: {
+      bg: "bg-blue-900/40",
+      color: "text-[#507DBC]",
+      label: "Processing",
+      pulse: true,
+    },
+    ready: {
+      bg: "bg-green-900/40",
+      color: "text-green-400",
+      label: "Ready",
+      pulse: false,
+    },
+  };
+
+  const { bg, icon: Icon, color } = iconConfig[resource.type] ?? iconConfig.pdf;
+  const status = statusConfig[resource.status] ?? statusConfig.processing;
+
+  return (
+    <div className="bg-bg-card rounded-xl border border-fade-border px-4 py-3 flex items-center gap-4 group">
+      {/* File icon */}
+      <div className={`${bg} rounded-lg p-2.5 shrink-0`}>
+        <Icon className={`w-5 h-5 ${color}`} />
+      </div>
+
+      {/* File info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-white font-medium text-sm truncate">
+          {resource.name}
+        </p>
+        <p className="text-text-muted text-xs mt-0.5">
+          {formatBytes(resource.size)} &middot;{" "}
+          {timeAgo(new Date(resource.created_at))}
+        </p>
+      </div>
+
+      {/* Status badge */}
+      <span
+        className={`${status.bg} ${status.color} rounded-full px-3 py-1 text-xs font-medium shrink-0 ${
+          status.pulse ? "animate-pulse" : ""
+        }`}
+      >
+        {status.label}
+      </span>
+
+      {/* Delete button */}
+      <button
+        onClick={() => onDelete(resource.id)}
+        className="text-text-muted opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all shrink-0"
+        title="Delete"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+/* ─── Placeholder Views ─── */
 function HomeView() {
   return (
-    <>
-      <h2 className="text-text-primary font-bold text-2xl mx-6 mt-6">
-        Dashboard Home
-      </h2>
-      <div className="grid grid-cols-2 gap-4 mx-6 mt-4">
-        {/* Generate Summary Card */}
-        <div className="bg-bg-card border border-fade-border rounded-xl p-6">
-          <Sparkles className="w-8 h-8 text-blue-accent" />
-          <h3 className="text-text-primary font-semibold text-lg mt-3">
-            Generate Summary
-          </h3>
-          <p className="text-text-muted text-sm mt-1">
-            Summarize your uploaded resources instantly.
-          </p>
-          <Button className="bg-blue-accent text-text-primary mt-4 rounded-lg px-4 py-2 hover:bg-blue-accent/90">
-            Generate
-          </Button>
-        </div>
-
-        {/* Generate Flashcards Card */}
-        <div className="bg-bg-card border border-fade-border rounded-xl p-6">
-          <Layers className="w-8 h-8 text-blue-accent" />
-          <h3 className="text-text-primary font-semibold text-lg mt-3">
-            Generate Flashcards
-          </h3>
-          <p className="text-text-muted text-sm mt-1">
-            Create flashcards from your study material.
-          </p>
-          <Button className="bg-blue-accent text-text-primary mt-4 rounded-lg px-4 py-2 hover:bg-blue-accent/90">
-            Generate
-          </Button>
-        </div>
-      </div>
-    </>
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <Sparkles className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Home</h2>
+      <p className="text-sm">Your workspace overview will appear here.</p>
+    </div>
   );
 }
 
-/* ─── Chattie View ─── */
 function ChattieView() {
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
-      <MessageCircle className="w-12 h-12 text-blue-accent" />
-      <h2 className="text-text-primary font-bold text-xl mt-4">
-        Chattie - AI Chatbot
-      </h2>
-      <p className="text-text-muted text-sm mt-2">
-        Your AI-powered study assistant will appear here.
-      </p>
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <MessageCircle className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Chattie</h2>
+      <p className="text-sm">AI chat assistant coming soon.</p>
     </div>
   );
 }
 
-/* ─── Study Room View ─── */
 function StudyRoomView() {
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
-      <Brain className="w-12 h-12 text-blue-accent" />
-      <h2 className="text-text-primary font-bold text-xl mt-4">Study Room</h2>
-      <p className="text-text-muted text-sm mt-2">
-        Collaborative study sessions will appear here.
-      </p>
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <Layers className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Study Room</h2>
+      <p className="text-sm">Collaborative study tools coming soon.</p>
     </div>
   );
 }
 
-/* ─── Quiz View ─── */
 function QuizView() {
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
-      <ClipboardList className="w-12 h-12 text-blue-accent" />
-      <h2 className="text-text-primary font-bold text-xl mt-4">Quiz</h2>
-      <p className="text-text-muted text-sm mt-2">
-        AI-generated quizzes will appear here.
-      </p>
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <ClipboardList className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Quiz</h2>
+      <p className="text-sm">AI-generated quizzes coming soon.</p>
     </div>
   );
 }
