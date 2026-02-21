@@ -1,24 +1,10 @@
-# DEFAULT DOCKER COMPOSE FILE
-# 
-# NOTE: This file is kept for backward compatibility only.
-# 
-# Please use one of the following instead:
-#
-# For Development (with live reloading):
-#     docker-compose -f docker-compose.dev.yml up --build
-#
-# For Production (optimized image):
-#     docker-compose -f docker-compose.prod.yml up --build
-#
-# See DOCKER_DEVELOPMENT.md for more information
-
 services:
-  # Backend service
+  # Backend service - Production
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ezynotes-backend
+    container_name: ezynotes-backend-prod
     ports:
       - "3001:3001"
     environment:
@@ -40,12 +26,12 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # Frontend service
+  # Frontend service - Production
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ezynotes-frontend
+    container_name: ezynotes-frontend-prod
     ports:
       - "3000:3000"
     environment:

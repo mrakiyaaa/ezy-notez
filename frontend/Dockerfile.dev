@@ -1,0 +1,26 @@
+# Frontend Dockerfile - Development
+# This Dockerfile is optimized for development with hot-reloading
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY next.config.ts ./
+COPY postcss.config.mjs ./
+
+# Install all dependencies (including devDependencies)
+RUN npm install --legacy-peer-deps
+
+# Expose frontend port
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Run Next.js in development mode with hot-reloading
+CMD ["npm", "run", "dev"]
