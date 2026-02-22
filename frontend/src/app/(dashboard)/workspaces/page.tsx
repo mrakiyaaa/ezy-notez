@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateWorkspaceModal from "@/components/workspaces/CreateWorkspaceModal";
 import DailyBriefing from "@/components/workspace-hub/DailyBriefing";
@@ -91,15 +92,16 @@ export default function WorkspacesPage() {
                   Your AI-powered learning space
                 </h1>
               </div>
-              <div className="flex w-full max-w-sm items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                <span className="text-sm text-white/40">Search</span>
+                <div className="relative w-96">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input
+                  type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search workspaces"
-                  className="w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
+                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-white text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
                 />
-              </div>
+                </div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-linear-to-br bg-bg-card from-slate-900 via-bg-card to-bg-card-slate-950 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

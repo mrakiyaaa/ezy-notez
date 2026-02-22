@@ -7,11 +7,10 @@ import workspacesData from "@/lib/mock/workspaces.json";
 
 const asWorkspace = (item: Workspace): Workspace => item;
 const asInvite = (item: Invite): Invite => item;
-const asActivity = (item: Activity): Activity => item;
 
 const mapWorkspaces = (): Workspace[] => workspacesData.map(asWorkspace);
 const mapInvites = (): Invite[] => invitesData.map(asInvite);
-const mapActivities = (): Activity[] => (activitiesData as Activity[]);
+const mapActivities = (): Activity[] => activitiesData as Activity[];
 
 const toSlug = (value: string): string =>
   value

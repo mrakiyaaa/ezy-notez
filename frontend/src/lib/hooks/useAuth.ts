@@ -35,7 +35,7 @@ export const useAuth = () => {
 				});
 			} catch (error) {
 				if (!isMounted) return;
-
+				
 				setState({
 					user: null,
 					profile: null,
