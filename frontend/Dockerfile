@@ -1,51 +1,58 @@
-# Frontend Dockerfile
+# ─────────────────────────────────────────────
+# Stage: base — shared foundation
+# ─────────────────────────────────────────────
 FROM node:20-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# ─────────────────────────────────────────────
+# Stage: dev — hot-reload development server
+# ─────────────────────────────────────────────
+FROM base AS dev
+# Install all dependencies (including devDependencies)
 RUN npm install --legacy-peer-deps
 
-# Build the application
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy source so the image works standalone;
+# in compose the host bind-mount will shadow this.
 COPY . .
 
-# Set environment variables for build
-ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+ENV NODE_ENV=development
 
-# Build Next.js application
+CMD ["npm", "run", "dev"]
+
+# ─────────────────────────────────────────────
+# Stage: builder — compile for production
+# ─────────────────────────────────────────────
+FROM base AS builder
+RUN npm install --legacy-peer-deps
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Production image
-FROM base AS runner
+# ─────────────────────────────────────────────
+# Stage: prod — minimal production image
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS prod
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Non-root user for security
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser  --system --uid 1001 nextjs
 
-# Copy built files
-COPY --from=builder /app/public ./public
+# next.config.ts has output:"standalone" — copy its artefacts
+COPY --from=builder /app/public                              ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static  ./.next/static
 
 USER nextjs
 
-# Expose frontend port
 EXPOSE 3000
-
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application
 CMD ["node", "server.js"]

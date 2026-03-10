@@ -2,54 +2,51 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { authApi } from "../api/auth.api";
-import type { AuthUser, Profile } from "@/types/user";
-
-type ProfileState = {
-  user: AuthUser | null;
-  profile: Profile | null;
-  isLoading: boolean;
-  isUpdating: boolean;
-  error: string | null;
-};
+import { useAuthStore } from "../store/auth-store";
 
 type UpdateProfilePayload = {
   full_name: string;
 };
 
+/**
+ * Exposes the current user/profile from the global auth store and provides
+ * an `updateProfile` action that persists changes to the server and keeps the
+ * store in sync.
+ */
 export const useProfile = () => {
-  const [state, setState] = useState<ProfileState>({
-    user: null,
-    profile: null,
-    isLoading: true,
-    isUpdating: false,
-    error: null,
-  });
+  const {
+    user,
+    profile,
+    isLoading,
+    isInitialized,
+    setAuth,
+    clearAuth,
+    setLoading,
+    updateProfile: storeUpdateProfile,
+  } = useAuthStore();
 
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Hydrate from the server on first mount (same logic as useAuth)
   useEffect(() => {
+    if (isInitialized) return;
+
     let isMounted = true;
 
     const loadUser = async () => {
+      setLoading(true);
       try {
         const data = await authApi.getCurrentUser();
         if (!isMounted) return;
-
-        setState((prev) => ({
-          ...prev,
-          user: data.user ?? null,
-          profile: data.profile ?? null,
-          isLoading: false,
-          error: null,
-        }));
-      } catch (error) {
+        if (data.user) {
+          setAuth(data.user, data.profile ?? null);
+        } else {
+          clearAuth();
+        }
+      } catch {
         if (!isMounted) return;
-
-        setState((prev) => ({
-          ...prev,
-          user: null,
-          profile: null,
-          isLoading: false,
-          error: (error as Error).message,
-        }));
+        clearAuth();
       }
     };
 
@@ -58,35 +55,27 @@ export const useProfile = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isInitialized, setAuth, clearAuth, setLoading]);
 
-  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
-    setState((prev) => ({ ...prev, isUpdating: true, error: null }));
+  const updateProfile = useCallback(
+    async (payload: UpdateProfilePayload) => {
+      setIsUpdating(true);
+      setError(null);
+      try {
+        const data = await authApi.updateProfile(payload);
+        const updated = data.profile ?? null;
+        if (updated) storeUpdateProfile(updated);
+        return updated;
+      } catch (err) {
+        setError((err as Error).message);
+        return null;
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [storeUpdateProfile]
+  );
 
-    try {
-      const data = await authApi.updateProfile(payload);
-
-      setState((prev) => ({
-        ...prev,
-        profile: data.profile ?? prev.profile,
-        isUpdating: false,
-        error: null,
-      }));
-
-      return data.profile ?? null;
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        isUpdating: false,
-        error: (error as Error).message,
-      }));
-
-      return null;
-    }
-  }, []);
-
-  return {
-    ...state,
-    updateProfile,
-  };
+  return { user, profile, isLoading, isUpdating, error, updateProfile };
 };
+

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import ProfileDrawer from "@/components/profile/ProfileDrawer";
+import SessionTimeoutWarning from "@/components/SessionTimeoutWarning";
 import { useProfile } from "@/lib/hooks/useProfile";
+import { useSessionTimeout } from "@/lib/hooks/useSessionTimeout";
 
 export default function DashboardLayout({
   children,
@@ -12,6 +14,10 @@ export default function DashboardLayout({
 }) {
   const { profile, user, isLoading, updateProfile } = useProfile();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // ── Session timeout (20 min inactivity / 1 hour absolute) ─────────────────
+  const { showWarning, warningType, remainingMs, extendSession } =
+    useSessionTimeout();
 
   const displayName = profile?.full_name || "Student";
   const displayEmail = profile?.email || user?.email || "";
@@ -81,6 +87,14 @@ export default function DashboardLayout({
             : null
         }
         onSave={handleSaveProfile}
+      />
+
+      {/* Session expiry warning banner */}
+      <SessionTimeoutWarning
+        show={showWarning}
+        warningType={warningType}
+        remainingMs={remainingMs}
+        onStayLoggedIn={extendSession}
       />
     </div>
   );

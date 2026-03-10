@@ -1,69 +1,57 @@
+# docker-compose.dev.yml
+# Development mode — hot reload via bind mounts
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# node_modules anonymous volumes ensure the container's installed
+# packages are NOT overridden by the (empty) host directory.
+
 services:
-  # Backend service - Development
+
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: dev          # selects the "dev" stage in backend/Dockerfile
     container_name: ezynotes-backend-dev
     ports:
       - "3001:3001"
+    volumes:
+      - ./backend:/app           # bind-mount source for hot reload
+      - /app/node_modules        # anonymous volume — keep container's node_modules
     environment:
       - NODE_ENV=development
       - PORT=3001
       - FRONTEND_URL=http://localhost:3000
-      # Supabase configuration (override with your values)
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_DB_URL=${SUPABASE_DB_URL}
-      - UPLOADTHING_TOKEN=${UPLOADTHING_TOKEN}
-    volumes:
-      # Mount source code for live reloading
-      - ./backend/src:/app/src
-      - ./backend/package.json:/app/package.json
-      - ./backend/package-lock.json:/app/package-lock.json
-      - ./backend/tsconfig.json:/app/tsconfig.json
-      - /app/node_modules  # Named volume to prevent overwriting node_modules
     networks:
       - ezynotes-network
-    restart: unless-stopped
-    # Keep container running for development
-    stdin_open: true
-    tty: true
 
-  # Frontend service - Development
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: dev          # selects the "dev" stage in frontend/Dockerfile
     container_name: ezynotes-frontend-dev
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app          # bind-mount source for hot reload
+      - /app/node_modules        # anonymous volume — keep container's node_modules
+      - /app/.next               # anonymous volume — keep container's Next.js cache
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:3001/api
-      # Supabase configuration (override with your values)
       - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-    volumes:
-      # Mount source code for live reloading
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-      - ./frontend/package.json:/app/package.json
-      - ./frontend/package-lock.json:/app/package-lock.json
-      - ./frontend/tsconfig.json:/app/tsconfig.json
-      - ./frontend/next.config.ts:/app/next.config.ts
-      - ./frontend/tailwind.config.ts:/app/tailwind.config.ts
-      - /app/node_modules  # Named volume to prevent overwriting node_modules
-      - /app/.next  # Named volume for Next.js cache
     depends_on:
       - backend
     networks:
       - ezynotes-network
-    restart: unless-stopped
-    # Keep container running for development
-    stdin_open: true
-    tty: true
 
 networks:
   ezynotes-network:

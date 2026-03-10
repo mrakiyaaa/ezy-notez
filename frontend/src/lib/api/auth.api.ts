@@ -34,4 +34,16 @@ export const authApi = {
     const response = await apiClient.put("/auth/update-profile", payload);
     return response.data;
   },
+
+  /** Rotate the HttpOnly session cookies server-side using the refresh token. */
+  async refresh() {
+    const response = await apiClient.post("/auth/refresh");
+    return response.data;
+  },
+
+  /** Clear session cookies on the server and wipe client-side auth state. */
+  async logout() {
+    const response = await apiClient.post("/auth/logout");
+    return response.data;
+  },
 };

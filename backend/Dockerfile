@@ -1,38 +1,50 @@
-# Backend Dockerfile
+# ─────────────────────────────────────────────
+# Stage: base — shared foundation
+# ─────────────────────────────────────────────
 FROM node:20-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# ─────────────────────────────────────────────
+# Stage: dev — hot-reload development server
+# Uses ts-node-dev (TypeScript-aware nodemon equivalent)
+# ─────────────────────────────────────────────
+FROM base AS dev
+# Install all dependencies including devDependencies (ts-node-dev, typescript)
 RUN npm install --legacy-peer-deps
 
-# Build the application
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy source so the image works standalone;
+# in compose the host bind-mount will shadow this.
 COPY . .
 
-# Build TypeScript
+EXPOSE 3001
+ENV NODE_ENV=development
+
+# npm run dev → ts-node-dev --respawn --transpile-only src/index.ts
+CMD ["npm", "run", "dev"]
+
+# ─────────────────────────────────────────────
+# Stage: builder — compile TypeScript
+# ─────────────────────────────────────────────
+FROM base AS builder
+RUN npm install --legacy-peer-deps
+COPY . .
 RUN npm run build
 
-# Production image
-FROM base AS runner
+# ─────────────────────────────────────────────
+# Stage: prod — minimal production image
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS prod
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy built files and dependencies
-COPY --from=builder /app/dist ./dist
+# Copy compiled JS, runtime node_modules, and package manifest
+COPY --from=builder /app/dist         ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# Expose backend port
 EXPOSE 3001
 
-# Start the application
+# npm start → node dist/index.js
 CMD ["npm", "start"]

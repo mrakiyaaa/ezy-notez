@@ -4,12 +4,12 @@ const f = createUploadthing();
 
 export const uploadRouter = {
   resourceUploader: f({
-    "application/pdf": { maxFileSize: "32MB", maxFileCount: 10 },
-    "application/vnd.ms-powerpoint": { maxFileSize: "32MB", maxFileCount: 10 },
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-      maxFileSize: "32MB",
-      maxFileCount: 10,
-    },
+    // UploadThing v7 only accepts its built-in type shortcuts as router keys.
+    // Using full MIME types (e.g. "application/pdf") causes the "/" to be
+    // double-encoded in presigned URLs, resulting in a 500 from the ingest server.
+    pdf: { maxFileSize: "32MB", maxFileCount: 10 },
+    // No built-in PPT shorthand — use blob (accepts any MIME type).
+    blob: { maxFileSize: "32MB", maxFileCount: 10 },
     image: { maxFileSize: "16MB", maxFileCount: 10 },
     audio: { maxFileSize: "64MB", maxFileCount: 10 },
   })

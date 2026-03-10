@@ -1,56 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { authApi } from "../api/auth.api";
-import type { AuthUser, Profile } from "@/types/user";
+import { useAuthStore } from "../store/auth-store";
 
-type AuthState = {
-	user: AuthUser | null;
-	profile: Profile | null;
-	isLoading: boolean;
-	error: string | null;
-};
-
+/**
+ * Returns the current auth state from the global Zustand store.
+ *
+ * On first mount after a cold start (no persisted state), it fires one
+ * GET /auth/me request to re-hydrate the session from the HttpOnly cookies.
+ * Subsequent renders – and any other component using useAuth – read from the
+ * shared store without triggering additional API calls.
+ */
 export const useAuth = () => {
-	const [state, setState] = useState<AuthState>({
-		user: null,
-		profile: null,
-		isLoading: true,
-		error: null,
-	});
+  const { user, profile, isLoading, isInitialized, setAuth, clearAuth, setLoading } =
+    useAuthStore();
 
-	useEffect(() => {
-		let isMounted = true;
+  useEffect(() => {
+    // Already established a session in the store – nothing to do.
+    if (isInitialized && user) return;
+    // Already tried and found no session – don't keep hammering the API.
+    if (isInitialized && !user) return;
 
-		const loadUser = async () => {
-			try {
-				const data = await authApi.getCurrentUser();
-				if (!isMounted) return;
+    let isMounted = true;
 
-				setState({
-					user: data.user ?? null,
-					profile: data.profile ?? null,
-					isLoading: false,
-					error: null,
-				});
-			} catch (error) {
-				if (!isMounted) return;
-				
-				setState({
-					user: null,
-					profile: null,
-					isLoading: false,
-					error: (error as Error).message,
-				});
-			}
-		};
+    const loadUser = async () => {
+      setLoading(true);
+      try {
+        const data = await authApi.getCurrentUser();
+        if (!isMounted) return;
+        if (data.user) {
+          setAuth(data.user, data.profile ?? null);
+        } else {
+          clearAuth();
+        }
+      } catch {
+        if (!isMounted) return;
+        clearAuth();
+      }
+    };
 
-		void loadUser();
+    void loadUser();
 
-		return () => {
-			isMounted = false;
-		};
-	}, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [isInitialized, user, setAuth, clearAuth, setLoading]);
 
-	return state;
+  return { user, profile, isLoading };
 };

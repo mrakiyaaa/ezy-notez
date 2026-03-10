@@ -1,7 +1,10 @@
 import { supabaseAdmin } from "../config/supabase";
+import { UTApi } from "uploadthing/server";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { PDFParse } = require("pdf-parse") as { PDFParse: new (opts: { url: string }) => { getText(): Promise<{ text: string }> } };
 
 export type ResourceType = "pdf" | "ppt" | "image" | "audio" | "youtube";
-export type ResourceStatus = "uploading" | "processing" | "ready";
+export type ResourceStatus = "uploading" | "indexing" | "processing" | "ready" | "failed";
 
 export interface ResourceRow {
   id: string;
@@ -13,6 +16,7 @@ export interface ResourceRow {
   type: ResourceType;
   status: ResourceStatus;
   created_at: string;
+  extracted_text: string | null;
 }
 
 export interface InsertResourceInput {
@@ -89,9 +93,66 @@ export const updateResourceStatus = async (
 };
 
 /**
- * Delete a resource
+ * Fetch a PDF from its URL, extract its text with pdf-parse, and persist
+ * the result (or a failure status) back to Supabase.
+ *
+ * Status transitions:
+ *   current → 'indexing' (immediately)  → 'ready' | 'failed'
+ */
+export const extractAndStoreText = async (
+  id: string,
+  fileUrl: string
+): Promise<void> => {
+  // Mark as indexing first so the UI reflects progress immediately
+  await supabaseAdmin
+    .from("resources")
+    .update({ status: "indexing" })
+    .eq("id", id);
+
+  try {
+    const parser = new PDFParse({ url: fileUrl });
+    const { text } = await parser.getText();
+
+    const { error } = await supabaseAdmin
+      .from("resources")
+      .update({ extracted_text: text, status: "ready" })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error(`Supabase update failed: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`[extractAndStoreText] resource=${id}`, err);
+
+    // Best-effort failure marker — don't throw so callers can still respond
+    await supabaseAdmin
+      .from("resources")
+      .update({ status: "failed" })
+      .eq("id", id)
+      .then(({ error: e }) => {
+        if (e) console.error("[extractAndStoreText] failed to set status=failed:", e);
+      });
+
+    throw err;
+  }
+};
+
+/**
+ * Delete a resource (removes from both Supabase and Uploadthing)
  */
 export const deleteResourceById = async (id: string): Promise<void> => {
+  // Fetch the resource first so we can get the Uploadthing file key from the URL
+  const { data: resource, error: fetchError } = await supabaseAdmin
+    .from("resources")
+    .select("url")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch resource before deletion: ${fetchError.message}`);
+  }
+
+  // Delete from Supabase
   const { error } = await supabaseAdmin
     .from("resources")
     .delete()
@@ -99,5 +160,22 @@ export const deleteResourceById = async (id: string): Promise<void> => {
 
   if (error) {
     throw new Error(`Failed to delete resource: ${error.message}`);
+  }
+
+  // Delete from Uploadthing — extract file key from the URL
+  // Uploadthing URLs follow the pattern: https://utfs.io/f/<fileKey>
+  if (resource?.url) {
+    try {
+      const urlParts = resource.url.split("/f/");
+      const fileKey = urlParts.length > 1 ? urlParts[urlParts.length - 1] : null;
+
+      if (fileKey) {
+        const utapi = new UTApi();
+        await utapi.deleteFiles([fileKey]);
+      }
+    } catch (utErr) {
+      // Log but don't throw — the DB record is already deleted
+      console.error(`[deleteResourceById] Failed to delete file from Uploadthing:`, utErr);
+    }
   }
 };

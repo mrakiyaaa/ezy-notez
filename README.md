@@ -46,22 +46,16 @@ SUPABASE_DB_URL=postgresql://user:password@db.supabase.co:5432/postgres
 
 ### 3. Choose Your Setup Method
 
-#### Option A: Docker (Recommended for Development)
+#### Option A: Docker (Recommended)
 
-**Windows:**
-```powershell
-.\docker-dev.ps1 up
+**Development Mode (with hot reload):**
+```bash
+docker compose -f docker-compose.dev.yml up --build
 ```
 
-**Linux/macOS:**
+**Production Mode:**
 ```bash
-chmod +x docker-dev.sh
-./docker-dev.sh up
-```
-
-**Direct:**
-```bash
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.prod.yml up --build -d
 ```
 
 #### Option B: Local Development
@@ -99,8 +93,7 @@ ezy-notez/
 │   │   ├── utils/                    # Helper functions
 │   │   ├── index.ts                  # Entry point
 │   │   └── server.ts                 # Server setup
-│   ├── Dockerfile                    # Production image
-│   ├── Dockerfile.dev                # Development image
+│   ├── Dockerfile                    # Multi-stage: dev + prod
 │   └── package.json
 │
 ├── frontend/                         # Next.js Application
@@ -122,18 +115,14 @@ ezy-notez/
 │   │   │   └── utils/               # Helper functions
 │   │   ├── types/                   # TypeScript types
 │   │   └── mock/                    # Mock data
-│   ├── Dockerfile                   # Production image
-│   ├── Dockerfile.dev               # Development image
+│   ├── Dockerfile                   # Multi-stage: dev + prod
 │   ├── next.config.ts
 │   ├── tailwind.config.mjs
 │   ├── tsconfig.json
 │   └── package.json
 │
-├── docker-compose.yml               # Default (backward compatibility)
 ├── docker-compose.dev.yml           # Development environment
 ├── docker-compose.prod.yml          # Production environment
-├── docker-dev.ps1                   # Windows management script
-├── docker-dev.sh                    # Linux/macOS management script
 ├── .env.example                     # Environment variables template
 └── README.md                        # This file
 ```
@@ -172,82 +161,74 @@ ezy-notez/
 ### Development Environment
 
 **Start Development:**
-```powershell
-# Windows
-.\docker-dev.ps1 up
-
-# Linux/macOS
-./docker-dev.sh up
-
-# Direct docker-compose
-docker-compose -f docker-compose.dev.yml up --build
+```bash
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 **Features:**
-- ✅ Live code reloading
+- ✅ Live code reloading via volume mounts
 - ✅ Backend auto-restart (ts-node-dev)
-- ✅ Frontend HMR (Next.js)
-- ✅ Source code volumes mounted
-- ✅ Development dependencies included
+- ✅ Frontend HMR (Next.js hot reload)
+- ✅ Source code bind-mounted
+- ✅ node_modules preserved in container
 
-**View Logs:**
-```powershell
-# Windows
-.\docker-dev.ps1 logs
-
-# Linux/macOS
-./docker-dev.sh logs
+**Stop Development:**
+```bash
+docker compose -f docker-compose.dev.yml down
 ```
 
-**Access Container:**
-```powershell
-# Windows - Backend
-.\docker-dev.ps1 shell-backend
+**View Logs:**
+```bash
+docker compose -f docker-compose.dev.yml logs -f
+```
 
-# Windows - Frontend
-.\docker-dev.ps1 shell-frontend
+**Access Container Shell:**
+```bash
+# Backend
+docker compose -f docker-compose.dev.yml exec backend sh
 
-# Linux/macOS - Backend
-./docker-dev.sh shell-backend
+# Frontend
+docker compose -f docker-compose.dev.yml exec frontend sh
 ```
 
 ### Production Environment
 
 **Start Production:**
-```powershell
-# Windows
-.\docker-dev.ps1 prod-up
-
-# Direct docker-compose
-docker-compose -f docker-compose.prod.yml up --build -d
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
 ```
 
 **Features:**
-- ✅ Optimized multi-stage builds
+- ✅ Multi-stage optimized builds
 - ✅ Minimal image size
-- ✅ Pre-compiled TypeScript
+- ✅ Pre-compiled TypeScript (backend)
+- ✅ Next.js standalone output (frontend)
 - ✅ Health checks enabled
 - ✅ No development dependencies
+- ✅ Auto-restart on failure
 
 **Stop Production:**
-```powershell
-# Windows
-.\docker-dev.ps1 prod-down
+```bash
+docker compose -f docker-compose.prod.yml down
+```
 
-# Direct docker-compose
-docker-compose -f docker-compose.prod.yml down
+**View Production Logs:**
+```bash
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
 ### Docker Management Commands
 
-| Command | Windows | Linux/macOS | Description |
-|---------|---------|-------------|-------------|
-| Start Dev | `.\docker-dev.ps1 up` | `./docker-dev.sh up` | Start development |
-| Stop Dev | `.\docker-dev.ps1 down` | `./docker-dev.sh down` | Stop development |
-| View Logs | `.\docker-dev.ps1 logs` | `./docker-dev.sh logs` | See live logs |
-| Backend Shell | `.\docker-dev.ps1 shell-backend` | `./docker-dev.sh shell-backend` | Access backend |
-| Frontend Shell | `.\docker-dev.ps1 shell-frontend` | `./docker-dev.sh shell-frontend` | Access frontend |
-| Restart | `.\docker-dev.ps1 restart` | `./docker-dev.sh restart` | Restart services |
+| Command | Description |
+|---------|-------------|
+| `docker compose -f docker-compose.dev.yml up --build` | Start development with hot reload |
+| `docker compose -f docker-compose.dev.yml down` | Stop development containers |
+| `docker compose -f docker-compose.prod.yml up --build -d` | Start production (detached) |
+| `docker compose -f docker-compose.prod.yml down` | Stop production containers |
+| `docker compose -f docker-compose.dev.yml logs -f` | View live logs (dev) |
+| `docker compose -f docker-compose.dev.yml exec backend sh` | Access backend shell (dev) |
+| `docker compose -f docker-compose.dev.yml exec frontend sh` | Access frontend shell (dev) |
+| `docker compose -f docker-compose.dev.yml restart` | Restart all services |
 | Clean | `.\docker-dev.ps1 clean` | `./docker-dev.sh clean` | Clean Docker resources |
 
 ---

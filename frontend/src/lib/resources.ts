@@ -2,7 +2,7 @@ import { apiClient } from "./api/axios-config";
 
 // ─── Types ───────────────────────────────────────────────
 export type ResourceType = "pdf" | "ppt" | "image" | "audio" | "youtube";
-export type ResourceStatus = "uploading" | "processing" | "ready";
+export type ResourceStatus = "uploading" | "indexing" | "processing" | "ready" | "failed";
 
 export interface Resource {
   id: string;
@@ -14,6 +14,7 @@ export interface Resource {
   type: ResourceType;
   status: ResourceStatus;
   created_at: string;
+  extracted_text: string | null;
 }
 
 // ─── Queries (all routed through backend API) ────────────
@@ -60,6 +61,20 @@ export async function updateResourceStatus(
  */
 export async function deleteResource(id: string): Promise<void> {
   await apiClient.delete(`/resources/${id}`);
+}
+
+/**
+ * Trigger server-side PDF text extraction for a resource.
+ * The backend will:
+ *  1. Set status → 'indexing'
+ *  2. Fetch + parse the PDF
+ *  3. Set status → 'ready' (or 'failed' on error) and store extracted_text
+ */
+export async function triggerExtraction(
+  resourceId: string,
+  fileUrl: string
+): Promise<void> {
+  await apiClient.post(`/resources/${resourceId}/extract`, { fileUrl });
 }
 
 /**

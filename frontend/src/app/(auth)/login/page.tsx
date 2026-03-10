@@ -6,9 +6,11 @@ import { useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { authApi } from "@/lib/api/auth.api";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 export default function LoginPage() {
   const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [showOtp, setShowOtp] = useState(false);
   const [email, setEmail] = useState("");
   const [otpValues, setOtpValues] = useState(Array(6).fill(""));
@@ -79,7 +81,14 @@ export default function LoginPage() {
     setOtpMessage("");
 
     try {
-      await authApi.verifyOtp({ email, token });
+      const data = await authApi.verifyOtp({ email, token });
+
+      // Populate the global auth store immediately so the dashboard
+      // doesn't need to fire a second /auth/me round-trip after redirect.
+      if (data.user) {
+        setAuth(data.user, data.profile ?? null);
+      }
+
       setOtpMessage("OTP verified. You're logged in.");
       router.push("/workspaces");
     } catch (error) {
