@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useProfile } from "@/lib/hooks/useProfile";
 import {
   Resource,
   ResourceType,
@@ -37,6 +37,7 @@ import {
   insertResource,
   updateResourceStatus,
   deleteResource,
+  triggerExtraction,
 } from "@/lib/resources";
 import { useUploadThing } from "@/lib/uploadthing-hook";
 
@@ -194,13 +195,15 @@ function ResourcesView({
 }) {
   const params = useParams();
   const slug = params.slug as string;
-  const { user } = useAuth();
+  const { user } = useProfile();
 
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Maps file name → resource ID for in-flight uploads; avoids stale-closure issues
+  const pendingUploadsRef = useRef<Map<string, string>>(new Map());
 
   // Resolve workspace id from slug via backend API
   useEffect(() => {
@@ -265,28 +268,72 @@ function ResourcesView({
   const { startUpload, isUploading } = useUploadThing("resourceUploader", {
     onClientUploadComplete: async (res: { name: string; url: string; ufsUrl?: string }[]) => {
       if (!res) return;
-      // Update each uploaded file's status to "ready"
       for (const file of res) {
         const url = file.ufsUrl ?? file.url;
-        // Find matching resource in local state by name
-        setResources((prev) =>
-          prev.map((r) =>
-            r.name === file.name && r.status !== "ready"
-              ? { ...r, status: "ready" as ResourceStatus, url }
-              : r
-          )
-        );
-        // Update in Supabase – find existing resource by name
-        const match = resources.find(
-          (r) => r.name === file.name && r.status !== "ready"
-        );
-        if (match) {
-          await updateResourceStatus(match.id, "ready", url);
+        const resourceId = pendingUploadsRef.current.get(file.name);
+
+        if (!resourceId) {
+          console.warn(`No pending resource found for "${file.name}". Status may not have been saved.`);
+          continue;
         }
+
+        // Determine resource type from the file name to decide extraction path
+        const isPdf = file.name.toLowerCase().endsWith(".pdf");
+
+        if (isPdf) {
+          // Optimistically show 'indexing' while the backend extracts text
+          setResources((prev) =>
+            prev.map((r) =>
+              r.id === resourceId ? { ...r, status: "indexing" as ResourceStatus, url } : r
+            )
+          );
+
+          // Persist URL first so the row is fetchable
+          try {
+            await updateResourceStatus(resourceId, "indexing", url);
+          } catch (err) {
+            console.error("Failed to set status to indexing:", err);
+          }
+
+          // Trigger extraction — backend sets status to 'ready' or 'failed'
+          triggerExtraction(resourceId, url)
+            .then(() => {
+              setResources((prev) =>
+                prev.map((r) =>
+                  r.id === resourceId ? { ...r, status: "ready" as ResourceStatus } : r
+                )
+              );
+            })
+            .catch(() => {
+              setResources((prev) =>
+                prev.map((r) =>
+                  r.id === resourceId ? { ...r, status: "failed" as ResourceStatus } : r
+                )
+              );
+            });
+        } else {
+          // Non-PDF files are immediately ready
+          setResources((prev) =>
+            prev.map((r) =>
+              r.id === resourceId && r.status !== "ready"
+                ? { ...r, status: "ready" as ResourceStatus, url }
+                : r
+            )
+          );
+
+          try {
+            await updateResourceStatus(resourceId, "ready", url);
+          } catch (err) {
+            console.error("Failed to update resource status:", err);
+          }
+        }
+
+        pendingUploadsRef.current.delete(file.name);
       }
     },
     onUploadError: (err: Error) => {
       console.error("Upload error:", err);
+      pendingUploadsRef.current.clear();
     },
   });
 
@@ -318,6 +365,8 @@ function ResourcesView({
           status: "uploading",
         });
         newResources.push(resource);
+        // Register in the ref so onClientUploadComplete can find the ID
+        pendingUploadsRef.current.set(file.name, resource.id);
       } catch (err) {
         console.error("Failed to insert resource:", err);
       }
@@ -503,6 +552,12 @@ function ResourceItem({
       label: "Uploading",
       pulse: true,
     },
+    indexing: {
+      bg: "bg-purple-900/40",
+      color: "text-purple-400",
+      label: "Indexing",
+      pulse: true,
+    },
     processing: {
       bg: "bg-blue-900/40",
       color: "text-[#507DBC]",
@@ -513,6 +568,12 @@ function ResourceItem({
       bg: "bg-green-900/40",
       color: "text-green-400",
       label: "Ready",
+      pulse: false,
+    },
+    failed: {
+      bg: "bg-red-900/40",
+      color: "text-red-400",
+      label: "Failed",
       pulse: false,
     },
   };

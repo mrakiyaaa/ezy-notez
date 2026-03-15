@@ -11,6 +11,9 @@ type ProfileRecord = {
   created_at: string;
 };
 
+// Session absolute lifetime: 1 hour
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
 const getCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
 
@@ -19,6 +22,7 @@ const getCookieOptions = () => {
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
     path: "/",
+    maxAge: ONE_HOUR_MS, // Expire after 1 hour (absolute session limit)
   } as const;
 };
 
@@ -156,6 +160,47 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       .status(500)
       .json({ status: "error", message: (error as Error).message });
   }
+};
+
+export const refreshSession = async (req: Request, res: Response) => {
+  try {
+    const refreshToken = req.cookies?.["sb-refresh-token"];
+    if (!refreshToken) {
+      return res
+        .status(401)
+        .json({ status: "error", message: "No refresh token provided." });
+    }
+
+    const { data, error } = await supabaseAdmin.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session) {
+      return res.status(401).json({
+        status: "error",
+        message: "Session expired. Please log in again.",
+      });
+    }
+
+    setSessionCookies(
+      res,
+      data.session.access_token,
+      data.session.refresh_token
+    );
+
+    return res.json({ status: "ok" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ status: "error", message: (error as Error).message });
+  }
+};
+
+export const logout = (_req: Request, res: Response) => {
+  const options = getCookieOptions();
+  res.clearCookie("sb-access-token", { ...options, maxAge: 0 });
+  res.clearCookie("sb-refresh-token", { ...options, maxAge: 0 });
+  return res.json({ status: "ok" });
 };
 
 export const updateProfile = async (req: Request, res: Response) => {

@@ -4,6 +4,7 @@ import {
   getWorkspaceResources,
   updateResourceStatus,
   deleteResourceById,
+  extractAndStoreText,
   type InsertResourceInput,
   type ResourceStatus,
 } from "../services/resource.service";
@@ -176,5 +177,47 @@ export const deleteResourceHandler = async (
       error instanceof Error ? error.message : "Failed to delete resource";
     console.error("[deleteResourceHandler]", error);
     res.status(400).json({ status: "error", message });
+  }
+};
+
+/**
+ * POST /resources/:id/extract
+ * Fetch the PDF at fileUrl, extract its text with pdf-parse, and persist
+ * the result to Supabase.  Status transitions: uploading → indexing → ready | failed
+ */
+export const extractResourceHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ status: "error", message: "Unauthorized" });
+      return;
+    }
+
+    const { id } = req.params;
+    const { fileUrl } = req.body as { fileUrl?: string };
+
+    if (!id || !fileUrl) {
+      res.status(400).json({
+        status: "error",
+        message: "id (param) and fileUrl (body) are required",
+      });
+      return;
+    }
+
+    await extractAndStoreText(id, fileUrl);
+
+    res.status(200).json({
+      status: "success",
+      message: "Text extracted and stored",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to extract PDF text";
+    console.error("[extractResourceHandler]", error);
+    res.status(500).json({ status: "error", message });
   }
 };

@@ -1,92 +1,78 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { authApi } from "../api/auth.api";
-import type { AuthUser, Profile } from "@/types/user";
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import type { Profile } from "@/types/user";
 
-type ProfileState = {
-  user: AuthUser | null;
-  profile: Profile | null;
-  isLoading: boolean;
-  isUpdating: boolean;
-  error: string | null;
-};
-
-type UpdateProfilePayload = {
-  full_name: string;
-};
-
-export const useProfile = () => {
-  const [state, setState] = useState<ProfileState>({
-    user: null,
-    profile: null,
-    isLoading: true,
-    isUpdating: false,
-    error: null,
-  });
+export function useProfile() {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const loadUser = async () => {
-      try {
-        const data = await authApi.getCurrentUser();
-        if (!isMounted) return;
-
-        setState((prev) => ({
-          ...prev,
-          user: data.user ?? null,
-          profile: data.profile ?? null,
-          isLoading: false,
-          error: null,
-        }));
-      } catch (error) {
-        if (!isMounted) return;
-
-        setState((prev) => ({
-          ...prev,
-          user: null,
-          profile: null,
-          isLoading: false,
-          error: (error as Error).message,
-        }));
-      }
+    const loadProfile = async (currentUser: User) => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", currentUser.id)
+        .single();
+      if (mounted) setProfile(data ?? null);
     };
 
-    void loadUser();
+    supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+      if (!mounted) return;
+      setUser(currentUser);
+      if (currentUser) {
+        loadProfile(currentUser).finally(() => {
+          if (mounted) setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        loadProfile(currentUser);
+      } else {
+        setProfile(null);
+      }
+    });
 
     return () => {
-      isMounted = false;
+      mounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 
-  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
-    setState((prev) => ({ ...prev, isUpdating: true, error: null }));
-
-    try {
-      const data = await authApi.updateProfile(payload);
-
-      setState((prev) => ({
-        ...prev,
-        profile: data.profile ?? prev.profile,
-        isUpdating: false,
-        error: null,
-      }));
-
-      return data.profile ?? null;
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        isUpdating: false,
-        error: (error as Error).message,
-      }));
-
-      return null;
-    }
-  }, []);
-
-  return {
-    ...state,
-    updateProfile,
+  const updateProfile = async ({
+    full_name,
+  }: {
+    full_name: string;
+  }): Promise<Profile | null> => {
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ full_name })
+      .eq("id", user.id)
+      .select()
+      .single();
+    if (!error && data) setProfile(data);
+    return data ?? null;
   };
-};
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/auth/login";
+  };
+
+  return { user, profile, isLoading, updateProfile, signOut };
+}

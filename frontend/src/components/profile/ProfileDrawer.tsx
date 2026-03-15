@@ -8,6 +8,7 @@ type ProfileDrawerProps = {
   onClose: () => void;
   user: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
   onSave?: (fullName: string) => Promise<Profile | null>;
+  onSignOut?: () => void;
 };
 
 const getInitials = (name: string) => {
@@ -24,6 +25,7 @@ export default function ProfileDrawer({
   onClose,
   user,
   onSave,
+  onSignOut,
 }: ProfileDrawerProps) {
   const [fullName, setFullName] = useState(user?.full_name ?? "");
   const [savedName, setSavedName] = useState(user?.full_name ?? "");
@@ -154,6 +156,15 @@ export default function ProfileDrawer({
             >
               {isSaving ? "Saving..." : "Save"}
             </button>
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="w-full rounded-xl border border-white/10 px-4 py-2 text-sm text-white/50 transition hover:border-white/20 hover:text-white/80"
+              >
+                Sign out
+              </button>
+            )}
           </div>
         </div>
       </aside>

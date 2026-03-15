@@ -10,7 +10,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { profile, user, isLoading, updateProfile } = useProfile();
+  const { profile, user, isLoading, updateProfile, signOut } = useProfile();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const displayName = profile?.full_name || "Student";
@@ -30,26 +30,25 @@ export default function DashboardLayout({
     updateProfile({ full_name: fullName });
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-white">
-      {/* TODO: add auth guard when available. */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-bg-main-slate-950/8 backdrop-blur">
+    <div className="min-h-screen text-text-primary">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-bg-card/80 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-4 md:px-6">
-          <Link href="/" className="text-lg font-semibold">
+          <Link href="/" className="text-lg font-semibold text-text-primary">
             EzyNotez
           </Link>
-          <div className="flex items-center gap-4 text-sm text-white/70">
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-sm font-semibold text-white">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="hidden flex-col text-right sm:flex">
+              <span className="text-sm font-semibold text-text-primary">
                 {isLoading ? "Loading..." : displayName}
               </span>
-              <span className="text-xs text-white/50">
-                {isLoading ? "Loading..." : displayEmail || "Not signed in"}
+              <span className="text-xs text-text-muted">
+                {isLoading ? "" : displayEmail || "Not signed in"}
               </span>
             </div>
             <button
               type="button"
               onClick={handleOpenDrawer}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-main text-xs font-semibold text-white transition hover:border-white/40"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-fade-border bg-bg-card text-xs font-semibold text-text-primary transition hover:border-blue-accent/50"
               aria-label="Open profile"
             >
               {profile?.avatar_url ? (
@@ -66,7 +65,9 @@ export default function DashboardLayout({
           </div>
         </div>
       </header>
+
       <main className="w-full">{children}</main>
+
       <ProfileDrawer
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
@@ -81,6 +82,7 @@ export default function DashboardLayout({
             : null
         }
         onSave={handleSaveProfile}
+        onSignOut={signOut}
       />
     </div>
   );

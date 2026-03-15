@@ -25,7 +25,7 @@ export default function HeroSection() {
             </p>
 
             <Button variant="hero" className="h-12 w-60" size="default" asChild>
-              <Link href="/login">Get Started</Link>
+              <Link href="/auth/login">Get Started</Link>
             </Button>
           </div>
         </div>
