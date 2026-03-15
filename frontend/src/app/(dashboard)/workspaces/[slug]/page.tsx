@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useProfile } from "@/lib/hooks/useProfile";
 import {
   Resource,
   ResourceType,
@@ -195,7 +195,7 @@ function ResourcesView({
 }) {
   const params = useParams();
   const slug = params.slug as string;
-  const { user } = useAuth();
+  const { user } = useProfile();
 
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [resources, setResources] = useState<Resource[]>([]);

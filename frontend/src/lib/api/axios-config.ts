@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import { supabase } from "@/lib/supabase";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
@@ -11,11 +12,22 @@ export const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-// ─── 401 auto-refresh interceptor ────────────────────────
-// When any request returns 401, try POST /auth/refresh (which rotates the
-// HttpOnly cookies server-side). If that succeeds, replay the original
-// request. If it fails, clear the client-side auth store and redirect to
-// login so the user isn't silently stuck in a broken state.
+// ─── Request interceptor ─────────────────────────────────
+// Attach the Supabase access token as a Bearer header so the
+// Express backend can validate it (it already reads Authorization).
+apiClient.interceptors.request.use(async (config) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  return config;
+});
+
+// ─── 401 response interceptor ────────────────────────────
+// On 401, refresh the Supabase session and replay the request.
+// If refresh fails, redirect to login.
 
 type QueueEntry = {
   resolve: (value: unknown) => void;
@@ -43,16 +55,8 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Only intercept 401s that haven't already been retried, and
-    // never intercept the refresh or login endpoints themselves.
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes("/auth/refresh") &&
-      !originalRequest.url?.includes("/auth/verify-otp")
-    ) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // Queue concurrent requests until the refresh resolves
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -64,17 +68,20 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await apiClient.post("/auth/refresh");
+        // Use Supabase client-side refresh instead of the old backend endpoint
+        const { data, error: refreshError } =
+          await supabase.auth.refreshSession();
+
+        if (refreshError || !data.session) throw refreshError ?? new Error("No session");
+
+        // Attach the fresh token and replay
+        originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error);
-        // Clear the persisted auth state and send the user to login
         if (typeof window !== "undefined") {
-          import("../store/auth-store")
-            .then(({ useAuthStore }) => useAuthStore.getState().clearAuth())
-            .catch(() => {});
-          window.location.href = "/login";
+          window.location.href = "/auth/login";
         }
         return Promise.reject(refreshError);
       } finally {
