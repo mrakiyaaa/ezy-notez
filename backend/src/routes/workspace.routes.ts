@@ -4,6 +4,7 @@ import {
   createWorkspaceHandler,
   getWorkspacesHandler,
   getWorkspaceBySlugHandler,
+  deleteWorkspaceHandler,
 } from "../controllers/workspace.controller";
 
 const router = Router();
@@ -19,5 +20,8 @@ router.post("/", createWorkspaceHandler);
 
 // Get workspace by slug
 router.get("/:slug", getWorkspaceBySlugHandler);
+
+// Delete workspace by id
+router.delete("/:id", deleteWorkspaceHandler);
 
 export default router;

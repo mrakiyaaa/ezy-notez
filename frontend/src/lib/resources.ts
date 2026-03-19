@@ -78,6 +78,16 @@ export async function triggerExtraction(
 }
 
 /**
+ * Minimal workspace info returned when resolving a slug.
+ */
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+  description?: string;
+  aura: string;
+}
+
+/**
  * Get workspace id from slug via the backend API.
  * Uses the authenticated backend endpoint which has access
  * to the workspace data (the frontend Supabase client doesn't
@@ -86,23 +96,33 @@ export async function triggerExtraction(
 export async function getWorkspaceIdBySlug(
   slug: string
 ): Promise<string | null> {
-  console.log("Fetching workspace via backend API for slug:", slug);
+  const info = await getWorkspaceBySlug(slug);
+  return info?.id ?? null;
+}
 
+/**
+ * Get full workspace info from slug via the backend API.
+ */
+export async function getWorkspaceBySlug(
+  slug: string
+): Promise<WorkspaceInfo | null> {
   try {
     const response = await apiClient.get(`/workspaces/${slug}`);
     const workspace = response.data?.data;
 
     if (!workspace || !workspace.id) {
-      console.warn(`No workspace found with slug: ${slug}`);
       return null;
     }
 
-    console.log("Workspace found:", workspace.id);
-    return workspace.id;
+    return {
+      id: workspace.id,
+      name: workspace.name,
+      description: workspace.description,
+      aura: workspace.aura,
+    };
   } catch (err: unknown) {
     const error = err as { response?: { status?: number }; message?: string };
     if (error.response?.status === 404) {
-      console.warn(`Workspace not found for slug: ${slug}`);
       return null;
     }
     console.error("Error fetching workspace by slug:", error.message);

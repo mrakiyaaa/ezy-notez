@@ -78,6 +78,10 @@ export default function WorkspacesPage() {
     router.push(`/workspaces/${slug}`);
   };
 
+  const handleWorkspaceDeleted = (id: string) => {
+    setWorkspaces((prev) => prev.filter((w) => w.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-main px-4 py-10 text-text-white md:px-6">
       <div className="grid w-full gap-10 lg:grid-cols-[1.50fr_0.6fr]">
@@ -114,12 +118,6 @@ export default function WorkspacesPage() {
                     Organize your study materials with collaborative workspaces.
                   </p>
                 </div>
-                <Button
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-blue-accent hover:bg-blue-accent/90"
-                >
-                  Create workspace
-                </Button>
               </div>
             </div>
           </header>
@@ -139,6 +137,7 @@ export default function WorkspacesPage() {
                 workspaces={filteredWorkspaces}
                 onOpenCreate={() => setIsModalOpen(true)}
                 onSelectWorkspace={handleWorkspaceOpen}
+                onDeleteWorkspace={handleWorkspaceDeleted}
               />
             ) : (
               <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 py-12">

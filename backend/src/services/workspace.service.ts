@@ -5,6 +5,7 @@ export interface CreateWorkspaceInput {
   name: string;
   description?: string;
   aura: string;
+  auraKeyword: string;
 }
 
 export interface WorkspaceResponse {
@@ -14,6 +15,7 @@ export interface WorkspaceResponse {
   slug: string;
   description?: string;
   aura: string;
+  aura_keyword: string;
   created_at: string;
 }
 
@@ -50,6 +52,10 @@ export const createWorkspace = async (
     throw new Error("Workspace aura is required");
   }
 
+  if (!input.auraKeyword || input.auraKeyword.trim().length === 0) {
+    throw new Error("Workspace aura keyword is required");
+  }
+
   // Generate base slug
   const baseSlug = generateSlug(input.name);
 
@@ -71,6 +77,7 @@ export const createWorkspace = async (
       slug,
       description: input.description?.trim() || null,
       aura: input.aura.trim(),
+      aura_keyword: input.auraKeyword.trim(),
     })
     .select()
     .single();
@@ -99,6 +106,24 @@ export const getUserWorkspaces = async (
   }
 
   return (data || []) as WorkspaceResponse[];
+};
+
+/**
+ * Delete a workspace by id for a user
+ */
+export const deleteWorkspace = async (
+  userId: string,
+  workspaceId: string
+): Promise<void> => {
+  const { error } = await supabaseAdmin
+    .from("workspaces")
+    .delete()
+    .eq("id", workspaceId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to delete workspace: ${error.message}`);
+  }
 };
 
 /**
