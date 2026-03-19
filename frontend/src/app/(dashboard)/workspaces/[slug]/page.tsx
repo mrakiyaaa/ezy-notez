@@ -138,18 +138,32 @@ export default function WorkspacePage() {
   const [activeNav, setActiveNav] = useState<NavItem>("resources");
   const [activeTab, setActiveTab] = useState<TabItem>("all");
 
+  // Read cached aura synchronously from localStorage on first render
+  const cachedAura = (() => {
+    if (!slug) return null;
+    try { return localStorage.getItem(`workspace-aura-slug-${slug}`); }
+    catch { return null; }
+  })();
+
   // Fetch workspace data (including aura) once at the top level
   useEffect(() => {
     if (!slug) return;
     let mounted = true;
     getWorkspaceBySlug(slug).then((ws) => {
-      if (mounted && ws) setWorkspace(ws);
+      if (mounted && ws) {
+        setWorkspace(ws);
+        // Update localStorage with confirmed value
+        try {
+          localStorage.setItem(`workspace-aura-${ws.id}`, ws.aura);
+          localStorage.setItem(`workspace-aura-slug-${slug}`, ws.aura);
+        } catch { /* */ }
+      }
     });
     return () => { mounted = false; };
   }, [slug]);
 
-  // Derive CSS-ready aura values
-  const auraHex = workspace?.aura || "#507DBC"; // fallback to blue-accent
+  // Derive CSS-ready aura values: use API data > cached > fallback
+  const auraHex = workspace?.aura || cachedAura || "#507DBC";
   const auraRgb = hexToRgb(auraHex);
   const auraContrast = getContrastColor(auraHex);
 

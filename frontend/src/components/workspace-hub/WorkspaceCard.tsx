@@ -5,6 +5,15 @@ import { Trash2 } from "lucide-react";
 import type { Workspace } from "@/types/workspace";
 import { deleteWorkspaceApi } from "@/lib/api/workspace.api";
 
+function getContrastColor(hex: string): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 128 ? "#000000" : "#ffffff";
+}
+
 interface WorkspaceCardProps {
   workspace: Workspace;
   onOpen?: (slug: string) => void;
@@ -38,6 +47,10 @@ export default function WorkspaceCard({
     setDeleting(true);
     try {
       await deleteWorkspaceApi(workspace.id);
+      try {
+        localStorage.removeItem(`workspace-aura-${workspace.id}`);
+        localStorage.removeItem(`workspace-aura-slug-${workspace.slug}`);
+      } catch { /* */ }
       onDelete?.(workspace.id);
     } catch (err) {
       console.error("Failed to delete workspace:", err);
@@ -46,13 +59,21 @@ export default function WorkspaceCard({
     }
   };
 
+  const handleOpen = () => {
+    try {
+      localStorage.setItem(`workspace-aura-${workspace.id}`, workspace.aura);
+      localStorage.setItem(`workspace-aura-slug-${workspace.slug}`, workspace.aura);
+    } catch { /* localStorage unavailable */ }
+    onOpen?.(workspace.slug);
+  };
+
   return (
     <>
       <div
         role="button"
         tabIndex={0}
-        onClick={() => onOpen?.(workspace.slug)}
-        onKeyDown={(e) => e.key === "Enter" && onOpen?.(workspace.slug)}
+        onClick={handleOpen}
+        onKeyDown={(e) => e.key === "Enter" && handleOpen()}
         className="group relative flex h-full min-h-55 flex-col w-full rounded-2xl border bg-linear-to-br from-slate-900/60 to-slate-900 p-5 text-left shadow-[0_18px_60px_rgba(15,23,42,0.45)] transition hover:-translate-y-1 cursor-pointer"
         style={{ borderColor: `${auraHex}66` }}
       >
@@ -115,7 +136,7 @@ export default function WorkspaceCard({
                 onClick={handleConfirmDelete}
                 disabled={deleting}
                 className="flex-1 rounded-lg py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: auraHex, color: "#fff" }}
+                style={{ backgroundColor: auraHex, color: getContrastColor(auraHex) }}
               >
                 {deleting ? "Deleting…" : "Delete"}
               </button>

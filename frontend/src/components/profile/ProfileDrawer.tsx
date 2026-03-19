@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import type { Profile } from "@/types/user";
 
 type ProfileDrawerProps = {
@@ -76,9 +77,10 @@ export default function ProfileDrawer({
         aria-hidden="true"
       />
       <aside
-        className={`fixed right-0 top-0 z-50 h-full w-80 border-l border-white/10 bg-slate-900 shadow-2xl transition-transform duration-300 sm:w-96 ${
+        className={`fixed right-0 top-0 z-50 h-full w-80 border-l border-white/10 shadow-2xl transition-transform duration-300 sm:w-96 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ backgroundColor: "var(--main)" }}
         role="dialog"
         aria-modal="true"
         aria-label="Profile settings"
@@ -96,9 +98,10 @@ export default function ProfileDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70 hover:border-white/30"
+              className="rounded-full border border-white/10 p-1.5 text-white/70 hover:border-white/30 hover:text-white transition-colors"
+              aria-label="Close"
             >
-              Close
+              <X className="w-4 h-4" />
             </button>
           </div>
 
