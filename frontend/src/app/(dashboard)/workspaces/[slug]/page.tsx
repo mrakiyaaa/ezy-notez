@@ -1,7 +1,7 @@
  "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
@@ -19,6 +19,7 @@ import {
   Music,
   Trash2,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Tooltip,
@@ -101,6 +102,7 @@ function getMimeType(file: File): ResourceType {
 // ─── Main Page ───────────────────────────────────────────
 
 export default function WorkspacePage() {
+  const router = useRouter();
   const [activeNav, setActiveNav] = useState<NavItem>("resources");
   const [activeTab, setActiveTab] = useState<TabItem>("all");
 
@@ -154,9 +156,18 @@ export default function WorkspacePage() {
         {/* Top Header */}
         <header className="w-full bg-main border-b border-fade-border px-6 py-4 flex items-center">
           {/* Left */}
-          <div>
-            <h1 className="text-text-primary font-bold text-lg">Full Stack</h1>
-            <p className="text-text-muted text-sm">Resource Management</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/workspaces")}
+              className="text-text-muted hover:text-text-primary transition-colors"
+              aria-label="Back to workspaces"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-text-primary font-bold text-lg">Full Stack</h1>
+              <p className="text-text-muted text-sm">Resource Management</p>
+            </div>
           </div>
 
           {/* Right search */}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import ProfileDrawer from "@/components/profile/ProfileDrawer";
 import { useProfile } from "@/lib/hooks/useProfile";
@@ -33,8 +34,8 @@ export default function DashboardLayout({
     <div className="min-h-screen text-text-primary">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-bg-card/80 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-4 md:px-6">
-          <Link href="/" className="text-lg font-semibold text-text-primary">
-            EzyNotez
+          <Link href="/">
+            <Image src="/images/logo/logo.svg" alt="Ezy Notez" width={100} height={60} />
           </Link>
           <div className="flex items-center gap-4 text-sm">
             <div className="hidden flex-col text-right sm:flex">
