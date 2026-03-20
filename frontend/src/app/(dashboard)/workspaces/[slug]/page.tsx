@@ -1,6 +1,6 @@
  "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -11,7 +11,6 @@ import {
   Settings,
   Upload,
   Search,
-  Sparkles,
   Layers,
   FileText,
   Presentation,
@@ -28,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import WorkspaceHome from "@/components/workspace/WorkspaceHome";
 import { useProfile } from "@/lib/hooks/useProfile";
 import {
   Resource,
@@ -136,15 +136,19 @@ export default function WorkspacePage() {
   const slug = params.slug as string;
 
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [activeNav, setActiveNav] = useState<NavItem>("resources");
+  const [activeNav, setActiveNav] = useState<NavItem>("home");
   const [activeTab, setActiveTab] = useState<TabItem>("all");
+  const [cachedAura, setCachedAura] = useState<string | null>(null);
 
-  // Read cached aura synchronously from localStorage on first render
-  const cachedAura = (() => {
-    if (!slug) return null;
-    try { return localStorage.getItem(`workspace-aura-slug-${slug}`); }
-    catch { return null; }
-  })();
+  // Read cached aura from localStorage before first paint (SSR-safe)
+  useLayoutEffect(() => {
+    if (!slug) return;
+    try {
+      const cached = localStorage.getItem(`workspace-aura-slug-${slug}`);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (cached) setCachedAura(cached);
+    } catch { /* */ }
+  }, [slug]);
 
   // Fetch workspace data (including aura) once at the top level
   useEffect(() => {
@@ -289,7 +293,14 @@ export default function WorkspacePage() {
               auraContrast={auraContrast}
             />
           )}
-          {activeNav === "home" && <HomeView />}
+          {activeNav === "home" && workspace && (
+            <WorkspaceHome
+              workspaceId={workspace.id}
+              workspaceName={workspace.name}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+            />
+          )}
           {activeNav === "chattie" && <ChattieView />}
           {activeNav === "studyroom" && <StudyRoomView />}
           {activeNav === "quiz" && <QuizView />}
@@ -790,16 +801,6 @@ function ResourceItem({
 }
 
 /* ─── Placeholder Views ─── */
-function HomeView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <Sparkles className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Home</h2>
-      <p className="text-sm">Your workspace overview will appear here.</p>
-    </div>
-  );
-}
-
 function ChattieView() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
