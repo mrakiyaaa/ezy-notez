@@ -78,6 +78,20 @@ export async function triggerExtraction(
 }
 
 /**
+ * Trigger server-side audio transcription (Whisper) for a resource.
+ * The backend will:
+ *  1. Set status → 'indexing'
+ *  2. Spawn Whisper to transcribe the audio
+ *  3. Set status → 'ready' (or 'failed' on error) and store extracted_text
+ */
+export async function triggerAudioExtraction(
+  resourceId: string,
+  fileUrl: string
+): Promise<void> {
+  await apiClient.post(`/resources/${resourceId}/extract-audio`, { fileUrl });
+}
+
+/**
  * Minimal workspace info returned when resolving a slug.
  */
 export interface WorkspaceInfo {

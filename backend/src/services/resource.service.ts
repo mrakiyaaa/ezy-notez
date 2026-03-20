@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "../config/supabase";
 import { UTApi } from "uploadthing/server";
+import { spawn } from "child_process";
+import path from "path";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PDFParse } = require("pdf-parse") as { PDFParse: new (opts: { url: string }) => { getText(): Promise<{ text: string }> } };
 
@@ -131,6 +133,76 @@ export const extractAndStoreText = async (
       .eq("id", id)
       .then(({ error: e }) => {
         if (e) console.error("[extractAndStoreText] failed to set status=failed:", e);
+      });
+
+    throw err;
+  }
+};
+
+/**
+ * Spawn the Whisper Python script to transcribe an audio file, then persist
+ * the result (or a failure status) back to Supabase.
+ *
+ * Status transitions:
+ *   current → 'indexing' (immediately)  → 'ready' | 'failed'
+ */
+export const extractAndStoreAudio = async (
+  id: string,
+  fileUrl: string
+): Promise<void> => {
+  // Mark as indexing first so the UI reflects progress immediately
+  await supabaseAdmin
+    .from("resources")
+    .update({ status: "indexing" })
+    .eq("id", id);
+
+  try {
+    const scriptPath = path.resolve(__dirname, "../../scripts/whisper_transcribe.py");
+    const transcript = await new Promise<string>((resolve, reject) => {
+      const proc = spawn("python", [scriptPath, fileUrl]);
+
+      let stdout = "";
+      let stderr = "";
+
+      proc.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        if (code === 0) {
+          resolve(stdout.trim());
+        } else {
+          reject(new Error(`Whisper script exited with code ${code}: ${stderr}`));
+        }
+      });
+
+      proc.on("error", (err) => {
+        reject(new Error(`Failed to spawn Whisper script: ${err.message}`));
+      });
+    });
+
+    const { error } = await supabaseAdmin
+      .from("resources")
+      .update({ extracted_text: transcript, status: "ready" })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error(`Supabase update failed: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`[extractAndStoreAudio] resource=${id}`, err);
+
+    // Best-effort failure marker — don't throw so callers can still respond
+    await supabaseAdmin
+      .from("resources")
+      .update({ status: "failed" })
+      .eq("id", id)
+      .then(({ error: e }) => {
+        if (e) console.error("[extractAndStoreAudio] failed to set status=failed:", e);
       });
 
     throw err;

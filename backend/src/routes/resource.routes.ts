@@ -6,6 +6,7 @@ import {
   updateResourceStatusHandler,
   deleteResourceHandler,
   extractResourceHandler,
+  extractAudioHandler,
 } from "../controllers/resource.controller";
 
 const router = Router();
@@ -27,5 +28,8 @@ router.delete("/:id", deleteResourceHandler);
 
 // Extract PDF text and store in extracted_text column
 router.post("/:id/extract", extractResourceHandler);
+
+// Extract audio transcript via Whisper and store in extracted_text column
+router.post("/:id/extract-audio", extractAudioHandler);
 
 export default router;

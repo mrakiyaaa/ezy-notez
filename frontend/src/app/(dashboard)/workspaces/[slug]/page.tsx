@@ -40,6 +40,7 @@ import {
   updateResourceStatus,
   deleteResource,
   triggerExtraction,
+  triggerAudioExtraction,
 } from "@/lib/resources";
 import { useUploadThing } from "@/lib/uploadthing-hook";
 
@@ -395,6 +396,8 @@ function ResourcesView({
 
         // Determine resource type from the file name to decide extraction path
         const isPdf = file.name.toLowerCase().endsWith(".pdf");
+        const audioExtensions = [".mp3", ".wav", ".m4a", ".webm", ".ogg", ".mp4a"];
+        const isAudio = audioExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
 
         if (isPdf) {
           // Optimistically show 'indexing' while the backend extracts text
@@ -427,8 +430,38 @@ function ResourcesView({
                 )
               );
             });
+        } else if (isAudio) {
+          // Optimistically show 'indexing' while the backend transcribes audio
+          setResources((prev) =>
+            prev.map((r) =>
+              r.id === resourceId ? { ...r, status: "indexing" as ResourceStatus, url } : r
+            )
+          );
+
+          try {
+            await updateResourceStatus(resourceId, "indexing", url);
+          } catch (err) {
+            console.error("Failed to set status to indexing:", err);
+          }
+
+          // Trigger audio extraction — backend sets status to 'ready' or 'failed'
+          triggerAudioExtraction(resourceId, url)
+            .then(() => {
+              setResources((prev) =>
+                prev.map((r) =>
+                  r.id === resourceId ? { ...r, status: "ready" as ResourceStatus } : r
+                )
+              );
+            })
+            .catch(() => {
+              setResources((prev) =>
+                prev.map((r) =>
+                  r.id === resourceId ? { ...r, status: "failed" as ResourceStatus } : r
+                )
+              );
+            });
         } else {
-          // Non-PDF files are immediately ready
+          // Non-PDF, non-audio files are immediately ready
           setResources((prev) =>
             prev.map((r) =>
               r.id === resourceId && r.status !== "ready"

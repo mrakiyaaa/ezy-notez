@@ -5,6 +5,7 @@ import {
   updateResourceStatus,
   deleteResourceById,
   extractAndStoreText,
+  extractAndStoreAudio,
   type InsertResourceInput,
   type ResourceStatus,
 } from "../services/resource.service";
@@ -218,6 +219,48 @@ export const extractResourceHandler = async (
     const message =
       error instanceof Error ? error.message : "Failed to extract PDF text";
     console.error("[extractResourceHandler]", error);
+    res.status(500).json({ status: "error", message });
+  }
+};
+
+/**
+ * POST /resources/:id/extract-audio
+ * Spawn the Whisper Python script to transcribe the audio file, then persist
+ * the result to Supabase.  Status transitions: uploading → indexing → ready | failed
+ */
+export const extractAudioHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ status: "error", message: "Unauthorized" });
+      return;
+    }
+
+    const { id } = req.params;
+    const { fileUrl } = req.body as { fileUrl?: string };
+
+    if (!id || !fileUrl) {
+      res.status(400).json({
+        status: "error",
+        message: "id (param) and fileUrl (body) are required",
+      });
+      return;
+    }
+
+    await extractAndStoreAudio(id, fileUrl);
+
+    res.status(200).json({
+      status: "success",
+      message: "Audio transcribed and stored",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to extract audio text";
+    console.error("[extractAudioHandler]", error);
     res.status(500).json({ status: "error", message });
   }
 };
