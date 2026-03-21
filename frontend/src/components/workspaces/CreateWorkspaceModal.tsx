@@ -12,15 +12,17 @@ interface CreateWorkspaceModalProps {
 }
 
 const AURA_COLORS = [
-  { value: "#FF6B6B", label: "Red", hex: "FF6B6B" },
-  { value: "#4ECDC4", label: "Teal", hex: "4ECDC4" },
-  { value: "#45B7D1", label: "Blue", hex: "45B7D1" },
-  { value: "#FFA07A", label: "Salmon", hex: "FFA07A" },
-  { value: "#98D8C8", label: "Mint", hex: "98D8C8" },
-  { value: "#F7DC6F", label: "Yellow", hex: "F7DC6F" },
-  { value: "#BB8FCE", label: "Purple", hex: "BB8FCE" },
-  { value: "#85C1E2", label: "Sky", hex: "85C1E2" },
+  { value: "#FF6B6B", label: "Red",    keyword: "Crimson Blaze" },
+  { value: "#4ECDC4", label: "Teal",   keyword: "Neon Tide"     },
+  { value: "#45B7D1", label: "Blue",   keyword: "Arctic"        },
+  { value: "#FFA07A", label: "Salmon", keyword: "Ember"         },
+  { value: "#98D8C8", label: "Mint",   keyword: "Frosted"       },
+  { value: "#F7DC6F", label: "Yellow", keyword: "Sunburst"      },
+  { value: "#BB8FCE", label: "Purple", keyword: "Nebula"        },
+  { value: "#85C1E2", label: "Sky",    keyword: "Glitch"        },
 ];
+
+const DEFAULT_KEYWORD = AURA_COLORS[0].keyword;
 
 export default function CreateWorkspaceModal({
   isOpen,
@@ -31,6 +33,7 @@ export default function CreateWorkspaceModal({
     name: "",
     description: "",
     aura: AURA_COLORS[0].value,
+    auraKeyword: DEFAULT_KEYWORD,
   });
 
   const [loading, setLoading] = useState(false);
@@ -48,13 +51,15 @@ export default function CreateWorkspaceModal({
   };
 
   const handleAuraChange = (auraValue: string) => {
+    const keyword = AURA_COLORS.find((c) => c.value === auraValue)?.keyword ?? "";
     setFormData((prev) => ({
       ...prev,
       aura: auraValue,
+      auraKeyword: keyword,
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -73,6 +78,7 @@ export default function CreateWorkspaceModal({
         name: "",
         description: "",
         aura: AURA_COLORS[0].value,
+        auraKeyword: DEFAULT_KEYWORD,
       });
       
       onClose();
@@ -168,6 +174,23 @@ export default function CreateWorkspaceModal({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Aura Keyword */}
+          <div>
+            <label htmlFor="auraKeyword" className="block text-sm font-medium text-white">
+              Aura Keyword <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="auraKeyword"
+              type="text"
+              name="auraKeyword"
+              value={formData.auraKeyword}
+              onChange={handleInputChange}
+              placeholder="e.g., Sunburst"
+              disabled={loading}
+              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-white/10 disabled:text-white/50"
+            />
           </div>
 
           {/* Error Message */}

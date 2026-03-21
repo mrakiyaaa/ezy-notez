@@ -5,13 +5,15 @@ import WorkspaceCard from "@/components/workspace-hub/WorkspaceCard";
 interface WorkspaceGridProps {
   workspaces: Workspace[];
   onOpenCreate: () => void;
-  onSelectWorkspace: (workspaceId: string) => void;
+  onSelectWorkspace: (slug: string) => void;
+  onDeleteWorkspace: (id: string) => void;
 }
 
 export default function WorkspaceGrid({
   workspaces,
   onOpenCreate,
   onSelectWorkspace,
+  onDeleteWorkspace,
 }: WorkspaceGridProps) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -21,6 +23,7 @@ export default function WorkspaceGrid({
           key={workspace.id}
           workspace={workspace}
           onOpen={onSelectWorkspace}
+          onDelete={onDeleteWorkspace}
         />
       ))}
     </div>

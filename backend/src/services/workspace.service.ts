@@ -1,10 +1,12 @@
 import { supabaseAdmin } from "../config/supabase";
 import { generateSlug, generateUniqueSlug } from "../utils/slugGenerator";
+import { UTApi } from "uploadthing/server";
 
 export interface CreateWorkspaceInput {
   name: string;
   description?: string;
   aura: string;
+  auraKeyword: string;
 }
 
 export interface WorkspaceResponse {
@@ -14,6 +16,7 @@ export interface WorkspaceResponse {
   slug: string;
   description?: string;
   aura: string;
+  aura_keyword: string;
   created_at: string;
 }
 
@@ -50,6 +53,10 @@ export const createWorkspace = async (
     throw new Error("Workspace aura is required");
   }
 
+  if (!input.auraKeyword || input.auraKeyword.trim().length === 0) {
+    throw new Error("Workspace aura keyword is required");
+  }
+
   // Generate base slug
   const baseSlug = generateSlug(input.name);
 
@@ -71,6 +78,7 @@ export const createWorkspace = async (
       slug,
       description: input.description?.trim() || null,
       aura: input.aura.trim(),
+      aura_keyword: input.auraKeyword.trim(),
     })
     .select()
     .single();
@@ -99,6 +107,68 @@ export const getUserWorkspaces = async (
   }
 
   return (data || []) as WorkspaceResponse[];
+};
+
+/**
+ * Delete a workspace by id for a user.
+ * Also removes all associated resources from both Supabase and UploadThing.
+ */
+export const deleteWorkspace = async (
+  userId: string,
+  workspaceId: string
+): Promise<void> => {
+  // 1. Fetch all resources belonging to this workspace so we can clean up files
+  const { data: resources, error: fetchErr } = await supabaseAdmin
+    .from("resources")
+    .select("id, url")
+    .eq("workspace_id", workspaceId);
+
+  if (fetchErr) {
+    throw new Error(`Failed to fetch workspace resources: ${fetchErr.message}`);
+  }
+
+  // 2. Extract UploadThing file keys from resource URLs
+  const fileKeys: string[] = [];
+  for (const r of resources ?? []) {
+    if (r.url) {
+      const parts = r.url.split("/f/");
+      const key = parts.length > 1 ? parts[parts.length - 1] : null;
+      if (key) fileKeys.push(key);
+    }
+  }
+
+  // 3. Delete resource rows from the database
+  if (resources && resources.length > 0) {
+    const { error: delResErr } = await supabaseAdmin
+      .from("resources")
+      .delete()
+      .eq("workspace_id", workspaceId);
+
+    if (delResErr) {
+      throw new Error(`Failed to delete workspace resources: ${delResErr.message}`);
+    }
+  }
+
+  // 4. Delete the workspace itself
+  const { error } = await supabaseAdmin
+    .from("workspaces")
+    .delete()
+    .eq("id", workspaceId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to delete workspace: ${error.message}`);
+  }
+
+  // 5. Delete files from UploadThing (best-effort, after DB cleanup)
+  if (fileKeys.length > 0) {
+    try {
+      const utapi = new UTApi();
+      await utapi.deleteFiles(fileKeys);
+    } catch (utErr) {
+      console.error("[deleteWorkspace] Failed to delete UploadThing files:", utErr);
+    }
+  }
 };
 
 /**

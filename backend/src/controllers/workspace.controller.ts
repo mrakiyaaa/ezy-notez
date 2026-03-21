@@ -3,6 +3,7 @@ import {
   createWorkspace,
   getUserWorkspaces,
   getWorkspaceBySlug,
+  deleteWorkspace,
   type CreateWorkspaceInput,
 } from "../services/workspace.service";
 
@@ -22,7 +23,7 @@ export const createWorkspaceHandler = async (
       return;
     }
 
-    const { name, description, aura } = req.body as CreateWorkspaceInput;
+    const { name, description, aura, auraKeyword } = req.body as CreateWorkspaceInput;
 
     // Validate required fields
     if (!name) {
@@ -39,10 +40,18 @@ export const createWorkspaceHandler = async (
       return;
     }
 
+    if (!auraKeyword) {
+      res
+        .status(400)
+        .json({ status: "error", message: "Workspace aura keyword is required" });
+      return;
+    }
+
     const workspace = await createWorkspace(userId, {
       name,
       description,
       aura,
+      auraKeyword,
     });
 
     res.status(201).json({
@@ -138,5 +147,37 @@ export const getWorkspaceBySlugHandler = async (
       status: "error",
       message,
     });
+  }
+};
+
+/**
+ * DELETE /workspaces/:id
+ * Delete a workspace by id
+ */
+export const deleteWorkspaceHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ status: "error", message: "Unauthorized" });
+      return;
+    }
+
+    await deleteWorkspace(userId, id);
+
+    res.status(200).json({
+      status: "success",
+      message: "Workspace deleted successfully",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to delete workspace";
+    console.error("[deleteWorkspaceHandler]", error);
+
+    res.status(400).json({ status: "error", message });
   }
 };

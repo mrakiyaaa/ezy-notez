@@ -20,14 +20,12 @@ services:
     volumes:
       - ./backend:/app           # bind-mount source for hot reload
       - /app/node_modules        # anonymous volume — keep container's node_modules
+    env_file:
+      - ./backend/.env
     environment:
       - NODE_ENV=development
       - PORT=3001
       - FRONTEND_URL=http://localhost:3000
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
     networks:
       - ezynotes-network
 
@@ -43,11 +41,11 @@ services:
       - ./frontend:/app          # bind-mount source for hot reload
       - /app/node_modules        # anonymous volume — keep container's node_modules
       - /app/.next               # anonymous volume — keep container's Next.js cache
+    env_file:
+      - ./frontend/.env.local
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:3001/api
-      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       # Polling is required on Windows — Docker bind-mounts don't propagate
       # inotify events from the host, so watchers must fall back to polling.
       - WATCHPACK_POLLING=true

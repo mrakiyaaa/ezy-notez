@@ -27,6 +27,13 @@ export const createWorkspaceApi = async (
   return response.data.data;
 };
 
+/**
+ * Delete a workspace by id
+ */
+export const deleteWorkspaceApi = async (id: string): Promise<void> => {
+  await apiClient.delete(`/workspaces/${id}`);
+};
+
 export const workspaceApi = {
   async getAll(): Promise<Workspace[]> {
     const response = await apiClient.get("/workspaces");

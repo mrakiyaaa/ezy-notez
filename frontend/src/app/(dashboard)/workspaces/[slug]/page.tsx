@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
  "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
@@ -11,7 +12,6 @@ import {
   Settings,
   Upload,
   Search,
-  Sparkles,
   Layers,
   FileText,
   Presentation,
@@ -19,6 +19,9 @@ import {
   Music,
   Trash2,
   Loader2,
+  ArrowLeft,
+  AlignLeft,
+  WalletCards,
 } from "lucide-react";
 import {
   Tooltip,
@@ -27,27 +30,33 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import WorkspaceHome from "@/components/workspace/WorkspaceHome";
+import Chattie from "@/components/workspace/Chattie";
 import { useProfile } from "@/lib/hooks/useProfile";
 import {
   Resource,
   ResourceType,
   ResourceStatus,
+  type WorkspaceInfo,
   getWorkspaceResources,
-  getWorkspaceIdBySlug,
+  getWorkspaceBySlug,
   insertResource,
   updateResourceStatus,
   deleteResource,
   triggerExtraction,
+  triggerAudioExtraction,
 } from "@/lib/resources";
 import { useUploadThing } from "@/lib/uploadthing-hook";
 
-type NavItem = "home" | "resources" | "chattie" | "studyroom" | "quiz";
+type NavItem = "home" | "resources" | "chattie" | "summarization" | "flashcards" | "studyroom" | "quiz";
 type TabItem = "all" | "pdfs" | "ppts" | "audio" | "youtube";
 
 const navItems: { id: NavItem; icon: React.ElementType; label: string }[] = [
   { id: "home", icon: LayoutDashboard, label: "Home" },
   { id: "resources", icon: BookOpen, label: "Resources" },
   { id: "chattie", icon: MessageCircle, label: "Chattie" },
+  { id: "summarization", icon: AlignLeft, label: "Summarization" },
+  { id: "flashcards", icon: WalletCards, label: "Flashcards" },
   { id: "studyroom", icon: Brain, label: "Study Room" },
   { id: "quiz", icon: ClipboardList, label: "Quiz" },
 ];
@@ -100,12 +109,85 @@ function getMimeType(file: File): ResourceType {
 
 // ─── Main Page ───────────────────────────────────────────
 
+// ─── Aura helpers ────────────────────────────────────────
+/** Convert a hex color like "#4ECDC4" to "78, 205, 196" for use in rgba(). */
+function hexToRgb(hex: string): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+
+/** Return "#000000" or "#ffffff" for legible text on a given hex background. */
+function getContrastColor(hex: string): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 128 ? "#000000" : "#ffffff";
+}
+
+/** View-name → subtitle mapping for the header. */
+const navSubtitles: Record<NavItem, string> = {
+  home: "Overview",
+  resources: "Resource Management",
+  chattie: "AI Chat",
+  summarization: "AI Summarization",
+  flashcards: "Flashcards",
+  studyroom: "Study Room",
+  quiz: "Quizzes",
+};
+
 export default function WorkspacePage() {
-  const [activeNav, setActiveNav] = useState<NavItem>("resources");
+  const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
+
+  const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
+  const [activeNav, setActiveNav] = useState<NavItem>("home");
   const [activeTab, setActiveTab] = useState<TabItem>("all");
+  const [cachedAura, setCachedAura] = useState<string | null>(null);
+
+  // Read cached aura from localStorage before first paint (SSR-safe)
+  useLayoutEffect(() => {
+    if (!slug) return;
+    try {
+      const cached = localStorage.getItem(`workspace-aura-slug-${slug}`);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (cached) setCachedAura(cached);
+    } catch { /* */ }
+  }, [slug]);
+
+  // Fetch workspace data (including aura) once at the top level
+  useEffect(() => {
+    if (!slug) return;
+    let mounted = true;
+    getWorkspaceBySlug(slug).then((ws) => {
+      if (mounted && ws) {
+        setWorkspace(ws);
+        // Update localStorage with confirmed value
+        try {
+          localStorage.setItem(`workspace-aura-${ws.id}`, ws.aura);
+          localStorage.setItem(`workspace-aura-slug-${slug}`, ws.aura);
+        } catch { /* */ }
+      }
+    });
+    return () => { mounted = false; };
+  }, [slug]);
+
+  // Derive CSS-ready aura values: use API data > cached > fallback
+  const auraHex = workspace?.aura || cachedAura || "#507DBC";
+  const auraRgb = hexToRgb(auraHex);
+  const auraContrast = getContrastColor(auraHex);
 
   return (
-    <div className="flex min-h-screen bg-main">
+    <div
+      className="flex min-h-screen bg-main"
+      style={{
+        "--workspace-aura": auraHex,
+        "--workspace-aura-rgb": auraRgb,
+      } as React.CSSProperties}
+    >
       {/* Left Sidebar */}
       <TooltipProvider delayDuration={0}>
         <aside className="w-16 flex flex-col items-center border-r border-fade-border bg-main py-4">
@@ -118,9 +200,22 @@ export default function WorkspacePage() {
                     onClick={() => setActiveNav(id)}
                     className={
                       activeNav === id
-                        ? "bg-bg-card text-blue-accent rounded-xl p-2"
-                        : "text-text-muted p-2 hover:text-blue-accent transition-colors"
+                        ? "bg-bg-card rounded-xl p-2"
+                        : "text-text-muted p-2 transition-colors"
                     }
+                    style={
+                      activeNav === id
+                        ? { color: auraHex }
+                        : undefined
+                    }
+                    onMouseEnter={(e) => {
+                      if (activeNav !== id)
+                        e.currentTarget.style.color = auraHex;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeNav !== id)
+                        e.currentTarget.style.color = "";
+                    }}
                   >
                     <Icon className="w-5 h-5" />
                   </button>
@@ -136,7 +231,11 @@ export default function WorkspacePage() {
           <div className="flex flex-col items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="text-text-muted p-2 hover:text-blue-accent transition-colors">
+                <button
+                  className="text-text-muted p-2 transition-colors"
+                  onMouseEnter={(e) => { e.currentTarget.style.color = auraHex; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = ""; }}
+                >
                   <Settings className="w-5 h-5" />
                 </button>
               </TooltipTrigger>
@@ -144,7 +243,10 @@ export default function WorkspacePage() {
                 <p>Settings</p>
               </TooltipContent>
             </Tooltip>
-            <div className="bg-blue-accent w-8 h-8 rounded-full" />
+            <div
+              className="w-8 h-8 rounded-full"
+              style={{ backgroundColor: auraHex }}
+            />
           </div>
         </aside>
       </TooltipProvider>
@@ -152,11 +254,27 @@ export default function WorkspacePage() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col">
         {/* Top Header */}
-        <header className="w-full bg-main border-b border-fade-border px-6 py-4 flex items-center">
+        <header
+          className="w-full bg-main px-6 py-4 flex items-center"
+          style={{ borderBottom: `1px solid rgba(${auraRgb}, 0.15)` }}
+        >
           {/* Left */}
-          <div>
-            <h1 className="text-text-primary font-bold text-lg">Full Stack</h1>
-            <p className="text-text-muted text-sm">Resource Management</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/workspaces")}
+              className="text-text-muted hover:text-text-primary transition-colors"
+              aria-label="Back to workspaces"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-text-primary font-bold text-lg">
+                {workspace?.name ?? "Loading…"}
+              </h1>
+              <p className="text-text-muted text-sm">
+                {navSubtitles[activeNav]}
+              </p>
+            </div>
           </div>
 
           {/* Right search */}
@@ -165,18 +283,42 @@ export default function WorkspacePage() {
             <input
               type="text"
               placeholder="Search Projects"
-              className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
+              className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none"
+              onFocus={(e) => { e.currentTarget.style.borderColor = auraHex; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
             />
           </div>
         </header>
 
         {/* View Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className={`flex-1 ${activeNav === "chattie" ? "overflow-hidden" : "overflow-y-auto"}`}>
           {activeNav === "resources" && (
-            <ResourcesView activeTab={activeTab} setActiveTab={setActiveTab} />
+            <ResourcesView
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+              auraContrast={auraContrast}
+            />
           )}
-          {activeNav === "home" && <HomeView />}
-          {activeNav === "chattie" && <ChattieView />}
+          {activeNav === "home" && workspace && (
+            <WorkspaceHome
+              workspaceId={workspace.id}
+              workspaceName={workspace.name}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+            />
+          )}
+          {activeNav === "chattie" && workspace && (
+            <Chattie
+              workspaceId={workspace.id}
+              workspaceName={workspace.name}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+            />
+          )}
+          {activeNav === "summarization" && <SummarizationView />}
+          {activeNav === "flashcards" && <FlashcardsView />}
           {activeNav === "studyroom" && <StudyRoomView />}
           {activeNav === "quiz" && <QuizView />}
         </main>
@@ -189,9 +331,15 @@ export default function WorkspacePage() {
 function ResourcesView({
   activeTab,
   setActiveTab,
+  auraHex,
+  auraRgb,
+  auraContrast,
 }: {
   activeTab: TabItem;
   setActiveTab: (tab: TabItem) => void;
+  auraHex: string;
+  auraRgb: string;
+  auraContrast: string;
 }) {
   const params = useParams();
   const slug = params.slug as string;
@@ -212,29 +360,26 @@ function ResourcesView({
       setIsLoading(false);
       return;
     }
-    
+
     let mounted = true;
-    
-    console.log(`Loading workspace with slug: ${slug}`);
-    
-    getWorkspaceIdBySlug(slug)
-      .then((id) => {
+
+    getWorkspaceBySlug(slug)
+      .then((ws) => {
         if (!mounted) return;
-        if (!id) {
+        if (!ws) {
           setLoadError(`Workspace not found for slug: ${slug}`);
           setIsLoading(false);
         } else {
-          console.log(`Workspace loaded: ${id}`);
-          setWorkspaceId(id);
+          setWorkspaceId(ws.id);
         }
       })
       .catch((err) => {
         if (!mounted) return;
-        console.error("Failed to get workspace ID:", err);
+        console.error("Failed to get workspace:", err);
         setLoadError(`Failed to load workspace: ${err.message}`);
         setIsLoading(false);
       });
-    
+
     return () => {
       mounted = false;
     };
@@ -279,6 +424,8 @@ function ResourcesView({
 
         // Determine resource type from the file name to decide extraction path
         const isPdf = file.name.toLowerCase().endsWith(".pdf");
+        const audioExtensions = [".mp3", ".wav", ".m4a", ".webm", ".ogg", ".mp4a"];
+        const isAudio = audioExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
 
         if (isPdf) {
           // Optimistically show 'indexing' while the backend extracts text
@@ -311,8 +458,38 @@ function ResourcesView({
                 )
               );
             });
+        } else if (isAudio) {
+          // Optimistically show 'indexing' while the backend transcribes audio
+          setResources((prev) =>
+            prev.map((r) =>
+              r.id === resourceId ? { ...r, status: "indexing" as ResourceStatus, url } : r
+            )
+          );
+
+          try {
+            await updateResourceStatus(resourceId, "indexing", url);
+          } catch (err) {
+            console.error("Failed to set status to indexing:", err);
+          }
+
+          // Trigger audio extraction — backend sets status to 'ready' or 'failed'
+          triggerAudioExtraction(resourceId, url)
+            .then(() => {
+              setResources((prev) =>
+                prev.map((r) =>
+                  r.id === resourceId ? { ...r, status: "ready" as ResourceStatus } : r
+                )
+              );
+            })
+            .catch(() => {
+              setResources((prev) =>
+                prev.map((r) =>
+                  r.id === resourceId ? { ...r, status: "failed" as ResourceStatus } : r
+                )
+              );
+            });
         } else {
-          // Non-PDF files are immediately ready
+          // Non-PDF, non-audio files are immediately ready
           setResources((prev) =>
             prev.map((r) =>
               r.id === resourceId && r.status !== "ready"
@@ -423,9 +600,15 @@ function ResourcesView({
       />
 
       {/* Upload Card */}
-      <div className="mx-6 mt-6 border-2 border-dashed border-fade-border bg-bg-card rounded-xl p-12 text-center">
-        <div className="bg-fade-border p-4 rounded-full mx-auto mb-4 w-fit">
-          <Upload className="w-8 h-8 text-blue-accent" />
+      <div
+        className="mx-6 mt-6 border-2 border-dashed bg-bg-card rounded-xl p-12 text-center"
+        style={{ borderColor: `rgba(${auraRgb}, 0.3)` }}
+      >
+        <div
+          className="p-4 rounded-full mx-auto mb-4 w-fit"
+          style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+        >
+          <Upload className="w-8 h-8" style={{ color: auraHex }} />
         </div>
         <h2 className="text-text-primary font-bold text-xl">
           Upload Academic Resources
@@ -437,7 +620,10 @@ function ResourcesView({
         <Button
           onClick={handleSelectFiles}
           disabled={isUploading || !workspaceId}
-          className="bg-blue-accent text-text-primary rounded-lg px-8 py-2 mt-6 mx-auto block hover:bg-blue-accent/90 disabled:opacity-50"
+          className="rounded-lg px-8 py-2 mt-6 mx-auto block disabled:opacity-50"
+          style={{ backgroundColor: auraHex, color: auraContrast }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
         >
           {isUploading ? (
             <span className="flex items-center gap-2">
@@ -458,8 +644,13 @@ function ResourcesView({
             onClick={() => setActiveTab(id)}
             className={
               activeTab === id
-                ? "bg-blue-accent text-text-primary rounded-full px-4 py-1 text-sm"
+                ? "rounded-full px-4 py-1 text-sm"
                 : "text-text-muted px-4 py-1 text-sm hover:text-text-primary transition-colors"
+            }
+            style={
+              activeTab === id
+                ? { backgroundColor: auraHex, color: auraContrast }
+                : undefined
             }
           >
             {label}
@@ -487,7 +678,7 @@ Current URL: {typeof window !== "undefined" ? window.location.pathname : "N/A"}
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center mt-20">
-          <Loader2 className="w-8 h-8 text-blue-accent animate-spin" />
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: auraHex }} />
         </div>
       ) : filtered.length > 0 ? (
         <div className="mx-6 mt-4 flex flex-col gap-3 pb-6">
@@ -496,6 +687,7 @@ Current URL: {typeof window !== "undefined" ? window.location.pathname : "N/A"}
               key={resource.id}
               resource={resource}
               onDelete={handleDelete}
+              auraRgb={auraRgb}
             />
           ))}
         </div>
@@ -519,9 +711,11 @@ Current URL: {typeof window !== "undefined" ? window.location.pathname : "N/A"}
 function ResourceItem({
   resource,
   onDelete,
+  auraRgb,
 }: {
   resource: Resource;
   onDelete: (id: string) => void;
+  auraRgb: string;
 }) {
   const iconConfig: Record<
     ResourceType,
@@ -582,7 +776,10 @@ function ResourceItem({
   const status = statusConfig[resource.status] ?? statusConfig.processing;
 
   return (
-    <div className="bg-bg-card rounded-xl border border-fade-border px-4 py-3 flex items-center gap-4 group">
+    <div
+      className="bg-bg-card rounded-xl border px-4 py-3 flex items-center gap-4 group"
+      style={{ borderColor: `rgba(${auraRgb}, 0.2)` }}
+    >
       {/* File icon */}
       <div className={`${bg} rounded-lg p-2.5 shrink-0`}>
         <Icon className={`w-5 h-5 ${color}`} />
@@ -621,22 +818,32 @@ function ResourceItem({
 }
 
 /* ─── Placeholder Views ─── */
-function HomeView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <Sparkles className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Home</h2>
-      <p className="text-sm">Your workspace overview will appear here.</p>
-    </div>
-  );
-}
-
 function ChattieView() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
       <MessageCircle className="w-12 h-12" />
       <h2 className="text-text-primary text-xl font-semibold">Chattie</h2>
       <p className="text-sm">AI chat assistant coming soon.</p>
+    </div>
+  );
+}
+
+function SummarizationView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <AlignLeft className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Summarization</h2>
+      <p className="text-sm">AI-powered summarization coming soon.</p>
+    </div>
+  );
+}
+
+function FlashcardsView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <WalletCards className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Flashcards</h2>
+      <p className="text-sm">AI-generated flashcards coming soon.</p>
     </div>
   );
 }
