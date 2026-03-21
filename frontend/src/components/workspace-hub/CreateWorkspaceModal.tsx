@@ -45,6 +45,7 @@ export default function CreateWorkspaceModal({
       name,
       description,
       aura,
+      auraKeyword: aura,
     };
 
     const created = await workspaceService.createWorkspace(payload);

@@ -30,6 +30,7 @@ const createWorkspace = async (
     description: input.description?.trim() || "",
     createdAt: new Date().toISOString(),
     aura: input.aura,
+    aura_keyword: input.auraKeyword,
   };
 
   return created;
