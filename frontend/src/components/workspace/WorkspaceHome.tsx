@@ -122,14 +122,14 @@ export default function WorkspaceHome({
           </p>
         </div>
         <Button
-          variant="outline"
           className="shrink-0"
           style={{
-            borderColor: `rgba(${auraRgb}, 0.5)`,
-            color: auraHex,
+            backgroundColor: auraHex,
+            color: "#000000",
+            border: "none",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ""; }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
           asChild
         >
           <Link href={`/dashboard/${workspaceId}/resources`}>
