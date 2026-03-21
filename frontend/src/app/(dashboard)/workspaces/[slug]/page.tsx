@@ -303,10 +303,10 @@ export default function WorkspacePage() {
           )}
           {activeNav === "home" && workspace && (
             <WorkspaceHome
-              workspaceId={workspace.id}
               workspaceName={workspace.name}
               auraHex={auraHex}
               auraRgb={auraRgb}
+              onNavigate={(nav) => setActiveNav(nav as NavItem)}
             />
           )}
           {activeNav === "chattie" && workspace && (
