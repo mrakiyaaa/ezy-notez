@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Sparkles,
   FileText,
@@ -11,10 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 
 interface WorkspaceHomeProps {
-  workspaceId: string;
   workspaceName: string;
   auraHex: string;
   auraRgb: string;
+  onNavigate: (nav: string) => void;
 }
 
 const aiTools = [
@@ -22,33 +21,33 @@ const aiTools = [
     icon: FileText,
     title: "Summarization",
     description: "Generate concise summaries from your uploaded resources",
-    path: "summarization",
+    nav: "summarization",
   },
   {
     icon: Layers,
     title: "Flashcards",
     description: "Create AI-powered flashcards for quick revision",
-    path: "flashcards",
+    nav: "flashcards",
   },
   {
     icon: BrainCircuit,
     title: "Quiz Generator",
     description: "Test your knowledge with AI-generated quizzes",
-    path: "quiz",
+    nav: "quiz",
   },
   {
     icon: Users,
     title: "Study Room",
     description: "Collaborate with peers in real-time quiz sessions",
-    path: "study-room",
+    nav: "studyroom",
   },
 ];
 
 export default function WorkspaceHome({
-  workspaceId,
   workspaceName,
   auraHex,
   auraRgb,
+  onNavigate,
 }: WorkspaceHomeProps) {
   return (
     <div className="p-6">
@@ -74,14 +73,13 @@ export default function WorkspaceHome({
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {aiTools.map((tool) => (
-          <Link
-            key={tool.path}
-            href={`/dashboard/${workspaceId}/${tool.path}`}
-            className="group"
+          <button
+            key={tool.nav}
+            onClick={() => onNavigate(tool.nav)}
+            className="group text-left"
           >
             <div
               className="bg-bg-card border border-fade-border rounded-xl p-5 hover:scale-[1.02] transition-all duration-200 h-full flex flex-col justify-between"
-              style={{ ["--hover-border" as string]: `rgba(${auraRgb}, 0.5)` }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.5)`; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = ""; }}
             >
@@ -103,7 +101,7 @@ export default function WorkspaceHome({
                 <ArrowRight className="text-text-muted w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
               </div>
             </div>
-          </Link>
+          </button>
         ))}
       </div>
 
@@ -122,19 +120,17 @@ export default function WorkspaceHome({
           </p>
         </div>
         <Button
-          variant="outline"
           className="shrink-0"
           style={{
-            borderColor: `rgba(${auraRgb}, 0.5)`,
-            color: auraHex,
+            backgroundColor: auraHex,
+            color: "#000000",
+            border: "none",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ""; }}
-          asChild
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+          onClick={() => onNavigate("resources")}
         >
-          <Link href={`/dashboard/${workspaceId}/resources`}>
-            Go to Resources
-          </Link>
+          Go to Resources
         </Button>
       </div>
     </div>
