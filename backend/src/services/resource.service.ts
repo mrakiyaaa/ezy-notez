@@ -115,9 +115,13 @@ export const extractAndStoreText = async (
     const parser = new PDFParse({ url: fileUrl });
     const { text } = await parser.getText();
 
+    // Strip null bytes (\u0000) — common in PDF-extracted text but
+    // rejected by PostgreSQL's text type ("unsupported Unicode escape sequence").
+    const sanitizedText = text.replace(/\0/g, "");
+
     const { error } = await supabaseAdmin
       .from("resources")
-      .update({ extracted_text: text, status: "ready" })
+      .update({ extracted_text: sanitizedText, status: "ready" })
       .eq("id", id);
 
     if (error) {

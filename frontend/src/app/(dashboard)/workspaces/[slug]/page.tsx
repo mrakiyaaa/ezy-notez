@@ -19,6 +19,8 @@ import {
   Trash2,
   Loader2,
   ArrowLeft,
+  AlignLeft,
+  WalletCards,
 } from "lucide-react";
 import {
   Tooltip,
@@ -28,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import WorkspaceHome from "@/components/workspace/WorkspaceHome";
+import Chattie from "@/components/workspace/Chattie";
 import { useProfile } from "@/lib/hooks/useProfile";
 import {
   Resource,
@@ -44,13 +47,15 @@ import {
 } from "@/lib/resources";
 import { useUploadThing } from "@/lib/uploadthing-hook";
 
-type NavItem = "home" | "resources" | "chattie" | "studyroom" | "quiz";
+type NavItem = "home" | "resources" | "chattie" | "summarization" | "flashcards" | "studyroom" | "quiz";
 type TabItem = "all" | "pdfs" | "ppts" | "audio" | "youtube";
 
 const navItems: { id: NavItem; icon: React.ElementType; label: string }[] = [
   { id: "home", icon: LayoutDashboard, label: "Home" },
   { id: "resources", icon: BookOpen, label: "Resources" },
   { id: "chattie", icon: MessageCircle, label: "Chattie" },
+  { id: "summarization", icon: AlignLeft, label: "Summarization" },
+  { id: "flashcards", icon: WalletCards, label: "Flashcards" },
   { id: "studyroom", icon: Brain, label: "Study Room" },
   { id: "quiz", icon: ClipboardList, label: "Quiz" },
 ];
@@ -126,6 +131,8 @@ const navSubtitles: Record<NavItem, string> = {
   home: "Overview",
   resources: "Resource Management",
   chattie: "AI Chat",
+  summarization: "AI Summarization",
+  flashcards: "Flashcards",
   studyroom: "Study Room",
   quiz: "Quizzes",
 };
@@ -283,7 +290,7 @@ export default function WorkspacePage() {
         </header>
 
         {/* View Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className={`flex-1 ${activeNav === "chattie" ? "overflow-hidden" : "overflow-y-auto"}`}>
           {activeNav === "resources" && (
             <ResourcesView
               activeTab={activeTab}
@@ -301,7 +308,16 @@ export default function WorkspacePage() {
               auraRgb={auraRgb}
             />
           )}
-          {activeNav === "chattie" && <ChattieView />}
+          {activeNav === "chattie" && workspace && (
+            <Chattie
+              workspaceId={workspace.id}
+              workspaceName={workspace.name}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+            />
+          )}
+          {activeNav === "summarization" && <SummarizationView />}
+          {activeNav === "flashcards" && <FlashcardsView />}
           {activeNav === "studyroom" && <StudyRoomView />}
           {activeNav === "quiz" && <QuizView />}
         </main>
@@ -807,6 +823,26 @@ function ChattieView() {
       <MessageCircle className="w-12 h-12" />
       <h2 className="text-text-primary text-xl font-semibold">Chattie</h2>
       <p className="text-sm">AI chat assistant coming soon.</p>
+    </div>
+  );
+}
+
+function SummarizationView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <AlignLeft className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Summarization</h2>
+      <p className="text-sm">AI-powered summarization coming soon.</p>
+    </div>
+  );
+}
+
+function FlashcardsView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+      <WalletCards className="w-12 h-12" />
+      <h2 className="text-text-primary text-xl font-semibold">Flashcards</h2>
+      <p className="text-sm">AI-generated flashcards coming soon.</p>
     </div>
   );
 }

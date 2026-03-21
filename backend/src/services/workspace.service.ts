@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../config/supabase";
 import { generateSlug, generateUniqueSlug } from "../utils/slugGenerator";
+import { UTApi } from "uploadthing/server";
 
 export interface CreateWorkspaceInput {
   name: string;
@@ -109,12 +110,46 @@ export const getUserWorkspaces = async (
 };
 
 /**
- * Delete a workspace by id for a user
+ * Delete a workspace by id for a user.
+ * Also removes all associated resources from both Supabase and UploadThing.
  */
 export const deleteWorkspace = async (
   userId: string,
   workspaceId: string
 ): Promise<void> => {
+  // 1. Fetch all resources belonging to this workspace so we can clean up files
+  const { data: resources, error: fetchErr } = await supabaseAdmin
+    .from("resources")
+    .select("id, url")
+    .eq("workspace_id", workspaceId);
+
+  if (fetchErr) {
+    throw new Error(`Failed to fetch workspace resources: ${fetchErr.message}`);
+  }
+
+  // 2. Extract UploadThing file keys from resource URLs
+  const fileKeys: string[] = [];
+  for (const r of resources ?? []) {
+    if (r.url) {
+      const parts = r.url.split("/f/");
+      const key = parts.length > 1 ? parts[parts.length - 1] : null;
+      if (key) fileKeys.push(key);
+    }
+  }
+
+  // 3. Delete resource rows from the database
+  if (resources && resources.length > 0) {
+    const { error: delResErr } = await supabaseAdmin
+      .from("resources")
+      .delete()
+      .eq("workspace_id", workspaceId);
+
+    if (delResErr) {
+      throw new Error(`Failed to delete workspace resources: ${delResErr.message}`);
+    }
+  }
+
+  // 4. Delete the workspace itself
   const { error } = await supabaseAdmin
     .from("workspaces")
     .delete()
@@ -123,6 +158,16 @@ export const deleteWorkspace = async (
 
   if (error) {
     throw new Error(`Failed to delete workspace: ${error.message}`);
+  }
+
+  // 5. Delete files from UploadThing (best-effort, after DB cleanup)
+  if (fileKeys.length > 0) {
+    try {
+      const utapi = new UTApi();
+      await utapi.deleteFiles(fileKeys);
+    } catch (utErr) {
+      console.error("[deleteWorkspace] Failed to delete UploadThing files:", utErr);
+    }
   }
 };
 
