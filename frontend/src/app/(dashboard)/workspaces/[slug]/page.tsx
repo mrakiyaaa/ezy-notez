@@ -268,12 +268,18 @@ export default function WorkspacePage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-text-primary font-bold text-lg">
+              <h1 className="text-text-primary font-semibold text-lg">
                 {workspace?.name ?? "Loading…"}
               </h1>
-              <p className="text-text-muted text-sm">
+              <span
+                className="text-xs rounded-full px-2 py-0.5 mt-1 inline-block"
+                style={{
+                  backgroundColor: `rgba(${auraRgb}, 0.1)`,
+                  color: auraHex,
+                }}
+              >
                 {navSubtitles[activeNav]}
-              </p>
+              </span>
             </div>
           </div>
 
@@ -284,8 +290,14 @@ export default function WorkspacePage() {
               type="text"
               placeholder="Search Projects"
               className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none"
-              onFocus={(e) => { e.currentTarget.style.borderColor = auraHex; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = auraHex;
+                e.currentTarget.style.boxShadow = `0 0 12px rgba(${auraRgb}, 0.15)`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "";
+                e.currentTarget.style.boxShadow = "";
+              }}
             />
           </div>
         </header>
