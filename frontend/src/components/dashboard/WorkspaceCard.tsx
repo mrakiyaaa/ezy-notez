@@ -3,16 +3,8 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { Workspace } from "@/types/workspace";
-import { deleteWorkspaceApi } from "@/lib/api/workspace.api";
-
-function getContrastColor(hex: string): string {
-  const h = hex.replace("#", "");
-  const n = parseInt(h, 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return 0.299 * r + 0.587 * g + 0.114 * b > 128 ? "#000000" : "#ffffff";
-}
+import { deleteWorkspaceApi } from "@/api/workspace.api";
+import { getContrastColor } from "@/lib/utils";
 
 interface WorkspaceCardProps {
   workspace: Workspace;
@@ -97,7 +89,7 @@ export default function WorkspaceCard({
               >
                 {workspace.aura_keyword} aura
               </p>
-              <h3 className="mt-3 text-lg font-semibold text-white">
+              <h3 className="mt-3 text-lg font-semibold text-text-primary">
                 {workspace.name}
               </h3>
             </div>
@@ -118,7 +110,7 @@ export default function WorkspaceCard({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="w-full max-w-sm rounded-xl bg-bg-card border border-white/10 p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-white">Delete workspace?</h3>
+            <h3 className="text-base font-semibold text-text-primary">Delete workspace?</h3>
             <p className="mt-2 text-sm text-white/60">
               <span className="font-medium text-white/80">{workspace.name}</span> will be permanently deleted. This action cannot be undone.
             </p>

@@ -214,6 +214,79 @@ export const extractAndStoreAudio = async (
 };
 
 /**
+ * Spawn the python-pptx Python script to extract text from a PPTX file, then
+ * persist the result (or a failure status) back to Supabase.
+ *
+ * Status transitions:
+ *   current → 'indexing' (immediately)  → 'ready' | 'failed'
+ */
+export const extractAndStorePptx = async (
+  id: string,
+  fileUrl: string
+): Promise<void> => {
+  // Mark as indexing first so the UI reflects progress immediately
+  await supabaseAdmin
+    .from("resources")
+    .update({ status: "indexing" })
+    .eq("id", id);
+
+  try {
+    const scriptPath = path.resolve(__dirname, "../../scripts/pptx_extract.py");
+    const extractedText = await new Promise<string>((resolve, reject) => {
+      const proc = spawn("python", [scriptPath, fileUrl]);
+
+      let stdout = "";
+      let stderr = "";
+
+      proc.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        if (code === 0) {
+          resolve(stdout.trim());
+        } else {
+          reject(new Error(`PPTX extract script exited with code ${code}: ${stderr}`));
+        }
+      });
+
+      proc.on("error", (err) => {
+        reject(new Error(`Failed to spawn PPTX extract script: ${err.message}`));
+      });
+    });
+
+    // Strip null bytes — can appear in PPTX text and are rejected by PostgreSQL
+    const sanitizedText = extractedText.replace(/\0/g, "");
+
+    const { error } = await supabaseAdmin
+      .from("resources")
+      .update({ extracted_text: sanitizedText, status: "ready" })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error(`Supabase update failed: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`[extractAndStorePptx] resource=${id}`, err);
+
+    // Best-effort failure marker — don't throw so callers can still respond
+    await supabaseAdmin
+      .from("resources")
+      .update({ status: "failed" })
+      .eq("id", id)
+      .then(({ error: e }) => {
+        if (e) console.error("[extractAndStorePptx] failed to set status=failed:", e);
+      });
+
+    throw err;
+  }
+};
+
+/**
  * Delete a resource (removes from both Supabase and Uploadthing)
  */
 export const deleteResourceById = async (id: string): Promise<void> => {

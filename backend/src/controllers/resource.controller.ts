@@ -6,6 +6,7 @@ import {
   deleteResourceById,
   extractAndStoreText,
   extractAndStoreAudio,
+  extractAndStorePptx,
   type InsertResourceInput,
   type ResourceStatus,
 } from "../services/resource.service";
@@ -261,6 +262,48 @@ export const extractAudioHandler = async (
     const message =
       error instanceof Error ? error.message : "Failed to extract audio text";
     console.error("[extractAudioHandler]", error);
+    res.status(500).json({ status: "error", message });
+  }
+};
+
+/**
+ * POST /resources/:id/extract-pptx
+ * Spawn the python-pptx script to extract text from the PPTX file, then persist
+ * the result to Supabase.  Status transitions: uploading → indexing → ready | failed
+ */
+export const extractPptxHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ status: "error", message: "Unauthorized" });
+      return;
+    }
+
+    const { id } = req.params;
+    const { fileUrl } = req.body as { fileUrl?: string };
+
+    if (!id || !fileUrl) {
+      res.status(400).json({
+        status: "error",
+        message: "id (param) and fileUrl (body) are required",
+      });
+      return;
+    }
+
+    await extractAndStorePptx(id, fileUrl);
+
+    res.status(200).json({
+      status: "success",
+      message: "PPTX text extracted and stored",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to extract PPTX text";
+    console.error("[extractPptxHandler]", error);
     res.status(500).json({ status: "error", message });
   }
 };

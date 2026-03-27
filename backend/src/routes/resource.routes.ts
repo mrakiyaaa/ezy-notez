@@ -7,6 +7,7 @@ import {
   deleteResourceHandler,
   extractResourceHandler,
   extractAudioHandler,
+  extractPptxHandler,
 } from "../controllers/resource.controller";
 
 const router = Router();
@@ -31,5 +32,8 @@ router.post("/:id/extract", extractResourceHandler);
 
 // Extract audio transcript via Whisper and store in extracted_text column
 router.post("/:id/extract-audio", extractAudioHandler);
+
+// Extract PPTX text via python-pptx and store in extracted_text column
+router.post("/:id/extract-pptx", extractPptxHandler);
 
 export default router;

@@ -13,7 +13,7 @@ export default function CreateWorkspaceCard({ onOpen }: CreateWorkspaceCardProps
         +
       </div>
       <div>
-        <p className="text-base font-semibold text-white">New workspace</p>
+        <p className="text-base font-semibold text-text-primary">New workspace</p>
         <p className="mt-1 text-sm text-white/60">
           Create a private AI hub for your study plan.
         </p>

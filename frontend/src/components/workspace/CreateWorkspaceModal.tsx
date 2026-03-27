@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { createWorkspaceApi } from "@/lib/api/workspace.api";
+import { createWorkspaceApi } from "@/api/workspace.api";
 import { CreateWorkspaceInput } from "@/types/workspace";
 
 interface CreateWorkspaceModalProps {
@@ -97,14 +97,14 @@ export default function CreateWorkspaceModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-bg-card p-6 shadow-lg">
-        <h2 className="mb-4 text-2xl font-bold text-white">
+        <h2 className="mb-4 text-2xl font-bold text-text-primary">
           Create Workspace
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Workspace Name */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-white">
+            <label htmlFor="name" className="block text-sm font-medium text-text-primary">
               Workspace Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -115,13 +115,13 @@ export default function CreateWorkspaceModal({
               onChange={handleInputChange}
               placeholder="e.g., Spring 2026 Study"
               disabled={loading}
-              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-white/10 disabled:text-white/50"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-accent focus:outline-none focus:ring-1 focus:ring-blue-accent disabled:bg-white/10 disabled:text-white/50"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-white">
+            <label htmlFor="description" className="block text-sm font-medium text-text-primary">
               Description <span className="text-white/50 text-xs">(Optional)</span>
             </label>
             <textarea
@@ -132,7 +132,7 @@ export default function CreateWorkspaceModal({
               placeholder="What is this workspace for?"
               disabled={loading}
               rows={3}
-              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-white/10 disabled:text-white/50"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-accent focus:outline-none focus:ring-1 focus:ring-blue-accent disabled:bg-white/10 disabled:text-white/50"
             />
           </div>
 
@@ -150,7 +150,7 @@ export default function CreateWorkspaceModal({
                   disabled={loading}
                   className={`relative h-12 rounded-lg transition-all ${
                     formData.aura === color.value
-                      ? "ring-2 ring-offset-2 ring-blue-500 scale-110"
+                      ? "ring-2 ring-offset-2 ring-blue-accent scale-110"
                       : "hover:scale-105"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                   style={{ backgroundColor: color.value }}
@@ -178,7 +178,7 @@ export default function CreateWorkspaceModal({
 
           {/* Aura Keyword */}
           <div>
-            <label htmlFor="auraKeyword" className="block text-sm font-medium text-white">
+            <label htmlFor="auraKeyword" className="block text-sm font-medium text-text-primary">
               Aura Keyword <span className="text-red-500">*</span>
             </label>
             <input
@@ -189,7 +189,7 @@ export default function CreateWorkspaceModal({
               onChange={handleInputChange}
               placeholder="e.g., Sunburst"
               disabled={loading}
-              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-white/10 disabled:text-white/50"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-white/40 focus:border-blue-accent focus:outline-none focus:ring-1 focus:ring-blue-accent disabled:bg-white/10 disabled:text-white/50"
             />
           </div>
 

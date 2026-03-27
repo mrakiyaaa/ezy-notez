@@ -1,6 +1,6 @@
 import type { Workspace } from "@/types/workspace";
-import CreateWorkspaceCard from "@/components/workspace-hub/CreateWorkspaceCard";
-import WorkspaceCard from "@/components/workspace-hub/WorkspaceCard";
+import CreateWorkspaceCard from "@/components/dashboard/CreateWorkspaceCard";
+import WorkspaceCard from "@/components/dashboard/WorkspaceCard";
 
 interface WorkspaceGridProps {
   workspaces: Workspace[];

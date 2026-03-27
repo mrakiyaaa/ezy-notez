@@ -1,9 +1,9 @@
 import type { Activity } from "@/types/activity";
 import type { Invite } from "@/types/invite";
 import type { CreateWorkspaceInput, Workspace } from "@/types/workspace";
-import activitiesData from "@/lib/mock/activities.json";
-import invitesData from "@/lib/mock/invites.json";
-import workspacesData from "@/lib/mock/workspaces.json";
+import activitiesData from "@/constants/mock/activities.json";
+import invitesData from "@/constants/mock/invites.json";
+import workspacesData from "@/constants/mock/workspaces.json";
 
 const asWorkspace = (item: Workspace): Workspace => item;
 const asInvite = (item: Invite): Invite => item;

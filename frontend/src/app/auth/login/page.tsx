@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -59,7 +59,7 @@ export default function LoginPage() {
         <p className="text-xs uppercase tracking-[0.25em] text-white/40">
           Welcome back
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
           Sign in to your account
         </h1>
       </div>
@@ -77,7 +77,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
             />
           </div>
 
@@ -91,7 +91,7 @@ export default function LoginPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
             />
           </div>
 

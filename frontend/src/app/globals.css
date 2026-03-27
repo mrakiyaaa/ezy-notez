@@ -16,6 +16,7 @@
 
   /* Backgrounds */
   --main: #04080f;
+  --color-main-dark: #0a0d14;
   --color-bg-card: #111721;
 
   /* Accent */
@@ -187,10 +188,8 @@ body {
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
     @apply bg-background text-foreground;
   }
 }
