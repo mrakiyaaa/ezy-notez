@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ResourceItem from "@/components/workspace/ResourceItem";
 import { useProfile } from "@/hooks/useProfile";
@@ -15,6 +15,8 @@ import {
   deleteResource,
   triggerExtraction,
   triggerAudioExtraction,
+  triggerPptxExtraction,
+  createYoutubeResource,
 } from "@/services/resource.service";
 import type { Resource, ResourceType, ResourceStatus } from "@/types/resource";
 
@@ -42,6 +44,24 @@ function getMimeType(file: File): ResourceType {
   return "pdf"; // fallback
 }
 
+/** Maps file extensions to the extraction service function for that type. */
+const EXTENSION_EXTRACTORS: {
+  extensions: string[];
+  trigger: (resourceId: string, url: string) => Promise<void>;
+}[] = [
+  { extensions: [".pdf"], trigger: triggerExtraction },
+  { extensions: [".ppt", ".pptx"], trigger: triggerPptxExtraction },
+  { extensions: [".mp3", ".wav", ".m4a", ".webm", ".ogg", ".mp4a"], trigger: triggerAudioExtraction },
+];
+
+/** Returns the extraction trigger function for the given filename, or null if none. */
+function getExtractor(fileName: string): ((id: string, url: string) => Promise<void>) | null {
+  const lower = fileName.toLowerCase();
+  return EXTENSION_EXTRACTORS.find(({ extensions }) =>
+    extensions.some((ext) => lower.endsWith(ext))
+  )?.trigger ?? null;
+}
+
 interface ResourcesViewProps {
   activeTab: TabItem;
   setActiveTab: (tab: TabItem) => void;
@@ -67,6 +87,11 @@ export default function ResourcesView({
   const [loadError, setLoadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<Map<string, string>>(new Map());
+
+  // YouTube URL input state
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isAddingYoutube, setIsAddingYoutube] = useState(false);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
 
   // Resolve workspace id from slug via backend API
   useEffect(() => {
@@ -136,11 +161,9 @@ export default function ResourcesView({
           continue;
         }
 
-        const isPdf = file.name.toLowerCase().endsWith(".pdf");
-        const audioExtensions = [".mp3", ".wav", ".m4a", ".webm", ".ogg", ".mp4a"];
-        const isAudio = audioExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
+        const triggerFn = getExtractor(file.name);
 
-        if (isPdf) {
+        if (triggerFn) {
           setResources((prev) =>
             prev.map((r) =>
               r.id === resourceId ? { ...r, status: "indexing" as ResourceStatus, url } : r
@@ -153,35 +176,7 @@ export default function ResourcesView({
             console.error("Failed to set status to indexing:", err);
           }
 
-          triggerExtraction(resourceId, url)
-            .then(() => {
-              setResources((prev) =>
-                prev.map((r) =>
-                  r.id === resourceId ? { ...r, status: "ready" as ResourceStatus } : r
-                )
-              );
-            })
-            .catch(() => {
-              setResources((prev) =>
-                prev.map((r) =>
-                  r.id === resourceId ? { ...r, status: "failed" as ResourceStatus } : r
-                )
-              );
-            });
-        } else if (isAudio) {
-          setResources((prev) =>
-            prev.map((r) =>
-              r.id === resourceId ? { ...r, status: "indexing" as ResourceStatus, url } : r
-            )
-          );
-
-          try {
-            await updateResourceStatus(resourceId, "indexing", url);
-          } catch (err) {
-            console.error("Failed to set status to indexing:", err);
-          }
-
-          triggerAudioExtraction(resourceId, url)
+          triggerFn(resourceId, url)
             .then(() => {
               setResources((prev) =>
                 prev.map((r) =>
@@ -273,6 +268,59 @@ export default function ResourcesView({
     }
   };
 
+  // YouTube URL handling
+  const isValidYoutubeUrl = (url: string): boolean =>
+    /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/)|youtu\.be\/)[\w-]+/.test(
+      url.trim()
+    );
+
+  const handleAddYoutube = async () => {
+    if (!workspaceId || !user) return;
+
+    const trimmed = youtubeUrl.trim();
+    if (!isValidYoutubeUrl(trimmed)) {
+      setYoutubeError("Please enter a valid YouTube URL");
+      return;
+    }
+
+    setYoutubeError(null);
+    setIsAddingYoutube(true);
+
+    try {
+      const resource = await createYoutubeResource({
+        workspace_id: workspaceId,
+        youtube_url: trimmed,
+      });
+      setResources((prev) => [resource, ...prev]);
+      setYoutubeUrl("");
+    } catch (err) {
+      console.error("Failed to add YouTube resource:", err);
+      setYoutubeError("Failed to add YouTube video. Please try again.");
+    } finally {
+      setIsAddingYoutube(false);
+    }
+  };
+
+  // Poll for status updates when resources are indexing
+  useEffect(() => {
+    const hasIndexing = resources.some((r) => r.status === "indexing");
+    if (!hasIndexing || !workspaceId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await getWorkspaceResources(workspaceId);
+        setResources(data);
+        if (!data.some((r) => r.status === "indexing")) {
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error("Polling failed:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [resources.some((r) => r.status === "indexing"), workspaceId]);
+
   const tabTypeMap: Record<TabItem, ResourceType | null> = {
     all: null,
     pdfs: "pdf",
@@ -333,6 +381,57 @@ export default function ResourcesView({
             "Select Files"
           )}
         </Button>
+
+        {/* Divider */}
+        <div className="flex items-center gap-4 mt-6 mx-8">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-text-muted text-xs">or paste a YouTube link</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        {/* YouTube URL Input */}
+        <div className="flex items-center gap-2 mt-4 mx-8">
+          <div
+            className="flex-1 flex items-center gap-2 rounded-lg px-3 py-2 border"
+            style={{
+              borderColor: youtubeError
+                ? "rgb(248, 113, 113)"
+                : `rgba(${auraRgb}, 0.2)`,
+              backgroundColor: `rgba(${auraRgb}, 0.05)`,
+            }}
+          >
+            <Video className="w-5 h-5 text-red-500 shrink-0" />
+            <input
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={(e) => {
+                setYoutubeUrl(e.target.value);
+                setYoutubeError(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleAddYoutube()}
+              className="bg-transparent text-text-primary text-sm flex-1 outline-none placeholder:text-text-muted"
+              disabled={isAddingYoutube || !workspaceId}
+            />
+          </div>
+          <Button
+            onClick={handleAddYoutube}
+            disabled={isAddingYoutube || !workspaceId || !youtubeUrl.trim()}
+            className="rounded-lg px-6 py-2 disabled:opacity-50"
+            style={{ backgroundColor: auraHex, color: auraContrast }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+          >
+            {isAddingYoutube ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              "Add"
+            )}
+          </Button>
+        </div>
+        {youtubeError && (
+          <p className="text-red-400 text-xs mt-2 mx-8">{youtubeError}</p>
+        )}
       </div>
 
       {/* Filter Tabs */}

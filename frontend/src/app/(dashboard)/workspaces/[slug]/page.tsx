@@ -24,6 +24,7 @@ import {
 import WorkspaceHome from "@/components/workspace/WorkspaceHome";
 import Chattie from "@/components/workspace/Chattie";
 import ResourcesView from "@/components/workspace/ResourcesView";
+import SummarizationView from "@/components/workspace/SummarizationView";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import { hexToRgb, getContrastColor } from "@/lib/utils";
 import { getWorkspaceBySlug } from "@/services/resource.service";
@@ -243,7 +244,14 @@ export default function WorkspacePage() {
               auraRgb={auraRgb}
             />
           )}
-          {activeNav === "summarization" && <SummarizationView />}
+          {activeNav === "summarization" && workspace && (
+            <SummarizationView
+              workspaceId={workspace.id}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+              auraContrast={auraContrast}
+            />
+          )}
           {activeNav === "flashcards" && <FlashcardsView />}
           {activeNav === "studyroom" && <StudyRoomView />}
           {activeNav === "quiz" && <QuizView />}
@@ -254,15 +262,6 @@ export default function WorkspacePage() {
 }
 
 /* ─── Placeholder Views ─── */
-function SummarizationView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <AlignLeft className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Summarization</h2>
-      <p className="text-sm">AI-powered summarization coming soon.</p>
-    </div>
-  );
-}
 
 function FlashcardsView() {
   return (

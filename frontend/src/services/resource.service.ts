@@ -59,6 +59,24 @@ export async function triggerPptxExtraction(
   await apiClient.post(`/resources/${resourceId}/extract-pptx`, { fileUrl });
 }
 
+export async function createYoutubeResource(data: {
+  workspace_id: string;
+  youtube_url: string;
+  name?: string;
+}): Promise<Resource> {
+  const response = await apiClient.post("/resources/youtube", data);
+  return response.data.data as Resource;
+}
+
+export async function triggerYoutubeExtraction(
+  resourceId: string,
+  youtubeUrl: string
+): Promise<void> {
+  await apiClient.post(`/resources/${resourceId}/extract-youtube`, {
+    fileUrl: youtubeUrl,
+  });
+}
+
 export async function getWorkspaceIdBySlug(
   slug: string
 ): Promise<string | null> {

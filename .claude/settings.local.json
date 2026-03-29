@@ -1,6 +1,11 @@
 {
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
   ],
-  "enableAllProjectMcpServers": true
+  "permissions": {
+    "allow": [
+      "Bash(python \"c:/Users/Dinuli Nethmini/Desktop/3rd year/Computing Individual Project/Ezynotes/project/ezy-notez/backend/scripts/youtube_transcript.py\" \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\")"
+    ]
+  }
 }

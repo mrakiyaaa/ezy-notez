@@ -5,6 +5,7 @@ import {
   Presentation,
   Image as ImageIcon,
   Music,
+  Video,
   Trash2,
 } from "lucide-react";
 import type { Resource, ResourceType, ResourceStatus } from "@/types/resource";
@@ -47,7 +48,7 @@ const iconConfig: Record<
     color: "text-purple-400",
   },
   audio: { bg: "bg-blue-900/40", icon: Music, color: "text-blue-400" },
-  youtube: { bg: "bg-red-900/40", icon: FileText, color: "text-red-400" },
+  youtube: { bg: "bg-red-900/40", icon: Video, color: "text-red-400" },
 };
 
 const statusConfig: Record<
@@ -116,7 +117,7 @@ export default function ResourceItem({
           {resource.name}
         </p>
         <p className="text-text-muted text-xs mt-0.5">
-          {formatBytes(resource.size)} &middot;{" "}
+          {resource.type === "youtube" ? "YouTube" : formatBytes(resource.size)} &middot;{" "}
           {timeAgo(new Date(resource.created_at))}
         </p>
       </div>
