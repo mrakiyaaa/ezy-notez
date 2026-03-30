@@ -45,10 +45,10 @@ export const generateGeneralSummaryHandler = async (
 
     const summary = await generateGeneralSummary(workspace_id, userId, format);
     res.status(201).json({ status: "success", data: summary });
-  } catch (error) {
+  } catch (handlerError) {
     const message =
-      error instanceof Error ? error.message : "Failed to generate summary";
-    console.error("[generateGeneralSummaryHandler]", error);
+      handlerError instanceof Error ? handlerError.message : "Failed to generate general summary";
+    console.error("[generateGeneralSummaryHandler]", handlerError);
     res.status(400).json({ status: "error", message });
   }
 };
@@ -96,10 +96,10 @@ export const generateCustomSummariesHandler = async (
       resource_ids
     );
     res.status(201).json({ status: "success", data: summaries });
-  } catch (error) {
+  } catch (handlerError) {
     const message =
-      error instanceof Error ? error.message : "Failed to generate summaries";
-    console.error("[generateCustomSummariesHandler]", error);
+      handlerError instanceof Error ? handlerError.message : "Failed to generate custom summaries";
+    console.error("[generateCustomSummariesHandler]", handlerError);
     res.status(400).json({ status: "error", message });
   }
 };
@@ -130,10 +130,10 @@ export const getWorkspaceSummariesHandler = async (
 
     const summaries = await getWorkspaceSummaries(workspaceId);
     res.status(200).json({ status: "success", data: summaries });
-  } catch (error) {
+  } catch (handlerError) {
     const message =
-      error instanceof Error ? error.message : "Failed to fetch summaries";
-    console.error("[getWorkspaceSummariesHandler]", error);
+      handlerError instanceof Error ? handlerError.message : "Failed to fetch workspace summaries";
+    console.error("[getWorkspaceSummariesHandler]", handlerError);
     res.status(400).json({ status: "error", message });
   }
 };
@@ -165,10 +165,10 @@ export const getSummaryByIdHandler = async (
     }
 
     res.status(200).json({ status: "success", data: summary });
-  } catch (error) {
+  } catch (handlerError) {
     const message =
-      error instanceof Error ? error.message : "Failed to fetch summary";
-    console.error("[getSummaryByIdHandler]", error);
+      handlerError instanceof Error ? handlerError.message : "Failed to fetch summary";
+    console.error("[getSummaryByIdHandler]", handlerError);
     res.status(400).json({ status: "error", message });
   }
 };
@@ -206,10 +206,10 @@ export const regenerateSummaryHandler = async (
 
     const summary = await regenerateSummary(id, format);
     res.status(200).json({ status: "success", data: summary });
-  } catch (error) {
+  } catch (handlerError) {
     const message =
-      error instanceof Error ? error.message : "Failed to regenerate summary";
-    console.error("[regenerateSummaryHandler]", error);
+      handlerError instanceof Error ? handlerError.message : "Failed to regenerate summary";
+    console.error("[regenerateSummaryHandler]", handlerError);
     res.status(400).json({ status: "error", message });
   }
 };
@@ -236,10 +236,10 @@ export const deleteSummaryHandler = async (
 
     await deleteSummary(id);
     res.status(200).json({ status: "success", message: "Summary deleted" });
-  } catch (error) {
+  } catch (handlerError) {
     const message =
-      error instanceof Error ? error.message : "Failed to delete summary";
-    console.error("[deleteSummaryHandler]", error);
+      handlerError instanceof Error ? handlerError.message : "Failed to delete summary";
+    console.error("[deleteSummaryHandler]", handlerError);
     res.status(400).json({ status: "error", message });
   }
 };

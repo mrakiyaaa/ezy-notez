@@ -23,6 +23,14 @@ export interface SummaryRow {
   updated_at: string;
 }
 
+interface ResourceTextRow {
+  id: string;
+  extracted_text: string | null;
+}
+
+const PYTHON_SCRIPT_PATH = "../../scripts/summarize_text.py";
+const DEFAULT_CHUNK_SIZE = "1024";
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
@@ -44,32 +52,64 @@ const spawnPythonScriptWithStdin = (
     let stdout = "";
     let stderr = "";
 
-    proc.stdout.on("data", (data: Buffer) => {
-      stdout += data.toString();
+    proc.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
     });
-    proc.stderr.on("data", (data: Buffer) => {
-      stderr += data.toString();
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
     });
 
-    proc.on("close", (code) => {
-      if (code === 0) {
+    proc.on("close", (exitCode) => {
+      if (exitCode === 0) {
         resolve(stdout.trim());
       } else {
         reject(
-          new Error(`Script exited with code ${code}: ${stderr.trim()}`)
+          new Error(
+            `Summarization script exited with code ${exitCode}: ${stderr.trim()}`
+          )
         );
       }
     });
 
-    proc.on("error", (err) => {
-      reject(new Error(`Failed to spawn script: ${err.message}`));
+    proc.on("error", (spawnError) => {
+      reject(
+        new Error(
+          `Failed to spawn summarization script: ${spawnError.message}`
+        )
+      );
     });
 
-    // Pipe the input text via stdin
+    proc.stdin.on("error", (writeError) => {
+      reject(
+        new Error(
+          `Failed to write input to summarization script: ${writeError.message}`
+        )
+      );
+    });
+
     proc.stdin.write(stdinData);
     proc.stdin.end();
   });
 };
+
+/**
+ * Filter resources that have non-empty extracted text.
+ */
+const filterUsableResources = (
+  resources: ResourceTextRow[]
+): ResourceTextRow[] =>
+  resources.filter(
+    (resource) =>
+      resource.extracted_text && resource.extracted_text.trim().length > 0
+  );
+
+/**
+ * Concatenate extracted text from multiple resources.
+ */
+const combineExtractedText = (resources: ResourceTextRow[]): string =>
+  resources
+    .map((resource) => resource.extracted_text!.trim())
+    .join("\n\n");
 
 /**
  * Run the summarization pipeline for a single summary row:
@@ -83,7 +123,6 @@ const runSummarizationPipeline = async (
   inputText: string,
   format: SummaryFormat
 ): Promise<void> => {
-  // Mark processing
   await supabaseAdmin
     .from("summaries")
     .update({ status: "processing", updated_at: new Date().toISOString() })
@@ -91,44 +130,53 @@ const runSummarizationPipeline = async (
 
   try {
     const rawOutput = await spawnPythonScriptWithStdin(
-      "../../scripts/summarize_text.py",
-      [format, "1024"],
+      PYTHON_SCRIPT_PATH,
+      [format, DEFAULT_CHUNK_SIZE],
       inputText
     );
 
     // Strip null bytes (rejected by PostgreSQL text type)
-    const content = rawOutput.replace(/\0/g, "");
+    const sanitizedContent = rawOutput.replace(/\0/g, "");
 
-    const { error } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("summaries")
       .update({
-        content,
+        content: sanitizedContent,
         status: "ready",
         error_message: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", summaryId);
 
-    if (error) throw new Error(`Supabase update failed: ${error.message}`);
-  } catch (err) {
-    console.error(`[runSummarizationPipeline] summary=${summaryId}`, err);
+    if (updateError) {
+      throw new Error(
+        `Failed to save summary result to database: ${updateError.message}`
+      );
+    }
+  } catch (pipelineError) {
+    console.error(
+      `[runSummarizationPipeline] Failed for summary=${summaryId}:`,
+      pipelineError
+    );
 
-    await supabaseAdmin
+    const { error: statusUpdateError } = await supabaseAdmin
       .from("summaries")
       .update({
         status: "failed",
         error_message:
-          err instanceof Error ? err.message : "Unknown error",
+          pipelineError instanceof Error
+            ? pipelineError.message
+            : "Unknown summarization error",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", summaryId)
-      .then(({ error: e }) => {
-        if (e)
-          console.error(
-            `[runSummarizationPipeline] failed to set status=failed:`,
-            e
-          );
-      });
+      .eq("id", summaryId);
+
+    if (statusUpdateError) {
+      console.error(
+        `[runSummarizationPipeline] Failed to mark summary=${summaryId} as failed:`,
+        statusUpdateError
+      );
+    }
   }
 };
 
@@ -148,7 +196,11 @@ export const getWorkspaceSummaries = async (
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error(`Failed to fetch summaries: ${error.message}`);
+  if (error) {
+    throw new Error(
+      `Failed to fetch summaries for workspace ${workspaceId}: ${error.message}`
+    );
+  }
   return (data ?? []) as SummaryRow[];
 };
 
@@ -177,7 +229,9 @@ export const deleteSummary = async (id: string): Promise<void> => {
     .delete()
     .eq("id", id);
 
-  if (error) throw new Error(`Failed to delete summary: ${error.message}`);
+  if (error) {
+    throw new Error(`Failed to delete summary ${id}: ${error.message}`);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -195,33 +249,31 @@ export const generateGeneralSummary = async (
   userId: string,
   format: SummaryFormat
 ): Promise<SummaryRow> => {
-  // Fetch all ready resources with non-empty extracted_text
-  const { data: resources, error: fetchErr } = await supabaseAdmin
+  const { data: fetchedResources, error: fetchError } = await supabaseAdmin
     .from("resources")
     .select("id, extracted_text")
     .eq("workspace_id", workspaceId)
     .eq("status", "ready")
     .not("extracted_text", "is", null);
 
-  if (fetchErr)
-    throw new Error(`Failed to fetch resources: ${fetchErr.message}`);
+  if (fetchError) {
+    throw new Error(
+      `Failed to fetch resources for workspace ${workspaceId}: ${fetchError.message}`
+    );
+  }
 
-  const usable = (resources ?? []).filter(
-    (r: { id: string; extracted_text: string | null }) =>
-      r.extracted_text && r.extracted_text.trim().length > 0
+  const usableResources = filterUsableResources(
+    (fetchedResources ?? []) as ResourceTextRow[]
   );
 
-  if (usable.length === 0) {
+  if (usableResources.length === 0) {
     throw new Error("No resources with extracted text found in this workspace");
   }
 
-  const sourceIds = usable.map((r: { id: string }) => r.id);
-  const combinedText = usable
-    .map((r: { extracted_text: string | null }) => r.extracted_text!.trim())
-    .join("\n\n");
+  const sourceIds = usableResources.map((resource) => resource.id);
+  const combinedText = combineExtractedText(usableResources);
 
-  // Insert pending summary row
-  const { data: summary, error: insertErr } = await supabaseAdmin
+  const { data: insertedSummary, error: insertError } = await supabaseAdmin
     .from("summaries")
     .insert({
       workspace_id: workspaceId,
@@ -235,15 +287,22 @@ export const generateGeneralSummary = async (
     .select()
     .single();
 
-  if (insertErr)
-    throw new Error(`Failed to create summary: ${insertErr.message}`);
+  if (insertError) {
+    throw new Error(
+      `Failed to create summary record: ${insertError.message}`
+    );
+  }
 
-  // Fire-and-forget the pipeline
-  runSummarizationPipeline(summary.id, combinedText, format).catch((err) => {
-    console.error("[generateGeneralSummary] pipeline failed:", err);
-  });
+  runSummarizationPipeline(insertedSummary.id, combinedText, format).catch(
+    (pipelineError) => {
+      console.error(
+        "[generateGeneralSummary] Background pipeline failed:",
+        pipelineError
+      );
+    }
+  );
 
-  return summary as SummaryRow;
+  return insertedSummary as SummaryRow;
 };
 
 /**
@@ -257,8 +316,7 @@ export const generateResourceSummaries = async (
   format: SummaryFormat,
   resourceIds: string[]
 ): Promise<SummaryRow[]> => {
-  // Fetch requested resources with their extracted text
-  const { data: resources, error: fetchErr } = await supabaseAdmin
+  const { data: fetchedResources, error: fetchError } = await supabaseAdmin
     .from("resources")
     .select("id, extracted_text")
     .eq("workspace_id", workspaceId)
@@ -266,22 +324,24 @@ export const generateResourceSummaries = async (
     .in("id", resourceIds)
     .not("extracted_text", "is", null);
 
-  if (fetchErr)
-    throw new Error(`Failed to fetch resources: ${fetchErr.message}`);
+  if (fetchError) {
+    throw new Error(
+      `Failed to fetch resources for workspace ${workspaceId}: ${fetchError.message}`
+    );
+  }
 
-  const usable = (resources ?? []).filter(
-    (r: { id: string; extracted_text: string | null }) =>
-      r.extracted_text && r.extracted_text.trim().length > 0
+  const usableResources = filterUsableResources(
+    (fetchedResources ?? []) as ResourceTextRow[]
   );
 
-  if (usable.length === 0) {
+  if (usableResources.length === 0) {
     throw new Error("None of the selected resources have extracted text");
   }
 
-  const summaries: SummaryRow[] = [];
+  const createdSummaries: SummaryRow[] = [];
 
-  for (const resource of usable) {
-    const { data: summary, error: insertErr } = await supabaseAdmin
+  for (const resource of usableResources) {
+    const { data: insertedSummary, error: insertError } = await supabaseAdmin
       .from("summaries")
       .insert({
         workspace_id: workspaceId,
@@ -295,25 +355,27 @@ export const generateResourceSummaries = async (
       .select()
       .single();
 
-    if (insertErr)
-      throw new Error(`Failed to create summary: ${insertErr.message}`);
+    if (insertError) {
+      throw new Error(
+        `Failed to create summary for resource ${resource.id}: ${insertError.message}`
+      );
+    }
 
-    summaries.push(summary as SummaryRow);
+    createdSummaries.push(insertedSummary as SummaryRow);
 
-    // Fire-and-forget the pipeline for each resource
     runSummarizationPipeline(
-      summary.id,
+      insertedSummary.id,
       resource.extracted_text!.trim(),
       format
-    ).catch((err) => {
+    ).catch((pipelineError) => {
       console.error(
-        `[generateResourceSummaries] pipeline failed for resource=${resource.id}:`,
-        err
+        `[generateResourceSummaries] Background pipeline failed for resource=${resource.id}:`,
+        pipelineError
       );
     });
   }
 
-  return summaries;
+  return createdSummaries;
 };
 
 /**
@@ -325,52 +387,50 @@ export const regenerateSummary = async (
   newFormat?: SummaryFormat
 ): Promise<SummaryRow> => {
   const existing = await getSummaryById(id);
-  if (!existing) throw new Error("Summary not found");
+  if (!existing) throw new Error(`Summary ${id} not found`);
 
   const format = newFormat ?? existing.format;
 
-  // Determine input text
   let inputText: string;
 
   if (existing.resource_id) {
-    // Per-resource summary — fetch that resource's text
-    const { data: resource, error } = await supabaseAdmin
+    const { data: resource, error: fetchError } = await supabaseAdmin
       .from("resources")
       .select("extracted_text")
       .eq("id", existing.resource_id)
       .single();
 
-    if (error || !resource?.extracted_text) {
-      throw new Error("Source resource text is no longer available");
+    if (fetchError || !resource?.extracted_text) {
+      throw new Error(
+        `Source resource ${existing.resource_id} text is no longer available`
+      );
     }
     inputText = resource.extracted_text.trim();
   } else {
-    // General summary — re-fetch all source resources
-    const { data: resources, error } = await supabaseAdmin
+    const { data: sourceResources, error: fetchError } = await supabaseAdmin
       .from("resources")
       .select("id, extracted_text")
       .in("id", existing.source_ids)
       .not("extracted_text", "is", null);
 
-    if (error)
-      throw new Error(`Failed to fetch source resources: ${error.message}`);
+    if (fetchError) {
+      throw new Error(
+        `Failed to fetch source resources: ${fetchError.message}`
+      );
+    }
 
-    const usable = (resources ?? []).filter(
-      (r: { id: string; extracted_text: string | null }) =>
-        r.extracted_text && r.extracted_text.trim().length > 0
+    const usableResources = filterUsableResources(
+      (sourceResources ?? []) as ResourceTextRow[]
     );
 
-    if (usable.length === 0) {
+    if (usableResources.length === 0) {
       throw new Error("Source resources no longer have extracted text");
     }
 
-    inputText = usable
-      .map((r: { extracted_text: string | null }) => r.extracted_text!.trim())
-      .join("\n\n");
+    inputText = combineExtractedText(usableResources);
   }
 
-  // Reset to pending
-  const { data: updated, error: updateErr } = await supabaseAdmin
+  const { data: updatedSummary, error: updateError } = await supabaseAdmin
     .from("summaries")
     .update({
       status: "pending",
@@ -383,13 +443,18 @@ export const regenerateSummary = async (
     .select()
     .single();
 
-  if (updateErr)
-    throw new Error(`Failed to update summary: ${updateErr.message}`);
+  if (updateError) {
+    throw new Error(
+      `Failed to reset summary ${id} for regeneration: ${updateError.message}`
+    );
+  }
 
-  // Fire-and-forget
-  runSummarizationPipeline(id, inputText, format).catch((err) => {
-    console.error(`[regenerateSummary] pipeline failed for summary=${id}:`, err);
+  runSummarizationPipeline(id, inputText, format).catch((pipelineError) => {
+    console.error(
+      `[regenerateSummary] Background pipeline failed for summary=${id}:`,
+      pipelineError
+    );
   });
 
-  return updated as SummaryRow;
+  return updatedSummary as SummaryRow;
 };
