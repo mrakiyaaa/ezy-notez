@@ -160,7 +160,7 @@ def summarize_with_sumy(chunks: list[str], config: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def format_output(summaries: list[str], fmt: str) -> str:
-    """Post-process raw summaries into the requested format."""
+    """Post-process raw summaries into the requested format (Markdown)."""
     if fmt == "bullet":
         bullet_lines: list[str] = []
         for summary in summaries:
@@ -168,17 +168,19 @@ def format_output(summaries: list[str], fmt: str) -> str:
                 sentence = sentence.strip()
                 if sentence:
                     bullet_lines.append(f"- {sentence}")
-        return "\n".join(bullet_lines)
+        return "## Key Points\n\n" + "\n".join(bullet_lines)
 
     if fmt == "short":
-        return " ".join(
+        paragraph = " ".join(
             summary.strip() for summary in summaries if summary.strip()
         )
+        return "## Summary\n\n" + paragraph
 
     # detailed
-    return "\n\n".join(
+    paragraphs = "\n\n".join(
         summary.strip() for summary in summaries if summary.strip()
     )
+    return "## Detailed Summary\n\n" + paragraphs
 
 
 # ---------------------------------------------------------------------------

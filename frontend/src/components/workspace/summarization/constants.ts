@@ -88,6 +88,7 @@ export function getBatchPreview(batch: Summary[]): string {
   if (!readySummary?.content) return "Summary pending\u2026";
 
   const plainText = readySummary.content
+    .replace(/^#{1,6}\s+.*$/gm, "")
     .replace(/^-\s+/gm, "")
     .replace(/\n+/g, " ")
     .trim();

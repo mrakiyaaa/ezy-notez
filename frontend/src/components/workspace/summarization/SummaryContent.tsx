@@ -1,3 +1,4 @@
+import ReactMarkdown from "react-markdown";
 import type { Summary } from "@/types/summary";
 
 interface SummaryContentProps {
@@ -28,34 +29,49 @@ export default function SummaryContent({
     );
   }
 
-  const contentLines = summary.content.split("\n");
-
   return (
     <div className="flex flex-col gap-2">
-      {contentLines.map((line, index) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={index} className="h-2" />;
-
-        if (trimmed.startsWith("- ")) {
-          return (
-            <div key={index} className="flex gap-2.5 items-start">
+      <ReactMarkdown
+        components={{
+          h2: ({ children }) => (
+            <h2
+              className="text-lg font-semibold mb-3"
+              style={{ color: auraHex }}
+            >
+              {children}
+            </h2>
+          ),
+          p: ({ children }) => (
+            <p className="text-text-primary text-sm leading-relaxed mb-3 last:mb-0">
+              {children}
+            </p>
+          ),
+          ul: ({ children }) => (
+            <ul className="flex flex-col gap-2">{children}</ul>
+          ),
+          li: ({ children }) => (
+            <li className="flex gap-2.5 items-start list-none">
               <span
-                className="mt-1.75 w-2 h-2 rounded-full shrink-0"
+                className="mt-1.5 w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: auraHex }}
               />
-              <p className="text-text-primary text-sm leading-relaxed">
-                {trimmed.slice(2)}
-              </p>
-            </div>
-          );
-        }
-
-        return (
-          <p key={index} className="text-text-primary text-sm leading-relaxed">
-            {trimmed}
-          </p>
-        );
-      })}
+              <span className="text-text-primary text-sm leading-relaxed">
+                {children}
+              </span>
+            </li>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-semibold text-text-primary">
+              {children}
+            </strong>
+          ),
+          em: ({ children }) => (
+            <em className="text-text-secondary italic">{children}</em>
+          ),
+        }}
+      >
+        {summary.content}
+      </ReactMarkdown>
     </div>
   );
 }
