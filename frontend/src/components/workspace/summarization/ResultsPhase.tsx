@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import type { Resource, ResourceType } from "@/types/resource";
 import type { Summary } from "@/types/summary";
 import {
-  FORMAT_OPTIONS,
   RESOURCE_TYPE_ICONS,
   getFormatLabel,
   formatSummaryDate,

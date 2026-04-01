@@ -25,6 +25,7 @@ import WorkspaceHome from "@/components/workspace/WorkspaceHome";
 import Chattie from "@/components/workspace/Chattie";
 import ResourcesView from "@/components/workspace/ResourcesView";
 import SummarizationView from "@/components/workspace/SummarizationView";
+import FlashcardsView from "@/components/workspace/FlashcardsView";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import { hexToRgb, getContrastColor } from "@/lib/utils";
 import { getWorkspaceBySlug } from "@/services/resource.service";
@@ -252,7 +253,14 @@ export default function WorkspacePage() {
               auraContrast={auraContrast}
             />
           )}
-          {activeNav === "flashcards" && <FlashcardsView />}
+          {activeNav === "flashcards" && workspace && (
+            <FlashcardsView
+              workspaceId={workspace.id}
+              auraHex={auraHex}
+              auraRgb={auraRgb}
+              auraContrast={auraContrast}
+            />
+          )}
           {activeNav === "studyroom" && <StudyRoomView />}
           {activeNav === "quiz" && <QuizView />}
         </main>
@@ -263,15 +271,6 @@ export default function WorkspacePage() {
 
 /* ─── Placeholder Views ─── */
 
-function FlashcardsView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <WalletCards className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Flashcards</h2>
-      <p className="text-sm">AI-generated flashcards coming soon.</p>
-    </div>
-  );
-}
 
 function StudyRoomView() {
   return (
