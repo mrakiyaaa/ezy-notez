@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { WalletCards, Plus, Sparkles, X } from "lucide-react";
-import type { AuraProps, FlashcardSet } from "./flashcards/constants";
-import { MOCK_FLASHCARD_SETS } from "./flashcards/constants";
+import type { AuraProps } from "./flashcards/constants";
+import type { FlashcardSet as LocalFlashcardSet, Flashcard as LocalFlashcard } from "./flashcards/constants";
+import type { FlashcardSet, FlashcardSetWithCards } from "@/types/flashcard";
+import {
+  generateFlashcards,
+  getWorkspaceFlashcardSets,
+  getFlashcardSetById,
+  deleteFlashcardSet,
+} from "@/services/flashcard.service";
 import FlashcardGenerationPanel from "./flashcards/FlashcardGenerationPanel";
 import FlashcardSetGrid from "./flashcards/FlashcardSetGrid";
 import StudyMode from "./flashcards/StudyMode";
@@ -22,6 +29,35 @@ interface Notification {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers — convert API types to local component types
+// ---------------------------------------------------------------------------
+
+function toLocalSet(apiSet: FlashcardSet | FlashcardSetWithCards): LocalFlashcardSet {
+  const cards: LocalFlashcard[] = "cards" in apiSet && apiSet.cards
+    ? apiSet.cards.map((c) => ({
+        id: c.id,
+        front: c.front,
+        back: c.back,
+      }))
+    : [];
+
+  // Compute knownIds from card statuses
+  const knownIds = "cards" in apiSet && apiSet.cards
+    ? apiSet.cards.filter((c) => c.status === "known").map((c) => c.id)
+    : [];
+
+  return {
+    id: apiSet.id,
+    title: apiSet.title,
+    resourceId: apiSet.source_ids[0] ?? "",
+    resourceName: `${apiSet.source_ids.length} resource${apiSet.source_ids.length !== 1 ? "s" : ""}`,
+    cards,
+    createdAt: apiSet.created_at,
+    knownIds,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -33,11 +69,97 @@ export default function FlashcardsView({
 }: FlashcardsViewProps) {
   const auraProps = { auraHex, auraRgb, auraContrast };
 
-  const [sets, setSets] = useState<FlashcardSet[]>(MOCK_FLASHCARD_SETS);
-  const [studyingSet, setStudyingSet] = useState<FlashcardSet | null>(null);
+  const [sets, setSets] = useState<LocalFlashcardSet[]>([]);
+  const [studyingSet, setStudyingSet] = useState<LocalFlashcardSet | null>(null);
   const [showPanel, setShowPanel] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState<Notification | null>(null);
+
+  // Track pending set IDs for polling
+  const pendingSetIds = useRef<Set<string>>(new Set());
+
+  // ---------------------------------------------------------------------------
+  // Fetch sets on mount
+  // ---------------------------------------------------------------------------
+
+  const fetchSets = useCallback(async () => {
+    try {
+      const apiSets = await getWorkspaceFlashcardSets(workspaceId);
+
+      // For each set, fetch full details to get cards
+      const fullSets = await Promise.all(
+        apiSets.map(async (s) => {
+          if (s.status === "ready") {
+            const full = await getFlashcardSetById(s.id);
+            return toLocalSet(full);
+          }
+          // For pending/processing sets, return placeholder
+          return toLocalSet(s);
+        })
+      );
+
+      setSets(fullSets);
+
+      // Track pending sets for polling
+      const pending = apiSets.filter((s) => s.status === "pending" || s.status === "processing");
+      pendingSetIds.current = new Set(pending.map((s) => s.id));
+
+    } catch (err) {
+      console.error("[FlashcardsView] Failed to fetch sets:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    fetchSets();
+  }, [fetchSets]);
+
+  // ---------------------------------------------------------------------------
+  // Poll pending sets
+  // ---------------------------------------------------------------------------
+
+  // State to trigger polling when new pending sets are added
+  const [pollTrigger, setPollTrigger] = useState(0);
+
+  useEffect(() => {
+    if (pendingSetIds.current.size === 0) return;
+
+    const pollInterval = setInterval(async () => {
+      const pendingIds = Array.from(pendingSetIds.current);
+      if (pendingIds.length === 0) {
+        clearInterval(pollInterval);
+        return;
+      }
+
+      for (const id of pendingIds) {
+        try {
+          const full = await getFlashcardSetById(id);
+          if (full.status === "ready") {
+            pendingSetIds.current.delete(id);
+            setSets((prev) =>
+              prev.map((s) => (s.id === id ? toLocalSet(full) : s))
+            );
+            setNotification({ message: "Flashcard set ready!", success: true });
+            setIsGenerating(false);
+          } else if (full.status === "failed") {
+            pendingSetIds.current.delete(id);
+            setSets((prev) => prev.filter((s) => s.id !== id));
+            setNotification({
+              message: full.error_message || "Generation failed",
+              success: false,
+            });
+            setIsGenerating(false);
+          }
+        } catch (err) {
+          console.error(`[FlashcardsView] Poll error for set ${id}:`, err);
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [pollTrigger]);
 
   // Auto-dismiss notification after 3.5 s
   useEffect(() => {
@@ -50,48 +172,72 @@ export default function FlashcardsView({
   // Handlers
   // ---------------------------------------------------------------------------
 
-  const handleGenerate = async (resourceIds: string[], topic: string) => {
+  const handleGenerate = async (
+    resourceIds: string[],
+    topic: string,
+    cardCount: number
+  ) => {
     setIsGenerating(true);
     setShowPanel(false);
-    setNotification({ message: "Generating flashcards…", success: false });
+    setNotification({ message: "Generating flashcards… This may take a minute.", success: true });
 
-    // Simulated generation delay — replace with real API call
-    await new Promise((r) => setTimeout(r, 2200));
+    try {
+      const newSet = await generateFlashcards(
+        workspaceId,
+        resourceIds,
+        topic || undefined,
+        cardCount
+      );
 
-    const ts = Date.now();
-    const newSet: FlashcardSet = {
-      id: `set-${ts}`,
-      title: topic.trim() ? `${topic.trim()} Flashcards` : "New Flashcard Set",
-      resourceId: resourceIds[0] ?? "",
-      resourceName: "Selected Resource",
-      cards: [
-        {
-          id: `nc1-${ts}`,
-          front: "What is the central concept introduced in this material?",
-          back: "The core principles and foundational theory presented in the selected resource.",
-        },
-        {
-          id: `nc2-${ts}`,
-          front: "Define the key terminology used throughout.",
-          back: "Specialised vocabulary and domain-specific terms that underpin the subject matter.",
-        },
-        {
-          id: `nc3-${ts}`,
-          front: "What are the primary practical applications?",
-          back: "Real-world use cases and applied examples demonstrated within the resource content.",
-        },
-      ],
-      createdAt: new Date().toISOString(),
-      knownIds: [],
-    };
+      // Add placeholder set to UI
+      setSets((prev) => [toLocalSet(newSet), ...prev]);
 
-    setSets((prev) => [newSet, ...prev]);
-    setIsGenerating(false);
-    setNotification({ message: "Flashcard set generated!", success: true });
+      // Track for polling and trigger the polling effect
+      pendingSetIds.current.add(newSet.id);
+      setPollTrigger((t) => t + 1);
+
+    } catch (err) {
+      console.error("[FlashcardsView] Generation failed:", err);
+      setNotification({
+        message: err instanceof Error ? err.message : "Failed to generate flashcards",
+        success: false,
+      });
+      setIsGenerating(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setSets((prev) => prev.filter((s) => s.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteFlashcardSet(id);
+      setSets((prev) => prev.filter((s) => s.id !== id));
+      pendingSetIds.current.delete(id);
+    } catch (err) {
+      console.error("[FlashcardsView] Delete failed:", err);
+      setNotification({
+        message: err instanceof Error ? err.message : "Failed to delete set",
+        success: false,
+      });
+    }
+  };
+
+  const handleStudy = async (set: LocalFlashcardSet) => {
+    // If cards are empty (pending set), fetch full data first
+    if (set.cards.length === 0) {
+      try {
+        const full = await getFlashcardSetById(set.id);
+        if (full.status === "ready" && full.cards.length > 0) {
+          const localSet = toLocalSet(full);
+          setSets((prev) => prev.map((s) => (s.id === set.id ? localSet : s)));
+          setStudyingSet(localSet);
+        } else {
+          setNotification({ message: "Set is still generating…", success: false });
+        }
+      } catch (err) {
+        console.error("[FlashcardsView] Failed to fetch set for study:", err);
+      }
+    } else {
+      setStudyingSet(set);
+    }
   };
 
   const handleStudyComplete = (knownIds: string[], _reviewIds: string[]) => {
@@ -208,7 +354,7 @@ export default function FlashcardsView({
         )}
 
         {/* Body */}
-        {isGenerating ? (
+        {isLoading || isGenerating ? (
           <GenerationShimmer auraRgb={auraRgb} />
         ) : sets.length === 0 ? (
           <EmptyState
@@ -219,7 +365,7 @@ export default function FlashcardsView({
         ) : (
           <FlashcardSetGrid
             sets={sets}
-            onStudy={setStudyingSet}
+            onStudy={handleStudy}
             onDelete={handleDelete}
             {...auraProps}
           />

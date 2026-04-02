@@ -9,7 +9,7 @@ import { getWorkspaceResources } from "@/services/resource.service";
 interface FlashcardGenerationPanelProps extends AuraProps {
   workspaceId: string;
   isGenerating: boolean;
-  onGenerate: (resourceIds: string[], topic: string) => void;
+  onGenerate: (resourceIds: string[], topic: string, cardCount: number) => void;
   onClose: () => void;
 }
 
@@ -26,6 +26,7 @@ export default function FlashcardGenerationPanel({
   const [isLoadingResources, setIsLoadingResources] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [topic, setTopic] = useState("");
+  const [cardCount, setCardCount] = useState(10);
 
   useEffect(() => {
     let mounted = true;
@@ -159,7 +160,7 @@ export default function FlashcardGenerationPanel({
           )}
         </div>
 
-        {/* Topic + action */}
+        {/* Topic + card count + action */}
         <div className="flex flex-col gap-3">
           <div>
             <label className="text-text-secondary text-xs font-medium mb-2 block">
@@ -183,8 +184,36 @@ export default function FlashcardGenerationPanel({
             />
           </div>
 
+          {/* Card count slider */}
+          <div>
+            <label className="text-text-secondary text-xs font-medium mb-2 block">
+              Number of Cards{" "}
+              <span
+                className="font-semibold"
+                style={{ color: auraHex }}
+              >
+                {cardCount}
+              </span>
+            </label>
+            <input
+              type="range"
+              min={5}
+              max={20}
+              value={cardCount}
+              onChange={(e) => setCardCount(Number(e.target.value))}
+              className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, ${auraHex} 0%, ${auraHex} ${((cardCount - 5) / 15) * 100}%, rgba(255,255,255,0.1) ${((cardCount - 5) / 15) * 100}%, rgba(255,255,255,0.1) 100%)`,
+              }}
+            />
+            <div className="flex justify-between text-[10px] text-text-muted mt-1">
+              <span>5</span>
+              <span>20</span>
+            </div>
+          </div>
+
           <button
-            onClick={() => onGenerate(Array.from(selectedIds), topic)}
+            onClick={() => onGenerate(Array.from(selectedIds), topic, cardCount)}
             disabled={isDisabled}
             className="mt-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: auraHex, color: auraContrast }}

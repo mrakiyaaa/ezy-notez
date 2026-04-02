@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { FlashcardSet, AuraProps } from "./constants";
 import FlashcardFlipCard from "./FlashcardFlipCard";
+import { updateCardStatus } from "@/services/flashcard.service";
 
 interface StudyModeProps extends AuraProps {
   set: FlashcardSet;
@@ -72,8 +73,12 @@ export default function StudyMode({
       next.delete(id);
       return next;
     });
+    // Persist to database (fire-and-forget)
+    updateCardStatus(set.id, id, "known").catch((err) => {
+      console.error("[StudyMode] Failed to persist known status:", err);
+    });
     advanceOrComplete();
-  }, [currentCard, advanceOrComplete]);
+  }, [currentCard, set.id, advanceOrComplete]);
 
   const handleReview = useCallback(() => {
     const id = currentCard.id;
@@ -83,8 +88,12 @@ export default function StudyMode({
       next.delete(id);
       return next;
     });
+    // Persist to database (fire-and-forget)
+    updateCardStatus(set.id, id, "review").catch((err) => {
+      console.error("[StudyMode] Failed to persist review status:", err);
+    });
     advanceOrComplete();
-  }, [currentCard, advanceOrComplete]);
+  }, [currentCard, set.id, advanceOrComplete]);
 
   const handleRestart = () => {
     setCurrentIndex(0);
