@@ -4,6 +4,5 @@ requests
 youtube-transcript-api
 transformers
 torch
-sentencepiece
 sumy
 nltk

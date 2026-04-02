@@ -2,35 +2,19 @@
 
 ## Overview
 
-AI-powered flashcard generation using local FLAN-T5 model. Users select workspace resources, optionally set a topic focus and card count, then generate study flashcards. Progress (known/review status) persists to the database.
+Flashcard generation using Extractive NLP (NLTK). Users select workspace resources, optionally set a topic focus and card count, then generate study flashcards. Progress (known/review status) persists to the database.
 
-## Status: Complete ✓
+## Status: Complete
 
 ### Prerequisites
 
-**IMPORTANT**: Before using this feature, install Python dependencies:
+Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-This will install transformers, torch, and other required packages (~2GB download).
-
-**No API key or large model required**. Uses NLTK (already installed). Generation takes ~1-3 seconds.
-
-### Completed
-- [x] Database migration created (`supabase/create_flashcards_tables.sql`)
-- [x] Python generation script (`backend/scripts/generate_flashcards.py`)
-- [x] Backend service (`backend/src/services/flashcard.service.ts`)
-- [x] Backend controller (`backend/src/controllers/flashcard.controller.ts`)
-- [x] Backend routes (`backend/src/routes/flashcard.routes.ts`)
-- [x] Routes registered in server.ts
-- [x] Frontend types (`frontend/src/types/flashcard.ts`)
-- [x] Frontend service (`frontend/src/services/flashcard.service.ts`)
-- [x] FlashcardGenerationPanel updated with card count selector
-- [x] FlashcardsView wired to real API with polling
-- [x] StudyMode persists card status to database
-- [x] Mock data removed from constants.ts
+NLTK data (`punkt_tab`, `averaged_perceptron_tagger_eng`, `stopwords`) is auto-downloaded on first run. No API keys or large AI models required. Generation takes ~1-3 seconds.
 
 ---
 
@@ -46,7 +30,7 @@ This will install transformers, torch, and other required packages (~2GB downloa
 | title | TEXT | Set title (topic-based or default) |
 | source_ids | UUID[] | Resource IDs used for generation |
 | card_count | INT | Requested number of cards |
-| status | TEXT | pending/processing/ready/failed |
+| status | TEXT | pending / processing / ready / failed |
 | error_message | TEXT | Error details if failed |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 | updated_at | TIMESTAMPTZ | Last update timestamp |
@@ -57,10 +41,10 @@ This will install transformers, torch, and other required packages (~2GB downloa
 |--------|------|-------------|
 | id | UUID | Primary key |
 | set_id | UUID | FK to flashcard_sets (CASCADE delete) |
-| front | TEXT | Question/term |
-| back | TEXT | Answer/definition |
+| front | TEXT | Question |
+| back | TEXT | Answer |
 | position | INT | Order within set |
-| status | TEXT | unknown/known/review (user progress) |
+| status | TEXT | unknown / known / review (user progress) |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 
 ---
@@ -78,27 +62,22 @@ This will install transformers, torch, and other required packages (~2GB downloa
 
 ---
 
-## AI Generation
+## Generation Approach
 
-**Approach**: Extractive NLP using NLTK (no external APIs or large AI models)
+**Method**: Extractive NLP using NLTK — no external APIs or large AI models.
 
-**Process**:
+**Pipeline**:
 1. Combine extracted text from selected resources
-2. Split into sentences and score using TF-IDF importance
-3. Classify sentences by type (definition, cause/effect, process, comparison, etc.)
-4. Extract key subjects using POS tagging and noun phrase extraction
-5. Generate pattern-based questions matched to sentence type
-6. Build answers from key sentences + neighboring context
-7. Deduplicate by subject and return as JSON array
+2. Split into sentences, filter by length (8-60 words)
+3. Score sentences using TF-IDF importance
+4. Classify each sentence by type (definition, cause/effect, process, comparison, example, purpose)
+5. Apply type-based score bonuses and optional topic relevance scoring
+6. Extract subjects via POS tagging (noun phrase extraction)
+7. Generate pattern-based questions matched to sentence type
+8. Build answers from key sentences + neighbouring context
+9. Deduplicate by subject, validate quality, return as JSON
 
-**Performance**: ~1-3 seconds for 10 cards (no model loading, pure NLP)
-
-**Techniques used**:
-- TF-IDF sentence scoring for importance ranking
-- POS tagging for subject/noun phrase extraction
-- Regex-based sentence classification (6 types + general)
-- Topic relevance scoring with partial word matching
-- Subject deduplication for diverse card coverage
+**Performance**: ~1-3 seconds for 10 cards on CPU.
 
 ---
 
@@ -106,30 +85,33 @@ This will install transformers, torch, and other required packages (~2GB downloa
 
 ```
 backend/
-├── scripts/
-│   └── generate_flashcards.py          ← NEW
-├── src/
-│   ├── routes/flashcard.routes.ts      ← NEW
-│   ├── controllers/flashcard.controller.ts  ← NEW
-│   ├── services/flashcard.service.ts   ← NEW
-│   └── server.ts                       ← MODIFIED (added routes)
+  scripts/
+    generate_flashcards.py              # Extractive NLP generation script
+  src/
+    routes/flashcard.routes.ts          # Route definitions
+    controllers/flashcard.controller.ts # HTTP handlers
+    services/flashcard.service.ts       # Business logic + pipeline
+    server.ts                           # Route registration
 
 frontend/
-├── src/
-│   ├── types/flashcard.ts               ← NEW
-│   ├── services/flashcard.service.ts    ← NEW
-│   └── components/workspace/
-│       ├── FlashcardsView.tsx           ← MODIFIED (API integration)
-│       └── flashcards/
-│           ├── FlashcardGenerationPanel.tsx  ← MODIFIED (card count)
-│           ├── StudyMode.tsx            ← MODIFIED (persist status)
-│           └── constants.ts             ← MODIFIED (removed mocks)
+  src/
+    types/flashcard.ts                  # TypeScript types
+    services/flashcard.service.ts       # API client
+    components/workspace/
+      FlashcardsView.tsx                # Main view (API integration)
+      flashcards/
+        FlashcardGenerationPanel.tsx    # Generation UI
+        StudyMode.tsx                   # Study interface (persists status)
+        FlashcardSetGrid.tsx            # Set list display
+        FlashcardFlipCard.tsx           # Card flip component
+        FlashcardSetCard.tsx            # Set card component
+        constants.ts                    # Shared constants
 
 supabase/
-└── create_flashcards_tables.sql         ← NEW
+  create_flashcards_tables.sql          # Database migration
 
 documents/
-└── flashcards-implementation.md         ← THIS FILE
+  flashcards-implementation.md          # This file
 ```
 
 ---
@@ -144,7 +126,7 @@ documents/
 4. (Optional) Enter a topic focus
 5. Adjust card count slider (5-20)
 6. Click "Generate Flashcards"
-7. Wait for generation (~3-8 seconds)
+7. Cards appear within ~1-3 seconds
 
 ### Studying Flashcards
 
@@ -158,11 +140,7 @@ documents/
 
 ## Dependencies
 
-**No new dependencies required!**
-
-Uses existing `nltk` package (already in `requirements.txt`). No new dependencies needed.
-
-NLTK data (`punkt_tab`, `averaged_perceptron_tagger_eng`, `stopwords`) is auto-downloaded on first run.
+Uses `nltk` (already in `requirements.txt`). No additional packages needed.
 
 ---
 
@@ -170,9 +148,8 @@ NLTK data (`punkt_tab`, `averaged_perceptron_tagger_eng`, `stopwords`) is auto-d
 
 | Date | Change |
 |------|--------|
-| 2026-04-01 | Initial implementation complete |
-| 2026-04-01 | Database migration applied |
-| 2026-04-01 | All backend endpoints created |
-| 2026-04-01 | Frontend fully wired to API |
-| 2026-04-01 | Mock data removed |
-| 2026-04-02 | Switched to Extractive NLP (NLTK) for ~1-3s generation, no API/model needed |
+| 2026-04-01 | Initial implementation (FLAN-T5 local model) |
+| 2026-04-01 | Database migration, backend endpoints, frontend wired to API |
+| 2026-04-02 | Replaced FLAN-T5 with Extractive NLP (NLTK) for ~1-3s generation |
+| 2026-04-02 | Removed unused files (preload_model.py, FLASHCARD_SETUP.md, duplicate script) |
+| 2026-04-02 | Refactored service/controller with improved error handling |

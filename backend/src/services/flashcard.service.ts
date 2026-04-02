@@ -46,114 +46,101 @@ interface GeneratedFlashcard {
   back: string;
 }
 
-const PYTHON_SCRIPT_PATH = "../../scripts/generate_flashcards.py";
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const SCRIPT_PATH = path.resolve(__dirname, "../../scripts/generate_flashcards.py");
+const SCRIPT_TIMEOUT_MS = 30_000;
 const MIN_CARD_COUNT = 5;
 const MAX_CARD_COUNT = 20;
 const DEFAULT_CARD_COUNT = 10;
 
 // ---------------------------------------------------------------------------
-// Private helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
+const clampCardCount = (n?: number): number =>
+  Math.max(MIN_CARD_COUNT, Math.min(MAX_CARD_COUNT, n ?? DEFAULT_CARD_COUNT));
+
+const nowISO = (): string => new Date().toISOString();
+
+const errorMessage = (err: unknown): string =>
+  err instanceof Error ? err.message : "Unknown error";
+
 /**
- * Spawn the flashcard generation Python script, pass data via stdin,
- * and resolve with parsed JSON array of flashcards.
- * Includes 2-minute timeout for AI model loading.
+ * Spawn the Python flashcard generation script and return parsed cards.
  */
 const spawnFlashcardScript = (
   inputText: string,
   count: number,
-  topic?: string
+  topic?: string,
 ): Promise<GeneratedFlashcard[]> => {
-  const scriptPath = path.resolve(__dirname, PYTHON_SCRIPT_PATH);
-  const args = [scriptPath, String(count)];
-  if (topic) {
-    args.push(topic);
-  }
-
-  console.log(`[spawnFlashcardScript] Spawning: python ${args.join(" ")}`);
-  console.log(`[spawnFlashcardScript] Input text length: ${inputText.length} chars`);
+  const args = [SCRIPT_PATH, String(count)];
+  if (topic) args.push(topic);
 
   return new Promise((resolve, reject) => {
     const proc = spawn("python", args);
     let stdout = "";
     let stderr = "";
-    let hasCompleted = false;
+    let done = false;
 
-    // 30-second timeout (extractive NLP is fast, ~1-2s)
-    const timeout = setTimeout(() => {
-      if (!hasCompleted) {
-        hasCompleted = true;
-        proc.kill();
-        reject(new Error("Flashcard generation timed out after 30 seconds."));
-      }
-    }, 30000);
+    const finish = (err?: Error, result?: GeneratedFlashcard[]) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(result!);
+    };
+
+    const timer = setTimeout(() => {
+      proc.kill();
+      finish(new Error("Flashcard generation timed out (30 s). Please try again with fewer resources."));
+    }, SCRIPT_TIMEOUT_MS);
 
     proc.stdout.on("data", (chunk: Buffer) => {
-      const text = chunk.toString();
-      stdout += text;
-      console.log(`[spawnFlashcardScript] stdout: ${text.substring(0, 200)}`);
+      stdout += chunk.toString();
     });
 
     proc.stderr.on("data", (chunk: Buffer) => {
-      const text = chunk.toString();
-      stderr += text;
-      console.log(`[spawnFlashcardScript] stderr: ${text}`);
+      stderr += chunk.toString();
     });
 
-    proc.on("close", (exitCode) => {
-      if (hasCompleted) return;
-      hasCompleted = true;
-      clearTimeout(timeout);
+    proc.on("error", (err) => {
+      finish(new Error(`Failed to start Python process: ${err.message}. Is Python installed?`));
+    });
 
-      console.log(`[spawnFlashcardScript] Process exited with code ${exitCode}`);
-      console.log(`[spawnFlashcardScript] stderr length: ${stderr.length}`);
-      console.log(`[spawnFlashcardScript] stdout length: ${stdout.length}`);
+    proc.stdin.on("error", () => {
+      // Swallow — process may have exited before we finished writing.
+    });
 
-      if (exitCode === 0) {
-        try {
-          const parsed = JSON.parse(stdout.trim()) as GeneratedFlashcard[];
-          if (!Array.isArray(parsed)) {
-            reject(new Error("Script output is not a JSON array"));
-            return;
-          }
-          // Validate structure
-          for (const card of parsed) {
-            if (typeof card.front !== "string" || typeof card.back !== "string") {
-              reject(new Error("Invalid flashcard structure in output"));
-              return;
-            }
-          }
-          console.log(`[spawnFlashcardScript] Successfully generated ${parsed.length} flashcards`);
-          resolve(parsed);
-        } catch (parseError) {
-          console.error(`[spawnFlashcardScript] Parse error:`, parseError);
-          reject(new Error(`Failed to parse script output: ${parseError}`));
-        }
-      } else {
-        console.error(`[spawnFlashcardScript] Script failed:`, stderr.trim());
-        reject(
-          new Error(
-            `Flashcard generation script exited with code ${exitCode}: ${stderr.trim() || "No error message"}`
-          )
-        );
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        const lastLine = stderr.trim().split("\n").pop() ?? "No error details";
+        finish(new Error(`Generation script failed (exit ${code}): ${lastLine}`));
+        return;
       }
-    });
 
-    proc.on("error", (spawnError) => {
-      if (hasCompleted) return;
-      hasCompleted = true;
-      clearTimeout(timeout);
-      console.error(`[spawnFlashcardScript] Spawn error:`, spawnError);
-      reject(
-        new Error(
-          `Failed to spawn flashcard generation script: ${spawnError.message}`
-        )
-      );
-    });
+      try {
+        const cards = JSON.parse(stdout.trim()) as GeneratedFlashcard[];
 
-    proc.stdin.on("error", (writeError) => {
-      console.error(`[spawnFlashcardScript] stdin error:`, writeError);
+        if (!Array.isArray(cards) || cards.length === 0) {
+          finish(new Error("Script returned an empty or non-array result"));
+          return;
+        }
+
+        const invalid = cards.find(
+          (c) => typeof c.front !== "string" || typeof c.back !== "string",
+        );
+        if (invalid) {
+          finish(new Error("Script returned a card with missing front/back fields"));
+          return;
+        }
+
+        finish(undefined, cards);
+      } catch {
+        finish(new Error("Failed to parse JSON from generation script"));
+      }
     });
 
     proc.stdin.write(inputText);
@@ -161,217 +148,105 @@ const spawnFlashcardScript = (
   });
 };
 
-/**
- * Filter resources that have non-empty extracted text.
- */
-const filterUsableResources = (
-  resources: ResourceTextRow[]
-): ResourceTextRow[] =>
-  resources.filter(
-    (resource) =>
-      resource.extracted_text && resource.extracted_text.trim().length > 0
-  );
+const getUsableResources = (rows: ResourceTextRow[]): ResourceTextRow[] =>
+  rows.filter((r) => r.extracted_text && r.extracted_text.trim().length > 0);
 
-/**
- * Concatenate extracted text from multiple resources.
- */
-const combineExtractedText = (resources: ResourceTextRow[]): string =>
-  resources
-    .map((resource) => resource.extracted_text!.trim())
-    .join("\n\n");
+const combineText = (rows: ResourceTextRow[]): string =>
+  rows.map((r) => r.extracted_text!.trim()).join("\n\n");
 
-/**
- * Run the flashcard generation pipeline for a set:
- *   1. Mark status as 'processing'
- *   2. Spawn the Python flashcard generation script
- *   3. Insert generated flashcards
- *   4. Mark set as 'ready'
- *   5. On error, mark 'failed' with error_message
- */
-const runFlashcardPipeline = async (
+// ---------------------------------------------------------------------------
+// Pipeline (runs in background)
+// ---------------------------------------------------------------------------
+
+const updateSetStatus = async (
   setId: string,
-  inputText: string,
-  count: number,
-  topic?: string
-): Promise<void> => {
-  await supabaseAdmin
+  status: FlashcardSetStatus,
+  errorMsg?: string,
+) => {
+  const { error } = await supabaseAdmin
     .from("flashcard_sets")
-    .update({ status: "processing", updated_at: new Date().toISOString() })
+    .update({
+      status,
+      error_message: errorMsg ?? null,
+      updated_at: nowISO(),
+    })
     .eq("id", setId);
 
+  if (error) {
+    console.error(`[flashcard] Failed to set status=${status} for set=${setId}:`, error.message);
+  }
+};
+
+const runPipeline = async (
+  setId: string,
+  text: string,
+  count: number,
+  topic?: string,
+): Promise<void> => {
+  await updateSetStatus(setId, "processing");
+
   try {
-    const generatedCards = await spawnFlashcardScript(inputText, count, topic);
+    const cards = await spawnFlashcardScript(text, count, topic);
 
-    if (generatedCards.length === 0) {
-      throw new Error("No flashcards were generated");
-    }
-
-    // Insert flashcards
-    const flashcardsToInsert = generatedCards.map((card, index) => ({
+    const rows = cards.map((card, i) => ({
       set_id: setId,
-      front: card.front.replace(/\0/g, ""), // Strip null bytes
+      front: card.front.replace(/\0/g, ""),
       back: card.back.replace(/\0/g, ""),
-      position: index,
+      position: i,
       status: "unknown" as FlashcardStatus,
     }));
 
-    const { error: insertError } = await supabaseAdmin
+    const { error: insertErr } = await supabaseAdmin
       .from("flashcards")
-      .insert(flashcardsToInsert);
+      .insert(rows);
 
-    if (insertError) {
-      throw new Error(`Failed to save flashcards: ${insertError.message}`);
+    if (insertErr) {
+      throw new Error(`Database insert failed: ${insertErr.message}`);
     }
 
-    // Mark set as ready
-    const { error: updateError } = await supabaseAdmin
-      .from("flashcard_sets")
-      .update({
-        status: "ready",
-        error_message: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", setId);
-
-    if (updateError) {
-      throw new Error(`Failed to update set status: ${updateError.message}`);
-    }
-  } catch (pipelineError) {
-    console.error(
-      `[runFlashcardPipeline] Failed for set=${setId}:`,
-      pipelineError
-    );
-
-    const { error: statusUpdateError } = await supabaseAdmin
-      .from("flashcard_sets")
-      .update({
-        status: "failed",
-        error_message:
-          pipelineError instanceof Error
-            ? pipelineError.message
-            : "Unknown flashcard generation error",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", setId);
-
-    if (statusUpdateError) {
-      console.error(
-        `[runFlashcardPipeline] Failed to mark set=${setId} as failed:`,
-        statusUpdateError
-      );
-    }
+    await updateSetStatus(setId, "ready");
+  } catch (err) {
+    console.error(`[flashcard] Pipeline failed for set=${setId}:`, errorMessage(err));
+    await updateSetStatus(setId, "failed", errorMessage(err));
   }
 };
 
 // ---------------------------------------------------------------------------
-// CRUD operations
+// Fetch helpers (shared by generate + regenerate)
 // ---------------------------------------------------------------------------
 
-/**
- * Get all flashcard sets for a workspace (without cards).
- */
-export const getWorkspaceFlashcardSets = async (
-  workspaceId: string
-): Promise<FlashcardSetRow[]> => {
-  const { data, error } = await supabaseAdmin
-    .from("flashcard_sets")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false });
+const fetchResourceText = async (
+  filter: { workspaceId?: string; resourceIds: string[] },
+): Promise<string> => {
+  let query = supabaseAdmin
+    .from("resources")
+    .select("id, extracted_text")
+    .in("id", filter.resourceIds)
+    .not("extracted_text", "is", null);
+
+  if (filter.workspaceId) {
+    query = query.eq("workspace_id", filter.workspaceId).eq("status", "ready");
+  }
+
+  const { data, error } = await query;
 
   if (error) {
-    throw new Error(
-      `Failed to fetch flashcard sets for workspace ${workspaceId}: ${error.message}`
-    );
-  }
-  return (data ?? []) as FlashcardSetRow[];
-};
-
-/**
- * Get a single flashcard set with all its cards.
- */
-export const getFlashcardSetById = async (
-  id: string
-): Promise<FlashcardSetWithCards | null> => {
-  const { data: setData, error: setError } = await supabaseAdmin
-    .from("flashcard_sets")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (setError) return null;
-
-  const { data: cardsData, error: cardsError } = await supabaseAdmin
-    .from("flashcards")
-    .select("*")
-    .eq("set_id", id)
-    .order("position", { ascending: true });
-
-  if (cardsError) {
-    throw new Error(`Failed to fetch cards for set ${id}: ${cardsError.message}`);
+    throw new Error(`Failed to fetch resources: ${error.message}`);
   }
 
-  return {
-    ...(setData as FlashcardSetRow),
-    cards: (cardsData ?? []) as FlashcardRow[],
-  };
-};
-
-/**
- * Delete a flashcard set (cards cascade automatically).
- */
-export const deleteFlashcardSet = async (id: string): Promise<void> => {
-  const { error } = await supabaseAdmin
-    .from("flashcard_sets")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(`Failed to delete flashcard set ${id}: ${error.message}`);
+  const usable = getUsableResources((data ?? []) as ResourceTextRow[]);
+  if (usable.length === 0) {
+    throw new Error("None of the selected resources have extracted text");
   }
+
+  return combineText(usable);
 };
 
-/**
- * Update a single flashcard's status (known/review/unknown).
- */
-export const updateFlashcardStatus = async (
-  cardId: string,
-  status: FlashcardStatus
-): Promise<void> => {
-  const { error } = await supabaseAdmin
-    .from("flashcards")
-    .update({ status })
-    .eq("id", cardId);
-
-  if (error) {
-    throw new Error(`Failed to update flashcard status: ${error.message}`);
-  }
-};
-
-// ---------------------------------------------------------------------------
-// Generation
-// ---------------------------------------------------------------------------
-
-/**
- * Generate flashcards for selected resources.
- * Creates a pending set, then fires the generation pipeline in background.
- * Returns the pending set row immediately.
- */
-export const generateFlashcards = async (
+const fetchUsableSourceIds = async (
   workspaceId: string,
-  userId: string,
   resourceIds: string[],
-  topic?: string,
-  cardCount?: number
-): Promise<FlashcardSetRow> => {
-  // Clamp card count
-  const count = Math.max(
-    MIN_CARD_COUNT,
-    Math.min(MAX_CARD_COUNT, cardCount ?? DEFAULT_CARD_COUNT)
-  );
-
-  // Fetch resources
-  const { data: fetchedResources, error: fetchError } = await supabaseAdmin
+): Promise<string[]> => {
+  const { data, error } = await supabaseAdmin
     .from("resources")
     .select("id, extracted_text")
     .eq("workspace_id", workspaceId)
@@ -379,30 +254,103 @@ export const generateFlashcards = async (
     .in("id", resourceIds)
     .not("extracted_text", "is", null);
 
-  if (fetchError) {
-    throw new Error(
-      `Failed to fetch resources for workspace ${workspaceId}: ${fetchError.message}`
-    );
+  if (error) {
+    throw new Error(`Failed to fetch resources: ${error.message}`);
   }
 
-  const usableResources = filterUsableResources(
-    (fetchedResources ?? []) as ResourceTextRow[]
-  );
+  return getUsableResources((data ?? []) as ResourceTextRow[]).map((r) => r.id);
+};
 
-  if (usableResources.length === 0) {
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
+
+export const getWorkspaceFlashcardSets = async (
+  workspaceId: string,
+): Promise<FlashcardSetRow[]> => {
+  const { data, error } = await supabaseAdmin
+    .from("flashcard_sets")
+    .select("*")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to fetch flashcard sets: ${error.message}`);
+  return (data ?? []) as FlashcardSetRow[];
+};
+
+export const getFlashcardSetById = async (
+  id: string,
+): Promise<FlashcardSetWithCards | null> => {
+  const { data: setData, error: setErr } = await supabaseAdmin
+    .from("flashcard_sets")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (setErr) return null;
+
+  const { data: cardsData, error: cardsErr } = await supabaseAdmin
+    .from("flashcards")
+    .select("*")
+    .eq("set_id", id)
+    .order("position", { ascending: true });
+
+  if (cardsErr) throw new Error(`Failed to fetch cards: ${cardsErr.message}`);
+
+  return {
+    ...(setData as FlashcardSetRow),
+    cards: (cardsData ?? []) as FlashcardRow[],
+  };
+};
+
+export const deleteFlashcardSet = async (id: string): Promise<void> => {
+  const { error } = await supabaseAdmin
+    .from("flashcard_sets")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(`Failed to delete flashcard set: ${error.message}`);
+};
+
+export const updateFlashcardStatus = async (
+  cardId: string,
+  status: FlashcardStatus,
+): Promise<void> => {
+  const { error } = await supabaseAdmin
+    .from("flashcards")
+    .update({ status })
+    .eq("id", cardId);
+
+  if (error) throw new Error(`Failed to update flashcard status: ${error.message}`);
+};
+
+// ---------------------------------------------------------------------------
+// Generation
+// ---------------------------------------------------------------------------
+
+export const generateFlashcards = async (
+  workspaceId: string,
+  userId: string,
+  resourceIds: string[],
+  topic?: string,
+  cardCount?: number,
+): Promise<FlashcardSetRow> => {
+  const count = clampCardCount(cardCount);
+
+  // Validate resources upfront
+  const sourceIds = await fetchUsableSourceIds(workspaceId, resourceIds);
+  if (sourceIds.length === 0) {
     throw new Error("None of the selected resources have extracted text");
   }
 
-  const sourceIds = usableResources.map((r) => r.id);
-  const combinedText = combineExtractedText(usableResources);
+  const combinedText = await fetchResourceText({
+    workspaceId,
+    resourceIds: sourceIds,
+  });
 
-  // Generate title
-  const title = topic?.trim()
-    ? `${topic.trim()} Flashcards`
-    : "Generated Flashcards";
+  const title = topic?.trim() ? `${topic.trim()} Flashcards` : "Generated Flashcards";
 
-  // Insert pending set
-  const { data: insertedSet, error: insertError } = await supabaseAdmin
+  const { data: set, error } = await supabaseAdmin
     .from("flashcard_sets")
     .insert({
       workspace_id: workspaceId,
@@ -415,89 +363,57 @@ export const generateFlashcards = async (
     .select()
     .single();
 
-  if (insertError) {
-    throw new Error(`Failed to create flashcard set: ${insertError.message}`);
-  }
+  if (error) throw new Error(`Failed to create flashcard set: ${error.message}`);
 
-  // Fire generation pipeline in background
-  runFlashcardPipeline(insertedSet.id, combinedText, count, topic?.trim()).catch(
-    (pipelineError) => {
-      console.error(
-        "[generateFlashcards] Background pipeline failed:",
-        pipelineError
-      );
-    }
-  );
+  // Fire-and-forget pipeline
+  runPipeline(set.id, combinedText, count, topic?.trim()).catch((err) => {
+    console.error("[flashcard] Background pipeline error:", errorMessage(err));
+  });
 
-  return insertedSet as FlashcardSetRow;
+  return set as FlashcardSetRow;
 };
 
-/**
- * Regenerate flashcards for an existing set.
- * Deletes existing cards, resets status, and re-runs the pipeline.
- */
 export const regenerateFlashcardSet = async (
   id: string,
   newTopic?: string,
-  newCardCount?: number
+  newCardCount?: number,
 ): Promise<FlashcardSetRow> => {
   const existing = await getFlashcardSetById(id);
   if (!existing) throw new Error(`Flashcard set ${id} not found`);
 
   const topic = newTopic ?? existing.title.replace(/ Flashcards$/, "");
-  const count = newCardCount ?? existing.card_count;
+  const count = clampCardCount(newCardCount ?? existing.card_count);
 
-  // Fetch source resources
-  const { data: sourceResources, error: fetchError } = await supabaseAdmin
-    .from("resources")
-    .select("id, extracted_text")
-    .in("id", existing.source_ids)
-    .not("extracted_text", "is", null);
+  const combinedText = await fetchResourceText({
+    resourceIds: existing.source_ids,
+  });
 
-  if (fetchError) {
-    throw new Error(`Failed to fetch source resources: ${fetchError.message}`);
-  }
+  // Clear old cards
+  const { error: delErr } = await supabaseAdmin
+    .from("flashcards")
+    .delete()
+    .eq("set_id", id);
+  if (delErr) throw new Error(`Failed to delete old cards: ${delErr.message}`);
 
-  const usableResources = filterUsableResources(
-    (sourceResources ?? []) as ResourceTextRow[]
-  );
-
-  if (usableResources.length === 0) {
-    throw new Error("Source resources no longer have extracted text");
-  }
-
-  const combinedText = combineExtractedText(usableResources);
-
-  // Delete existing cards
-  await supabaseAdmin.from("flashcards").delete().eq("set_id", id);
-
-  // Reset set status
-  const { data: updatedSet, error: updateError } = await supabaseAdmin
+  // Reset set
+  const { data: updated, error: updErr } = await supabaseAdmin
     .from("flashcard_sets")
     .update({
       status: "pending",
       title: topic ? `${topic} Flashcards` : existing.title,
       card_count: count,
       error_message: null,
-      updated_at: new Date().toISOString(),
+      updated_at: nowISO(),
     })
     .eq("id", id)
     .select()
     .single();
 
-  if (updateError) {
-    throw new Error(
-      `Failed to reset flashcard set ${id} for regeneration: ${updateError.message}`
-    );
-  }
+  if (updErr) throw new Error(`Failed to reset flashcard set: ${updErr.message}`);
 
-  // Fire regeneration pipeline in background
-  runFlashcardPipeline(id, combinedText, count, topic).catch((pipelineError) => {
-    console.error(
-      `[regenerateFlashcardSet] Background pipeline failed for set=${id}:`,
-      pipelineError
-    );
+  runPipeline(id, combinedText, count, topic).catch((err) => {
+    console.error(`[flashcard] Regeneration pipeline error for set=${id}:`, errorMessage(err));
   });
 
-  return updatedSet as FlashcardSetRow;
+  return updated as FlashcardSetRow;
 };
