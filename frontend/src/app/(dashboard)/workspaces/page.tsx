@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CreateWorkspaceModal from "@/components/workspaces/CreateWorkspaceModal";
-import DailyBriefing from "@/components/workspace-hub/DailyBriefing";
-import StudyInvites from "@/components/workspace-hub/StudyInvites";
-import UpcomingActivities from "@/components/workspace-hub/UpcomingActivities";
-import WorkspaceGrid from "@/components/workspace-hub/WorkspaceGrid";
-import { getWorkspacesApi } from "@/lib/api/workspace.api";
-import { workspaceService } from "@/lib/services/workspace.service";
+import CreateWorkspaceModal from "@/components/workspace/CreateWorkspaceModal";
+import DailyBriefing from "@/components/dashboard/DailyBriefing";
+import StudyInvites from "@/components/dashboard/StudyInvites";
+import UpcomingActivities from "@/components/dashboard/UpcomingActivities";
+import WorkspaceGrid from "@/components/dashboard/WorkspaceGrid";
+import { getWorkspacesApi } from "@/api/workspace.api";
+import { workspaceService } from "@/services/workspace.service";
 import type { Activity } from "@/types/activity";
 import type { Invite } from "@/types/invite";
 import type { Workspace } from "@/types/workspace";
@@ -83,7 +83,7 @@ export default function WorkspacesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-main px-4 py-10 text-text-white md:px-6">
+    <div className="min-h-screen bg-main px-4 py-10 text-text-primary md:px-6">
       <div className="grid w-full gap-10 lg:grid-cols-[1.50fr_0.6fr]">
         <div className="flex flex-col gap-8">
           <header className="flex flex-col gap-6">
@@ -103,7 +103,7 @@ export default function WorkspacesPage() {
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search workspaces"
-                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-white text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
+                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
                 />
                 </div>
             </div>

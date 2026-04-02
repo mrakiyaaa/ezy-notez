@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import ProfileDrawer from "@/components/profile/ProfileDrawer";
-import { useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 
 export default function DashboardLayout({
   children,

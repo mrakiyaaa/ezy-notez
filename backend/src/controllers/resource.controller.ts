@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Request, Response, RequestHandler } from "express";
 import {
   insertResource,
   getWorkspaceResources,
@@ -6,13 +6,62 @@ import {
   deleteResourceById,
   extractAndStoreText,
   extractAndStoreAudio,
+  extractAndStorePptx,
+  extractAndStoreYoutube,
   type InsertResourceInput,
   type ResourceStatus,
 } from "../services/resource.service";
 
+// ---------------------------------------------------------------------------
+// Private factory
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds an extraction request handler from a service function.
+ * All three extraction endpoints share the same shape:
+ *   - require auth
+ *   - require id (param) + fileUrl (body)
+ *   - call extractFn, return 200 on success or 500 on failure
+ */
+const makeExtractionHandler = (
+  extractFn: (id: string, fileUrl: string) => Promise<void>,
+  errorMsg: string
+): RequestHandler =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ status: "error", message: "Unauthorized" });
+        return;
+      }
+
+      const { id } = req.params;
+      const { fileUrl } = req.body as { fileUrl?: string };
+
+      if (!id || !fileUrl) {
+        res.status(400).json({
+          status: "error",
+          message: "id (param) and fileUrl (body) are required",
+        });
+        return;
+      }
+
+      await extractFn(id, fileUrl);
+
+      res.status(200).json({ status: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : errorMsg;
+      res.status(500).json({ status: "error", message });
+    }
+  };
+
+// ---------------------------------------------------------------------------
+// Resource CRUD handlers
+// ---------------------------------------------------------------------------
+
 /**
  * POST /resources
- * Create a new resource
  */
 export const createResourceHandler = async (
   req: Request,
@@ -47,14 +96,9 @@ export const createResourceHandler = async (
     };
 
     const resource = await insertResource(data);
-
-    res.status(201).json({
-      status: "success",
-      data: resource,
-    });
+    res.status(201).json({ status: "success", data: resource });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create resource";
+    const message = error instanceof Error ? error.message : "Failed to create resource";
     console.error("[createResourceHandler]", error);
     res.status(400).json({ status: "error", message });
   }
@@ -62,7 +106,6 @@ export const createResourceHandler = async (
 
 /**
  * GET /resources/workspace/:workspaceId
- * Get all resources for a workspace
  */
 export const getResourcesByWorkspaceHandler = async (
   req: Request,
@@ -79,22 +122,14 @@ export const getResourcesByWorkspaceHandler = async (
     const { workspaceId } = req.params;
 
     if (!workspaceId) {
-      res.status(400).json({
-        status: "error",
-        message: "workspaceId is required",
-      });
+      res.status(400).json({ status: "error", message: "workspaceId is required" });
       return;
     }
 
     const resources = await getWorkspaceResources(workspaceId);
-
-    res.status(200).json({
-      status: "success",
-      data: resources,
-    });
+    res.status(200).json({ status: "success", data: resources });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch resources";
+    const message = error instanceof Error ? error.message : "Failed to fetch resources";
     console.error("[getResourcesByWorkspaceHandler]", error);
     res.status(400).json({ status: "error", message });
   }
@@ -102,7 +137,6 @@ export const getResourcesByWorkspaceHandler = async (
 
 /**
  * PATCH /resources/:id/status
- * Update a resource's status
  */
 export const updateResourceStatusHandler = async (
   req: Request,
@@ -120,22 +154,14 @@ export const updateResourceStatusHandler = async (
     const { status, url } = req.body as { status: ResourceStatus; url?: string };
 
     if (!id || !status) {
-      res.status(400).json({
-        status: "error",
-        message: "id and status are required",
-      });
+      res.status(400).json({ status: "error", message: "id and status are required" });
       return;
     }
 
     const resource = await updateResourceStatus(id, status, url);
-
-    res.status(200).json({
-      status: "success",
-      data: resource,
-    });
+    res.status(200).json({ status: "success", data: resource });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to update resource";
+    const message = error instanceof Error ? error.message : "Failed to update resource";
     console.error("[updateResourceStatusHandler]", error);
     res.status(400).json({ status: "error", message });
   }
@@ -143,7 +169,6 @@ export const updateResourceStatusHandler = async (
 
 /**
  * DELETE /resources/:id
- * Delete a resource
  */
 export const deleteResourceHandler = async (
   req: Request,
@@ -160,33 +185,53 @@ export const deleteResourceHandler = async (
     const { id } = req.params;
 
     if (!id) {
-      res.status(400).json({
-        status: "error",
-        message: "Resource id is required",
-      });
+      res.status(400).json({ status: "error", message: "Resource id is required" });
       return;
     }
 
     await deleteResourceById(id);
-
-    res.status(200).json({
-      status: "success",
-      message: "Resource deleted",
-    });
+    res.status(200).json({ status: "success", message: "Resource deleted" });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to delete resource";
+    const message = error instanceof Error ? error.message : "Failed to delete resource";
     console.error("[deleteResourceHandler]", error);
     res.status(400).json({ status: "error", message });
   }
 };
 
+// ---------------------------------------------------------------------------
+// Extraction handlers (generated via factory)
+// ---------------------------------------------------------------------------
+
+/** POST /resources/:id/extract — PDF text extraction */
+export const extractResourceHandler = makeExtractionHandler(
+  extractAndStoreText,
+  "Failed to extract PDF text"
+);
+
+/** POST /resources/:id/extract-audio — audio transcription via Whisper */
+export const extractAudioHandler = makeExtractionHandler(
+  extractAndStoreAudio,
+  "Failed to transcribe audio"
+);
+
+/** POST /resources/:id/extract-pptx — PPTX text extraction via python-pptx */
+export const extractPptxHandler = makeExtractionHandler(
+  extractAndStorePptx,
+  "Failed to extract PPTX text"
+);
+
+/** POST /resources/:id/extract-youtube — YouTube transcript re-extraction */
+export const extractYoutubeHandler = makeExtractionHandler(
+  extractAndStoreYoutube,
+  "Failed to extract YouTube transcript"
+);
+
 /**
- * POST /resources/:id/extract
- * Fetch the PDF at fileUrl, extract its text with pdf-parse, and persist
- * the result to Supabase.  Status transitions: uploading → indexing → ready | failed
+ * POST /resources/youtube
+ * Creates a YouTube resource and immediately triggers transcript extraction.
+ * Body: { workspace_id, youtube_url, name? }
  */
-export const extractResourceHandler = async (
+export const createYoutubeResourceHandler = async (
   req: Request,
   res: Response
 ): Promise<void> => {
@@ -198,69 +243,50 @@ export const extractResourceHandler = async (
       return;
     }
 
-    const { id } = req.params;
-    const { fileUrl } = req.body as { fileUrl?: string };
+    const { workspace_id, youtube_url, name } = req.body;
 
-    if (!id || !fileUrl) {
+    if (!workspace_id || !youtube_url) {
       res.status(400).json({
         status: "error",
-        message: "id (param) and fileUrl (body) are required",
+        message: "workspace_id and youtube_url are required",
       });
       return;
     }
 
-    await extractAndStoreText(id, fileUrl);
-
-    res.status(200).json({
-      status: "success",
-      message: "Text extracted and stored",
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to extract PDF text";
-    console.error("[extractResourceHandler]", error);
-    res.status(500).json({ status: "error", message });
-  }
-};
-
-/**
- * POST /resources/:id/extract-audio
- * Spawn the Whisper Python script to transcribe the audio file, then persist
- * the result to Supabase.  Status transitions: uploading → indexing → ready | failed
- */
-export const extractAudioHandler = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      res.status(401).json({ status: "error", message: "Unauthorized" });
-      return;
-    }
-
-    const { id } = req.params;
-    const { fileUrl } = req.body as { fileUrl?: string };
-
-    if (!id || !fileUrl) {
+    // Validate YouTube URL format
+    const youtubeRegex =
+      /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/)|youtu\.be\/)[\w-]+/;
+    if (!youtubeRegex.test(youtube_url)) {
       res.status(400).json({
         status: "error",
-        message: "id (param) and fileUrl (body) are required",
+        message: "Invalid YouTube URL",
       });
       return;
     }
 
-    await extractAndStoreAudio(id, fileUrl);
+    const data: InsertResourceInput = {
+      user_id: userId,
+      workspace_id,
+      name: name || "YouTube Video",
+      url: youtube_url,
+      size: 0,
+      type: "youtube",
+      status: "indexing",
+    };
 
-    res.status(200).json({
-      status: "success",
-      message: "Audio transcribed and stored",
+    const resource = await insertResource(data);
+
+    // Return resource immediately — extraction runs in background
+    res.status(201).json({ status: "success", data: resource });
+
+    // Fire-and-forget extraction
+    extractAndStoreYoutube(resource.id, youtube_url).catch((err) => {
+      console.error("[createYoutubeResourceHandler] extraction failed:", err);
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to extract audio text";
-    console.error("[extractAudioHandler]", error);
-    res.status(500).json({ status: "error", message });
+      error instanceof Error ? error.message : "Failed to create YouTube resource";
+    console.error("[createYoutubeResourceHandler]", error);
+    res.status(400).json({ status: "error", message });
   }
 };

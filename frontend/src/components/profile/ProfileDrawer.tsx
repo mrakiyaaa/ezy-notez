@@ -91,7 +91,7 @@ export default function ProfileDrawer({
               <p className="text-xs uppercase tracking-[0.2em] text-white/50">
                 Profile
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">
+              <h2 className="mt-2 text-xl font-semibold text-text-primary">
                 Account settings
               </h2>
             </div>
@@ -106,7 +106,7 @@ export default function ProfileDrawer({
           </div>
 
           <div className="mt-6 flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-white">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-text-primary">
               {user?.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -119,7 +119,7 @@ export default function ProfileDrawer({
               )}
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-text-primary">
                 {fullName || "Your name"}
               </p>
               <p className="text-xs text-white/50">Manage your public info</p>
@@ -132,7 +132,7 @@ export default function ProfileDrawer({
               <input
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none transition focus:border-white/40"
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-text-primary outline-none transition focus:border-white/40"
                 placeholder="Your full name"
               />
             </label>
@@ -155,7 +155,7 @@ export default function ProfileDrawer({
               type="button"
               onClick={handleSave}
               disabled={isDisabled}
-              className="w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-text-primary transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isSaving ? "Saving..." : "Save"}
             </button>

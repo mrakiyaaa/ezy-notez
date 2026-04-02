@@ -1,0 +1,102 @@
+import { apiClient } from "@/api/axios-config";
+import type { Summary, SummaryFormat } from "@/types/summary";
+
+export async function generateGeneralSummary(
+  workspaceId: string,
+  format: SummaryFormat
+): Promise<Summary> {
+  try {
+    const response = await apiClient.post("/summaries/general", {
+      workspace_id: workspaceId,
+      format,
+    });
+    return response.data.data as Summary;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to generate general summary"
+    );
+  }
+}
+
+export async function generateCustomSummaries(
+  workspaceId: string,
+  format: SummaryFormat,
+  resourceIds: string[]
+): Promise<Summary[]> {
+  try {
+    const response = await apiClient.post("/summaries/custom", {
+      workspace_id: workspaceId,
+      format,
+      resource_ids: resourceIds,
+    });
+    return (response.data.data ?? []) as Summary[];
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to generate custom summaries"
+    );
+  }
+}
+
+export async function getWorkspaceSummaries(
+  workspaceId: string
+): Promise<Summary[]> {
+  try {
+    const response = await apiClient.get(
+      `/summaries/workspace/${workspaceId}`
+    );
+    return (response.data.data ?? []) as Summary[];
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch workspace summaries"
+    );
+  }
+}
+
+export async function getSummaryById(id: string): Promise<Summary> {
+  try {
+    const response = await apiClient.get(`/summaries/${id}`);
+    return response.data.data as Summary;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : `Failed to fetch summary ${id}`
+    );
+  }
+}
+
+export async function regenerateSummary(
+  id: string,
+  format?: SummaryFormat
+): Promise<Summary> {
+  try {
+    const response = await apiClient.post(`/summaries/${id}/regenerate`, {
+      format,
+    });
+    return response.data.data as Summary;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : `Failed to regenerate summary ${id}`
+    );
+  }
+}
+
+export async function deleteSummary(id: string): Promise<void> {
+  try {
+    await apiClient.delete(`/summaries/${id}`);
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : `Failed to delete summary ${id}`
+    );
+  }
+}

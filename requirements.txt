@@ -1,2 +1,9 @@
 openai-whisper
+python-pptx
 requests
+youtube-transcript-api
+transformers
+torch
+sentencepiece
+sumy
+nltk

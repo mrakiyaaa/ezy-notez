@@ -8,6 +8,8 @@ import { createRouteHandler } from "uploadthing/express";
 import authRoutes from "./routes/auth.routes";
 import workspaceRoutes from "./routes/workspace.routes";
 import resourceRoutes from "./routes/resource.routes";
+import summaryRoutes from "./routes/summary.routes";
+import flashcardRoutes from "./routes/flashcard.routes";
 import { uploadRouter } from "./uploadthing";
 
 const app = express();
@@ -41,6 +43,8 @@ app.get("/db/health", async (_req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/resources", resourceRoutes);
+app.use("/api/summaries", summaryRoutes);
+app.use("/api/flashcards", flashcardRoutes);
 
 // UploadThing route handler
 app.use(

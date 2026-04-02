@@ -1,0 +1,31 @@
+"use client";
+
+import type { FlashcardSet, AuraProps } from "./constants";
+import FlashcardSetCard from "./FlashcardSetCard";
+
+interface FlashcardSetGridProps extends AuraProps {
+  sets: FlashcardSet[];
+  onStudy: (set: FlashcardSet) => void;
+  onDelete: (id: string) => void;
+}
+
+export default function FlashcardSetGrid({
+  sets,
+  onStudy,
+  onDelete,
+  ...auraProps
+}: FlashcardSetGridProps) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {sets.map((set) => (
+        <FlashcardSetCard
+          key={set.id}
+          set={set}
+          onStudy={onStudy}
+          onDelete={onDelete}
+          {...auraProps}
+        />
+      ))}
+    </div>
+  );
+}

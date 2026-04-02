@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -85,7 +85,7 @@ export default function SignupPage() {
         <p className="text-xs uppercase tracking-[0.25em] text-white/40">
           Get started
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
           Create your account
         </h1>
       </div>
@@ -103,7 +103,7 @@ export default function SignupPage() {
               placeholder="Your full name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
             />
           </div>
 
@@ -117,7 +117,7 @@ export default function SignupPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
             />
           </div>
 
@@ -131,7 +131,7 @@ export default function SignupPage() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
             />
           </div>
 
@@ -145,7 +145,7 @@ export default function SignupPage() {
               placeholder="Repeat your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
             />
           </div>
 
