@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 This will install transformers, torch, and other required packages (~2GB download).
 
-**First Run**: The FLAN-T5 model (~950MB) will download automatically on first generation. This may take 2-5 minutes depending on your internet speed. Backend has a 5-minute timeout. If it times out, try again - partial downloads are cached. Subsequent runs are much faster (~30-60 seconds).
+**No API key or large model required**. Uses NLTK (already installed). Generation takes ~1-3 seconds.
 
 ### Completed
 - [x] Database migration created (`supabase/create_flashcards_tables.sql`)
@@ -80,21 +80,25 @@ This will install transformers, torch, and other required packages (~2GB downloa
 
 ## AI Generation
 
-**Model**: `google/flan-t5-small` (default) via HuggingFace Transformers, falls back to `flan-t5-base`
+**Approach**: Extractive NLP using NLTK (no external APIs or large AI models)
 
 **Process**:
 1. Combine extracted text from selected resources
-2. Split into meaningful chunks (30-150 words per chunk)
-3. **Batch** generate questions for all candidate chunks (batches of 8)
-4. Filter and deduplicate questions
-5. **Batch** generate answers from context for valid questions
-6. Assemble and return as JSON array
+2. Split into sentences and score using TF-IDF importance
+3. Classify sentences by type (definition, cause/effect, process, comparison, etc.)
+4. Extract key subjects using POS tagging and noun phrase extraction
+5. Generate pattern-based questions matched to sentence type
+6. Build answers from key sentences + neighboring context
+7. Deduplicate by subject and return as JSON array
 
-**Performance**: ~20-40 seconds for 10 cards on CPU (batched inference with beam=2)
+**Performance**: ~1-3 seconds for 10 cards (no model loading, pure NLP)
 
-**Prompt Templates**:
-- Question: `"Generate a clear study question about: {chunk}"`
-- Answer: `"Answer concisely: {question}\nContext: {chunk}"`
+**Techniques used**:
+- TF-IDF sentence scoring for importance ranking
+- POS tagging for subject/noun phrase extraction
+- Regex-based sentence classification (6 types + general)
+- Topic relevance scoring with partial word matching
+- Subject deduplication for diverse card coverage
 
 ---
 
@@ -140,7 +144,7 @@ documents/
 4. (Optional) Enter a topic focus
 5. Adjust card count slider (5-20)
 6. Click "Generate Flashcards"
-7. Wait for generation (~30-60 seconds)
+7. Wait for generation (~3-8 seconds)
 
 ### Studying Flashcards
 
@@ -156,10 +160,9 @@ documents/
 
 **No new dependencies required!**
 
-Existing `requirements.txt` includes:
-- `transformers` — for FLAN-T5 model
-- `torch` — PyTorch backend
-- `sentencepiece` — tokenizer for T5 models
+Uses existing `nltk` package (already in `requirements.txt`). No new dependencies needed.
+
+NLTK data (`punkt_tab`, `averaged_perceptron_tagger_eng`, `stopwords`) is auto-downloaded on first run.
 
 ---
 
@@ -172,4 +175,4 @@ Existing `requirements.txt` includes:
 | 2026-04-01 | All backend endpoints created |
 | 2026-04-01 | Frontend fully wired to API |
 | 2026-04-01 | Mock data removed |
-| 2026-04-02 | Performance optimization: batched inference, flan-t5-small default, beam=2 |
+| 2026-04-02 | Switched to Extractive NLP (NLTK) for ~1-3s generation, no API/model needed |

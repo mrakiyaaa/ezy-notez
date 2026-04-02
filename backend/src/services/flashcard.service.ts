@@ -80,14 +80,14 @@ const spawnFlashcardScript = (
     let stderr = "";
     let hasCompleted = false;
 
-    // 5-minute timeout (allows for model download on first run)
+    // 30-second timeout (extractive NLP is fast, ~1-2s)
     const timeout = setTimeout(() => {
       if (!hasCompleted) {
         hasCompleted = true;
         proc.kill();
-        reject(new Error("Flashcard generation timed out after 5 minutes. The AI model download may be very slow. Check your internet connection and try again."));
+        reject(new Error("Flashcard generation timed out after 30 seconds."));
       }
-    }, 300000);
+    }, 30000);
 
     proc.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
