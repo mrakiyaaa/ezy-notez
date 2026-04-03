@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -26,6 +26,9 @@ import Chattie from "@/components/workspace/Chattie";
 import ResourcesView from "@/components/workspace/ResourcesView";
 import SummarizationView from "@/components/workspace/SummarizationView";
 import FlashcardsView from "@/components/workspace/FlashcardsView";
+import QuizView from "@/components/workspace/QuizView";
+import QuizAttemptView from "@/components/workspace/QuizAttemptView";
+import QuizResultsView from "@/components/workspace/QuizResultsView";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import { hexToRgb, getContrastColor } from "@/lib/utils";
 import { getWorkspaceBySlug } from "@/services/resource.service";
@@ -64,6 +67,13 @@ export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<TabItem>("all");
   const [cachedAura, setCachedAura] = useState<string | null>(null);
 
+  // Quiz navigation state
+  const [quizState, setQuizState] = useState<{
+    mode: "list" | "attempt" | "results";
+    quizId?: string;
+    attemptId?: string;
+  }>({ mode: "list" });
+
   // Read cached aura from localStorage before first paint (SSR-safe)
   useLayoutEffect(() => {
     if (!slug) return;
@@ -91,6 +101,43 @@ export default function WorkspacePage() {
     return () => { mounted = false; };
   }, [slug]);
 
+  // Switch nav and reset quiz state when navigating away
+  const handleNavChange = useCallback((nav: NavItem) => {
+    setActiveNav(nav);
+    if (nav !== "quiz") {
+      setQuizState({ mode: "list" });
+    }
+  }, []);
+
+  // Quiz navigation handlers
+  const handleQuizStartAttempt = useCallback((quizId: string) => {
+    setQuizState({ mode: "attempt", quizId });
+  }, []);
+
+  const handleQuizViewResults = useCallback((quizId: string, attemptId: string) => {
+    setQuizState({ mode: "results", quizId, attemptId });
+  }, []);
+
+  const handleQuizExitAttempt = useCallback(() => {
+    setQuizState({ mode: "list" });
+  }, []);
+
+  const handleQuizComplete = useCallback((quizId: string, attemptId: string) => {
+    setQuizState({ mode: "results", quizId, attemptId });
+  }, []);
+
+  const handleQuizRetake = useCallback((quizId: string) => {
+    setQuizState({ mode: "attempt", quizId });
+  }, []);
+
+  const handleQuizGenerateNew = useCallback(() => {
+    setQuizState({ mode: "list" });
+  }, []);
+
+  const handleQuizBack = useCallback(() => {
+    setQuizState({ mode: "list" });
+  }, []);
+
   // Derive CSS-ready aura values: use API data > cached > fallback
   const auraHex = workspace?.aura || cachedAura || "#507DBC";
   const auraRgb = hexToRgb(auraHex);
@@ -113,7 +160,7 @@ export default function WorkspacePage() {
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setActiveNav(id)}
+                    onClick={() => handleNavChange(id)}
                     className={
                       activeNav === id
                         ? "bg-bg-card rounded-xl p-2"
@@ -262,7 +309,42 @@ export default function WorkspacePage() {
             />
           )}
           {activeNav === "studyroom" && <StudyRoomView />}
-          {activeNav === "quiz" && <QuizView />}
+          {activeNav === "quiz" && workspace && (
+            <>
+              {quizState.mode === "list" && (
+                <QuizView
+                  workspaceId={workspace.id}
+                  onStartAttempt={handleQuizStartAttempt}
+                  onViewResults={handleQuizViewResults}
+                  auraHex={auraHex}
+                  auraRgb={auraRgb}
+                  auraContrast={auraContrast}
+                />
+              )}
+              {quizState.mode === "attempt" && quizState.quizId && (
+                <QuizAttemptView
+                  quizId={quizState.quizId}
+                  onExit={handleQuizExitAttempt}
+                  onComplete={handleQuizComplete}
+                  auraHex={auraHex}
+                  auraRgb={auraRgb}
+                  auraContrast={auraContrast}
+                />
+              )}
+              {quizState.mode === "results" && quizState.quizId && quizState.attemptId && (
+                <QuizResultsView
+                  quizId={quizState.quizId}
+                  attemptId={quizState.attemptId}
+                  onRetake={handleQuizRetake}
+                  onGenerateNew={handleQuizGenerateNew}
+                  onBack={handleQuizBack}
+                  auraHex={auraHex}
+                  auraRgb={auraRgb}
+                  auraContrast={auraContrast}
+                />
+              )}
+            </>
+          )}
         </main>
       </div>
     </div>
@@ -278,16 +360,6 @@ function StudyRoomView() {
       <Layers className="w-12 h-12" />
       <h2 className="text-text-primary text-xl font-semibold">Study Room</h2>
       <p className="text-sm">Collaborative study tools coming soon.</p>
-    </div>
-  );
-}
-
-function QuizView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <ClipboardList className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Quiz</h2>
-      <p className="text-sm">AI-generated quizzes coming soon.</p>
     </div>
   );
 }
