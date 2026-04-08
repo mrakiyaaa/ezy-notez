@@ -65,6 +65,12 @@ export function useQuizAttempt({
   const [bearEmotion, setBearEmotion] = useState<BearEmotion>("idle");
 
   const mountedRef = useRef(true);
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onErrorRef.current = onError;
+  });
 
   // Calculate the starting question index based on existing answers
   const calculateStartingIndex = useCallback(
@@ -118,7 +124,7 @@ export function useQuizAttempt({
 
         // If attempt is already completed, trigger completion callback
         if (attemptData.status === "completed") {
-          onComplete?.(attemptData);
+          onCompleteRef.current?.(attemptData);
         }
 
         setIsLoading(false);
@@ -129,7 +135,7 @@ export function useQuizAttempt({
           err instanceof Error ? err.message : "Failed to load quiz";
         setError(errorMsg);
         setIsLoading(false);
-        onError?.(errorMsg);
+        onErrorRef.current?.(errorMsg);
       }
     };
 
@@ -138,7 +144,7 @@ export function useQuizAttempt({
     return () => {
       mountedRef.current = false;
     };
-  }, [quizId, calculateStartingIndex, onComplete, onError]);
+  }, [quizId, calculateStartingIndex]);
 
   // Derived state
   const currentQuestion = quiz?.questions[currentQuestionIndex] ?? null;
@@ -188,9 +194,9 @@ export function useQuizAttempt({
         err instanceof Error ? err.message : "Failed to submit answer";
       setError(errorMsg);
       setIsSubmitting(false);
-      onError?.(errorMsg);
+      onErrorRef.current?.(errorMsg);
     }
-  }, [attempt, currentQuestion, selectedOptionId, isSubmitting, onError]);
+  }, [attempt, currentQuestion, selectedOptionId, isSubmitting]);
 
   // Go to the next question or complete the attempt
   const goToNextQuestion = useCallback(async () => {
@@ -210,14 +216,14 @@ export function useQuizAttempt({
         const passed = totalQuestions > 0 && (score / totalQuestions) * 100 >= 60;
         setBearEmotion(passed ? "celebrating" : "disappointed");
 
-        onComplete?.(completedAttempt);
+        onCompleteRef.current?.(completedAttempt);
       } catch (err) {
         if (!mountedRef.current) return;
 
         const errorMsg =
           err instanceof Error ? err.message : "Failed to complete quiz";
         setError(errorMsg);
-        onError?.(errorMsg);
+        onErrorRef.current?.(errorMsg);
       }
     } else {
       // Move to next question
@@ -227,7 +233,7 @@ export function useQuizAttempt({
       setLastAnswerCorrect(null);
       setBearEmotion("idle");
     }
-  }, [attempt, isLastQuestion, totalQuestions, onComplete, onError]);
+  }, [attempt, isLastQuestion, totalQuestions]);
 
   // Exit the attempt (used when user clicks X)
   const exitAttempt = useCallback(() => {
