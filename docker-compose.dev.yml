@@ -26,6 +26,9 @@ services:
       - NODE_ENV=development
       - PORT=3001
       - FRONTEND_URL=http://localhost:3000
+      - QUIZ_ML_SERVICE_URL=http://quiz-ml:8001
+    depends_on:
+      - quiz-ml
     networks:
       - ezynotes-network
 
@@ -55,6 +58,26 @@ services:
     networks:
       - ezynotes-network
 
+  quiz-ml:
+    build:
+      context: ./services/quiz-ml
+      dockerfile: Dockerfile
+    container_name: ezynotes-quiz-ml-dev
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - HUGGINGFACE_CACHE_DIR=/app/model-cache
+    volumes:
+      - ./services/quiz-ml:/app
+      - /app/__pycache__
+      - quiz-ml-cache:/app/model-cache
+    networks:
+      - ezynotes-network
+
 networks:
   ezynotes-network:
     driver: bridge
+
+volumes:
+  quiz-ml-cache:

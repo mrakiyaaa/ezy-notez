@@ -1,0 +1,388 @@
+"""
+Core NLP pipeline for quiz question generation.
+
+Pipeline stages (in execution order):
+  1. Preprocessing  — sentence segmentation, cleaning, 512-token chunking
+  2. Answer extraction — KeyBERT keyphrases per chunk
+  3. Question generation — valhalla/t5-base-qg-hl with highlighted answer
+  4. Distractor generation — WordNet synsets; KeyBERT fallback
+  5. Topic tagging — KeyBERT top keyword per question
+  6. Quality filtering — dedup, confidence ranking, return exactly question_count
+"""
+
+import re
+import uuid
+import random
+import logging
+from typing import Literal
+
+import torch
+import nltk
+from nltk.corpus import wordnet
+from nltk.tokenize import sent_tokenize
+
+import model_cache
+from models import GeneratedQuestion, QuestionOption
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Stage 1 — Preprocessing
+# ---------------------------------------------------------------------------
+
+def _clean_text(text: str) -> str:
+    text = re.sub(r"\s+", " ", text)
+    text = text.replace("\x00", "")
+    return text.strip()
+
+
+def _chunk_sentences(sentences: list[str], max_tokens: int = 512) -> list[str]:
+    """Group sentences into chunks that fit within max_tokens (T5 tokenizer)."""
+    tokenizer = model_cache.get_t5_tokenizer()
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+
+    for sent in sentences:
+        sent_len = len(tokenizer.encode(sent, add_special_tokens=False))
+        if current_len + sent_len > max_tokens and current:
+            chunks.append(" ".join(current))
+            current = [sent]
+            current_len = sent_len
+        else:
+            current.append(sent)
+            current_len += sent_len
+
+    if current:
+        chunks.append(" ".join(current))
+
+    return chunks
+
+
+def preprocess(text: str) -> list[str]:
+    """Return list of text chunks, each fitting within 512 tokens."""
+    cleaned = _clean_text(text)
+    sentences = sent_tokenize(cleaned)
+    sentences = [s for s in sentences if len(s.split()) >= 5]
+    return _chunk_sentences(sentences)
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — Answer Extraction
+# ---------------------------------------------------------------------------
+
+def extract_answers(chunks: list[str], answers_per_chunk: int = 3) -> list[tuple[str, str]]:
+    """
+    Return list of (chunk, answer_phrase) pairs.
+    KeyBERT extracts top keyphrases; each becomes a candidate answer.
+    """
+    kb = model_cache.get_keybert()
+    pairs: list[tuple[str, str]] = []
+
+    for chunk in chunks:
+        if len(chunk.split()) < 10:
+            continue
+        try:
+            keywords = kb.extract_keywords(
+                chunk,
+                keyphrase_ngram_range=(1, 3),
+                stop_words="english",
+                top_n=answers_per_chunk,
+                use_maxsum=True,
+                nr_candidates=20,
+            )
+            for phrase, _score in keywords:
+                if phrase and len(phrase.split()) <= 4:
+                    pairs.append((chunk, phrase))
+        except Exception as e:
+            logger.warning(f"KeyBERT extraction failed for chunk: {e}")
+
+    return pairs
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 — Question Generation
+# ---------------------------------------------------------------------------
+
+def _highlight_answer(chunk: str, answer: str) -> str:
+    """Wrap the answer in the chunk with <hl> tags for valhalla/t5-base-qg-hl."""
+    highlighted = re.sub(
+        re.escape(answer),
+        f"<hl> {answer} <hl>",
+        chunk,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    return f"generate question: {highlighted}"
+
+
+def generate_questions_batch(
+    pairs: list[tuple[str, str]],
+    batch_size: int = 4,
+) -> list[tuple[str, str, str]]:
+    """
+    Generate questions for (chunk, answer) pairs.
+    Returns list of (question_text, answer, source_chunk).
+    """
+    tokenizer = model_cache.get_t5_tokenizer()
+    model = model_cache.get_t5_model()
+    results: list[tuple[str, str, str]] = []
+
+    for i in range(0, len(pairs), batch_size):
+        batch = pairs[i : i + batch_size]
+        inputs_text = [_highlight_answer(chunk, ans) for chunk, ans in batch]
+
+        encoding = tokenizer(
+            inputs_text,
+            max_length=512,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
+
+        with torch.no_grad():
+            outputs = model.generate(
+                input_ids=encoding["input_ids"],
+                attention_mask=encoding["attention_mask"],
+                num_beams=2,
+                max_length=64,
+                early_stopping=True,
+            )
+
+        for j, output in enumerate(outputs):
+            question = tokenizer.decode(output, skip_special_tokens=True).strip()
+            if question and question.endswith("?"):
+                chunk, answer = batch[j]
+                results.append((question, answer, chunk))
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 — Distractor Generation
+# ---------------------------------------------------------------------------
+
+def _wordnet_distractors(answer: str, n: int = 3) -> list[str]:
+    """Get semantically related but incorrect options via WordNet synsets."""
+    head = answer.split()[-1].lower()
+    candidates: set[str] = set()
+
+    for syn in wordnet.synsets(head):
+        # hypernym siblings
+        for hypernym in syn.hypernyms():
+            for hyponym in hypernym.hyponyms():
+                for lemma in hyponym.lemma_names():
+                    word = lemma.replace("_", " ")
+                    if word.lower() != answer.lower() and len(word) > 2:
+                        candidates.add(word)
+        # direct hyponyms
+        for hyponym in syn.hyponyms():
+            for lemma in hyponym.lemma_names():
+                word = lemma.replace("_", " ")
+                if word.lower() != answer.lower():
+                    candidates.add(word)
+
+    candidates.discard(answer)
+    candidates.discard(answer.lower())
+    pool = list(candidates)
+    random.shuffle(pool)
+    return pool[:n]
+
+
+def _keybert_distractors(answer: str, chunk: str, n: int = 3) -> list[str]:
+    """Fallback: use KeyBERT on same chunk to find distinct phrases."""
+    kb = model_cache.get_keybert()
+    try:
+        keywords = kb.extract_keywords(
+            chunk,
+            keyphrase_ngram_range=(1, 2),
+            stop_words="english",
+            top_n=n + 5,
+        )
+        distractors = [
+            phrase for phrase, _ in keywords
+            if phrase.lower() != answer.lower()
+        ]
+        return distractors[:n]
+    except Exception:
+        return []
+
+
+def build_options(answer: str, chunk: str) -> tuple[list[QuestionOption], str]:
+    """
+    Build 4 QuestionOption objects (correct + 3 distractors).
+    Returns (options, correct_option_id).
+    """
+    distractors = _wordnet_distractors(answer, n=3)
+
+    if len(distractors) < 3:
+        extra = _keybert_distractors(answer, chunk, n=3 - len(distractors))
+        distractors.extend(extra)
+
+    # Pad with generic fallbacks if still short
+    fallbacks = ["None of the above", "All of the above", "Cannot be determined"]
+    for fb in fallbacks:
+        if len(distractors) >= 3:
+            break
+        if fb not in distractors:
+            distractors.append(fb)
+
+    distractors = distractors[:3]
+
+    # Build pool: 1 correct + 3 distractors, shuffle
+    correct_id = str(uuid.uuid4())
+    pool = [(correct_id, answer)] + [(str(uuid.uuid4()), d) for d in distractors]
+    random.shuffle(pool)
+
+    labels = ["A", "B", "C", "D"]
+    options = [
+        QuestionOption(id=opt_id, label=labels[idx], text=text)
+        for idx, (opt_id, text) in enumerate(pool)
+    ]
+    return options, correct_id
+
+
+# ---------------------------------------------------------------------------
+# Stage 5 — Topic Tagging
+# ---------------------------------------------------------------------------
+
+def extract_topic_tag(chunk: str) -> str:
+    """Extract a 1-3 word topic tag from a chunk via KeyBERT."""
+    kb = model_cache.get_keybert()
+    try:
+        keywords = kb.extract_keywords(
+            chunk,
+            keyphrase_ngram_range=(1, 3),
+            stop_words="english",
+            top_n=1,
+        )
+        if keywords:
+            return keywords[0][0].title()
+    except Exception:
+        pass
+    return "General"
+
+
+# ---------------------------------------------------------------------------
+# Stage 6 — Quality Filtering
+# ---------------------------------------------------------------------------
+
+def _jaccard(a: str, b: str) -> float:
+    sa, sb = set(a.lower().split()), set(b.lower().split())
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
+
+
+def _answer_in_question(question: str, answer: str) -> bool:
+    return answer.lower() in question.lower()
+
+
+def filter_and_rank(
+    candidates: list[tuple[str, str, str]],  # (question, answer, chunk)
+    question_count: int,
+) -> list[tuple[str, str, str]]:
+    """
+    Remove low-quality questions, deduplicate, return up to question_count.
+    """
+    # Remove questions where answer is trivially in the question text
+    filtered = [
+        (q, a, c) for q, a, c in candidates
+        if not _answer_in_question(q, a)
+    ]
+
+    # Deduplicate by Jaccard similarity
+    unique: list[tuple[str, str, str]] = []
+    for item in filtered:
+        if all(_jaccard(item[0], u[0]) < 0.7 for u in unique):
+            unique.append(item)
+
+    return unique[:question_count]
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+def run_pipeline(
+    text: str,
+    question_type: Literal["mcq", "scenario", "mixed"],
+    question_count: int,
+) -> list[GeneratedQuestion]:
+    """
+    Execute the full NLP pipeline and return generated questions.
+    """
+    logger.info(f"Pipeline start: type={question_type}, count={question_count}")
+
+    # Stage 1
+    chunks = preprocess(text)
+    if not chunks:
+        raise ValueError("Text is too short to generate questions from.")
+    logger.info(f"Preprocessed into {len(chunks)} chunks")
+
+    # Stage 2 — extract more candidates than needed (over-generate by 2x)
+    target_candidates = question_count * 2
+    answers_per_chunk = max(2, target_candidates // len(chunks) + 1)
+    pairs = extract_answers(chunks, answers_per_chunk=answers_per_chunk)
+    logger.info(f"Extracted {len(pairs)} (chunk, answer) pairs")
+
+    if not pairs:
+        raise ValueError("Could not extract key phrases from the provided text.")
+
+    # Stage 3
+    raw_questions = generate_questions_batch(pairs, batch_size=4)
+    logger.info(f"Generated {len(raw_questions)} raw questions")
+
+    # Stage 6 — filter early to avoid unnecessary work
+    filtered = filter_and_rank(raw_questions, question_count=target_candidates)
+
+    # Stages 4 + 5 — build options and topic tags
+    questions: list[GeneratedQuestion] = []
+    for i, (question_text, answer, chunk) in enumerate(filtered):
+        if len(questions) >= question_count:
+            break
+
+        try:
+            options, correct_option_id = build_options(answer, chunk)
+            topic_tag = extract_topic_tag(chunk)
+
+            # Determine per-question type for mixed mode
+            if question_type == "mixed":
+                q_type: Literal["mcq", "scenario"] = "scenario" if i % 3 == 0 else "mcq"
+            elif question_type == "scenario":
+                q_type = "scenario"
+            else:
+                q_type = "mcq"
+
+            # For scenario questions, prefix question with a situational frame
+            display_question = question_text
+            if q_type == "scenario":
+                # Extract a brief context sentence from the chunk
+                context_sentences = sent_tokenize(chunk)
+                context = context_sentences[0] if context_sentences else ""
+                if context and context.lower() not in question_text.lower():
+                    display_question = f"Consider the following: {context}\n\n{question_text}"
+
+            explanation = (
+                f'The correct answer is "{answer}". '
+                f"This relates to the topic of {topic_tag}."
+            )
+
+            questions.append(
+                GeneratedQuestion(
+                    question_text=display_question,
+                    question_type=q_type,
+                    options=options,
+                    correct_option_id=correct_option_id,
+                    explanation=explanation,
+                    topic_tag=topic_tag,
+                )
+            )
+        except Exception as e:
+            logger.warning(f"Skipping question due to error: {e}")
+
+    if not questions:
+        raise ValueError("Pipeline could not produce any valid questions. Try adding more resources.")
+
+    logger.info(f"Pipeline complete: returned {len(questions)} questions")
+    return questions
