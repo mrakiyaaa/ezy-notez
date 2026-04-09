@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient } from "@/api/axios-config";
 import type {
   Quiz,
@@ -8,6 +9,13 @@ import type {
   QuestionType,
   SubmitAnswerRequest,
 } from "@/types/quiz";
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message ?? error.message ?? fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
+}
 
 /**
  * Generate a new quiz from selected resources.
@@ -28,9 +36,7 @@ export async function generateQuiz(
     });
     return response.data.data as Quiz;
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to generate quiz"
-    );
+    throw new Error(extractErrorMessage(error, "Failed to generate quiz"));
   }
 }
 
@@ -43,9 +49,7 @@ export async function getQuizzes(workspaceId: string): Promise<QuizWithAttempt[]
     const response = await apiClient.get(`/quiz/workspace/${workspaceId}`);
     return (response.data.data ?? []) as QuizWithAttempt[];
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to fetch quizzes"
-    );
+    throw new Error(extractErrorMessage(error, "Failed to fetch quizzes"));
   }
 }
 
@@ -57,11 +61,7 @@ export async function getQuizQuestions(quizId: string): Promise<QuizWithQuestion
     const response = await apiClient.get(`/quiz/${quizId}`);
     return response.data.data as QuizWithQuestions;
   } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : `Failed to fetch quiz ${quizId}`
-    );
+    throw new Error(extractErrorMessage(error, `Failed to fetch quiz ${quizId}`));
   }
 }
 
@@ -75,11 +75,7 @@ export async function getOrCreateAttempt(quizId: string): Promise<QuizAttempt> {
     const response = await apiClient.post(`/quiz/${quizId}/attempt`);
     return response.data.data as QuizAttempt;
   } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : `Failed to get or create attempt for quiz ${quizId}`
-    );
+    throw new Error(extractErrorMessage(error, `Failed to get or create attempt for quiz ${quizId}`));
   }
 }
 
@@ -98,9 +94,7 @@ export async function submitAnswer(
     );
     return response.data.data as QuizAttempt;
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to submit answer"
-    );
+    throw new Error(extractErrorMessage(error, "Failed to submit answer"));
   }
 }
 
@@ -112,9 +106,7 @@ export async function completeAttempt(attemptId: string): Promise<QuizAttempt> {
     const response = await apiClient.post(`/quiz/attempt/${attemptId}/complete`);
     return response.data.data as QuizAttempt;
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to complete attempt"
-    );
+    throw new Error(extractErrorMessage(error, "Failed to complete attempt"));
   }
 }
 
@@ -132,9 +124,7 @@ export async function getAttemptResults(
     );
     return response.data.data as AttemptResults;
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to fetch attempt results"
-    );
+    throw new Error(extractErrorMessage(error, "Failed to fetch attempt results"));
   }
 }
 
@@ -145,11 +135,7 @@ export async function deleteQuiz(quizId: string): Promise<void> {
   try {
     await apiClient.delete(`/quiz/${quizId}`);
   } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : `Failed to delete quiz ${quizId}`
-    );
+    throw new Error(extractErrorMessage(error, `Failed to delete quiz ${quizId}`));
   }
 }
 
@@ -161,10 +147,6 @@ export async function getQuizStatus(quizId: string): Promise<Quiz> {
     const response = await apiClient.get(`/quiz/${quizId}/status`);
     return response.data.data as Quiz;
   } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : `Failed to fetch quiz status ${quizId}`
-    );
+    throw new Error(extractErrorMessage(error, `Failed to fetch quiz status ${quizId}`));
   }
 }

@@ -15,9 +15,6 @@ import {
   completeAttempt,
 } from "@/services/quiz.service";
 
-// Re-export BearEmotion for convenience
-export type { BearEmotion };
-
 interface UseQuizAttemptOptions {
   quizId: string;
   onComplete?: (attempt: QuizAttempt) => void;

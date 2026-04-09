@@ -1,7 +1,7 @@
 "use client";
 
 import type { TopicBreakdown } from "@/types/quiz";
-import { QUIZ_GREEN, QUIZ_GREEN_RGB, QUIZ_RED, QUIZ_AMBER } from "./constants";
+import { QUIZ_GREEN, QUIZ_GREEN_RGB, QUIZ_RED, QUIZ_RED_RGB, QUIZ_AMBER, QUIZ_AMBER_RGB } from "./constants";
 
 interface TopicBreakdownTagsProps {
   topics: TopicBreakdown[];
@@ -25,14 +25,14 @@ export default function TopicBreakdownTags({ topics }: TopicBreakdownTagsProps) 
 
   const getTopicBgColor = (accuracy: number) => {
     if (accuracy >= 80) return `rgba(${QUIZ_GREEN_RGB}, 0.1)`;
-    if (accuracy >= 60) return "rgba(245, 158, 11, 0.1)";
-    return "rgba(239, 68, 68, 0.1)";
+    if (accuracy >= 60) return `rgba(${QUIZ_AMBER_RGB}, 0.1)`;
+    return `rgba(${QUIZ_RED_RGB}, 0.1)`;
   };
 
   const getTopicBorderColor = (accuracy: number) => {
     if (accuracy >= 80) return `rgba(${QUIZ_GREEN_RGB}, 0.3)`;
-    if (accuracy >= 60) return "rgba(245, 158, 11, 0.3)";
-    return "rgba(239, 68, 68, 0.3)";
+    if (accuracy >= 60) return `rgba(${QUIZ_AMBER_RGB}, 0.3)`;
+    return `rgba(${QUIZ_RED_RGB}, 0.3)`;
   };
 
   // Identify weak topics (accuracy < 60%)
@@ -45,8 +45,8 @@ export default function TopicBreakdownTags({ topics }: TopicBreakdownTagsProps) 
         <div
           className="rounded-lg px-4 py-3 border"
           style={{
-            backgroundColor: "rgba(239, 68, 68, 0.05)",
-            borderColor: "rgba(239, 68, 68, 0.2)",
+            backgroundColor: `rgba(${QUIZ_RED_RGB}, 0.05)`,
+            borderColor: `rgba(${QUIZ_RED_RGB}, 0.2)`,
           }}
         >
           <p className="text-text-primary text-sm font-medium mb-1">

@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ClipboardList, Plus, Sparkles, X, Loader2 } from "lucide-react";
-import type { QuizWithAttempt, QuestionType } from "@/types/quiz";
+import type { QuizWithAttempt } from "@/types/quiz";
 import type { AuraProps } from "./quiz/constants";
-import {
-  QUIZ_AMBER,
-} from "./quiz/constants";
+import { QUIZ_AMBER, QUIZ_RED_RGB } from "./quiz/constants";
 import { getQuizzes, deleteQuiz } from "@/services/quiz.service";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
 import QuizCard from "./quiz/QuizCard";
@@ -91,28 +89,6 @@ export default function QuizView({
     return () => clearTimeout(t);
   }, [notification]);
 
-  // Handlers
-  const handleGenerate = async (
-    resourceIds: string[],
-    questionType: QuestionType,
-    questionCount: number
-  ) => {
-    await generate(resourceIds, questionType, questionCount);
-  };
-
-  const handleContinue = (quizId: string) => {
-    onStartAttempt?.(quizId);
-  };
-
-  const handleViewResults = (quizId: string, attemptId: string) => {
-    onViewResults?.(quizId, attemptId);
-  };
-
-  const handleRetake = (quizId: string) => {
-    // Start a new attempt
-    onStartAttempt?.(quizId);
-  };
-
   const handleDelete = async (quizId: string) => {
     try {
       await deleteQuiz(quizId);
@@ -160,7 +136,7 @@ export default function QuizView({
               : "rgba(255,255,255,0.03)",
             borderBottom: notification.success
               ? `1px solid rgba(${auraRgb}, 0.12)`
-              : "1px solid rgba(239, 68, 68, 0.12)",
+              : `1px solid rgba(${QUIZ_RED_RGB}, 0.12)`,
             color: notification.success
               ? auraHex
               : "var(--color-text-secondary)",
@@ -227,7 +203,7 @@ export default function QuizView({
           <QuizConfigForm
             workspaceId={workspaceId}
             isGenerating={isGenerating}
-            onGenerate={handleGenerate}
+            onGenerate={generate}
             onClose={() => setShowConfigForm(false)}
             {...auraProps}
           />
@@ -271,7 +247,7 @@ export default function QuizView({
                     <QuizCard
                       key={quiz.id}
                       quiz={quiz}
-                      onContinue={handleContinue}
+                      onContinue={onStartAttempt}
                       onDelete={handleDelete}
                       {...auraProps}
                     />
@@ -295,7 +271,7 @@ export default function QuizView({
                     <QuizCard
                       key={quiz.id}
                       quiz={quiz}
-                      onContinue={handleContinue}
+                      onContinue={onStartAttempt}
                       onDelete={handleDelete}
                       {...auraProps}
                     />
@@ -319,8 +295,8 @@ export default function QuizView({
                     <QuizCard
                       key={quiz.id}
                       quiz={quiz}
-                      onViewResults={handleViewResults}
-                      onRetake={handleRetake}
+                      onViewResults={onViewResults}
+                      onRetake={onStartAttempt}
                       onDelete={handleDelete}
                       {...auraProps}
                     />
