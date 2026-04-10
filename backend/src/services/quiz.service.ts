@@ -243,14 +243,13 @@ export const generateQuiz = async (
 ): Promise<QuizRow> => {
   const { text, usableIds } = await fetchResourceText(workspaceId, resourceIds);
 
-  const typeLabel =
-    questionType === "mcq"
-      ? "Multiple Choice"
-      : questionType === "scenario"
-        ? "Scenario"
-        : "Mixed";
+  const TYPE_LABELS: Record<QuestionType, string> = {
+    mcq: "Multiple Choice",
+    scenario: "Scenario",
+    mixed: "Mixed",
+  };
 
-  const title = `${typeLabel} Quiz (${questionCount} questions)`;
+  const title = `${TYPE_LABELS[questionType]} Quiz (${questionCount} questions)`;
 
   const { data: quiz, error } = await supabaseAdmin
     .from("quizzes")

@@ -8,6 +8,9 @@ import {
   QUIZ_GREEN_RGB,
   QUIZ_AMBER,
   QUIZ_AMBER_RGB,
+  QUIZ_AMBER_CONTRAST,
+  QUIZ_RED,
+  QUIZ_RED_RGB,
   formatQuizDate,
   formatProgress,
   calculateProgressPercentage,
@@ -131,8 +134,8 @@ export default function QuizCard({
             style={{
               backgroundColor: passed
                 ? `rgba(${QUIZ_GREEN_RGB}, 0.15)`
-                : `rgba(239, 68, 68, 0.15)`,
-              color: passed ? QUIZ_GREEN : "#EF4444",
+                : `rgba(${QUIZ_RED_RGB}, 0.15)`,
+              color: passed ? QUIZ_GREEN : QUIZ_RED,
             }}
           >
             {score} / {totalQuestions}
@@ -181,15 +184,11 @@ export default function QuizCard({
         <div className="flex items-center gap-2">
           <div
             className="w-2 h-2 rounded-full"
-            style={{
-              backgroundColor: passed ? QUIZ_GREEN : "#EF4444",
-            }}
+            style={{ backgroundColor: passed ? QUIZ_GREEN : QUIZ_RED }}
           />
           <span
             className="text-xs font-medium"
-            style={{
-              color: passed ? QUIZ_GREEN : "#EF4444",
-            }}
+            style={{ color: passed ? QUIZ_GREEN : QUIZ_RED }}
           >
             {passed ? "Passed" : "Failed"}
           </span>
@@ -209,7 +208,7 @@ export default function QuizCard({
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = QUIZ_AMBER;
-              e.currentTarget.style.color = "#000000";
+              e.currentTarget.style.color = QUIZ_AMBER_CONTRAST;
               e.currentTarget.style.borderColor = QUIZ_AMBER;
             }}
             onMouseLeave={(e) => {

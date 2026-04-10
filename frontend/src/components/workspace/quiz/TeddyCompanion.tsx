@@ -3,7 +3,13 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { BearEmotion } from "./constants";
-import { BEAR_FALLBACK_ANIMATIONS, QUIZ_GREEN_RGB } from "./constants";
+import {
+  BEAR_FALLBACK_ANIMATIONS,
+  QUIZ_GREEN_RGB,
+  QUIZ_AMBER_RGB,
+  QUIZ_RED,
+  QUIZ_RED_RGB,
+} from "./constants";
 
 // Dynamically import Lottie to avoid SSR issues
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
@@ -80,28 +86,23 @@ export default function TeddyCompanion({
 }: TeddyCompanionProps) {
   const [animationData, setAnimationData] = useState<object | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     setIsLoading(true);
-    setHasError(false);
 
-    // Try to fetch the animation from LottieFiles CDN
     const fetchAnimation = async () => {
       try {
         const response = await fetch(BEAR_FALLBACK_ANIMATIONS[emotion]);
-        if (!response.ok) throw new Error("Failed to fetch");
+        if (!response.ok) throw new Error("Failed to fetch animation");
         const data = await response.json();
         if (mounted) {
           setAnimationData(data);
           setIsLoading(false);
         }
       } catch {
-        // Use fallback animation on error
         if (mounted) {
           setAnimationData(createBearFallback(emotion));
-          setHasError(true);
           setIsLoading(false);
         }
       }
@@ -126,13 +127,13 @@ export default function TeddyCompanion({
       case "sad":
       case "disappointed":
         return {
-          glowColor: "rgba(239, 68, 68, 0.2)",
-          borderColor: "rgba(239, 68, 68, 0.3)",
+          glowColor: `rgba(${QUIZ_RED_RGB}, 0.2)`,
+          borderColor: `rgba(${QUIZ_RED_RGB}, 0.3)`,
         };
       case "thinking":
         return {
-          glowColor: "rgba(245, 158, 11, 0.2)",
-          borderColor: "rgba(245, 158, 11, 0.3)",
+          glowColor: `rgba(${QUIZ_AMBER_RGB}, 0.2)`,
+          borderColor: `rgba(${QUIZ_AMBER_RGB}, 0.3)`,
         };
       default:
         return {
@@ -192,23 +193,8 @@ export default function TeddyCompanion({
             animationData={animationData}
             loop={true}
             autoplay={true}
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
+            style={{ width: "100%", height: "100%" }}
           />
-        )}
-
-        {/* Fallback static bear face if animation fails */}
-        {hasError && !animationData && (
-          <div
-            className="w-full h-full flex items-center justify-center text-6xl"
-            role="img"
-            aria-label={`Bear feeling ${emotion}`}
-          >
-            {emotion === "happy" || emotion === "celebrating" ? "🐻" : 
-             emotion === "sad" || emotion === "disappointed" ? "🐻" : "🧸"}
-          </div>
         )}
       </div>
 
@@ -220,13 +206,13 @@ export default function TeddyCompanion({
             emotion === "happy" || emotion === "celebrating"
               ? `rgba(${QUIZ_GREEN_RGB}, 0.2)`
               : emotion === "sad" || emotion === "disappointed"
-              ? "rgba(239, 68, 68, 0.2)"
+              ? `rgba(${QUIZ_RED_RGB}, 0.2)`
               : "rgba(255, 255, 255, 0.1)",
           color:
             emotion === "happy" || emotion === "celebrating"
               ? `rgb(${QUIZ_GREEN_RGB})`
               : emotion === "sad" || emotion === "disappointed"
-              ? "#EF4444"
+              ? QUIZ_RED
               : "var(--color-text-muted)",
           border: `1px solid ${styles.borderColor}`,
         }}

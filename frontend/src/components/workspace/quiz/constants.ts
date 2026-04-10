@@ -10,14 +10,20 @@ export type { AuraProps };
 /** Quiz accent color (green) for completed/correct states */
 export const QUIZ_GREEN = "#00E5A0";
 export const QUIZ_GREEN_RGB = "0, 229, 160";
+/** Dark text for contrast on QUIZ_GREEN background */
+export const QUIZ_GREEN_CONTRAST = "#000000";
 
 /** In-progress accent color (amber) */
 export const QUIZ_AMBER = "#F59E0B";
 export const QUIZ_AMBER_RGB = "245, 158, 11";
+/** Dark text for contrast on QUIZ_AMBER background */
+export const QUIZ_AMBER_CONTRAST = "#000000";
 
 /** Error/wrong answer color */
 export const QUIZ_RED = "#EF4444";
 export const QUIZ_RED_RGB = "239, 68, 68";
+/** Light text for contrast on QUIZ_RED background */
+export const QUIZ_RED_CONTRAST = "#ffffff";
 
 // ---------------------------------------------------------------------------
 // Bear Emotion States
@@ -30,17 +36,6 @@ export type BearEmotion =
   | "sad"
   | "celebrating"
   | "disappointed";
-
-// LottieFiles CDN URLs for bear animations (3D style bears)
-// These can be swapped out for custom animations
-export const BEAR_ANIMATIONS: Record<BearEmotion, string> = {
-  idle: "https://lottie.host/c8c1d8f3-c7d6-4f3e-8c3e-6d0a2c9a7c1f/bear-idle.json",
-  thinking: "https://lottie.host/d9d2e9f4-d8e7-5f4f-9d4f-7e1b3d0b8d2f/bear-thinking.json",
-  happy: "https://lottie.host/e0e3f0f5-e9f8-6f5f-0e5f-8f2c4e1c9e3f/bear-happy.json",
-  sad: "https://lottie.host/f1f4f1f6-f0f9-7f6f-1f6f-9f3d5f2d0f4f/bear-sad.json",
-  celebrating: "https://lottie.host/a2a5a2a7-a1a0-8a7a-2a7a-0a4e6a3e1a5a/bear-celebrating.json",
-  disappointed: "https://lottie.host/b3b6b3b8-b2b1-9b8b-3b8b-1b5f7b4f2b6b/bear-disappointed.json",
-};
 
 // Fallback animation URLs from LottieFiles (public domain bears)
 export const BEAR_FALLBACK_ANIMATIONS: Record<BearEmotion, string> = {

@@ -2,7 +2,7 @@
 
 import { Check, X } from "lucide-react";
 import type { AuraProps } from "./constants";
-import { QUIZ_GREEN, QUIZ_GREEN_RGB, QUIZ_RED, QUIZ_RED_RGB } from "./constants";
+import { QUIZ_GREEN, QUIZ_GREEN_RGB, QUIZ_GREEN_CONTRAST, QUIZ_RED, QUIZ_RED_RGB, QUIZ_RED_CONTRAST } from "./constants";
 
 interface OptionButtonProps extends AuraProps {
   label: string; // A, B, C, D
@@ -35,7 +35,7 @@ export default function OptionButton({
           backgroundColor: `rgba(${QUIZ_GREEN_RGB}, 0.12)`,
           borderColor: QUIZ_GREEN,
           labelBg: QUIZ_GREEN,
-          labelColor: "#000000",
+          labelColor: QUIZ_GREEN_CONTRAST,
           textColor: "var(--color-text-primary)",
           boxShadow: `0 0 16px rgba(${QUIZ_GREEN_RGB}, 0.2)`,
           icon: <Check className="w-4 h-4" />,
@@ -46,7 +46,7 @@ export default function OptionButton({
           backgroundColor: `rgba(${QUIZ_RED_RGB}, 0.12)`,
           borderColor: QUIZ_RED,
           labelBg: QUIZ_RED,
-          labelColor: "#ffffff",
+          labelColor: QUIZ_RED_CONTRAST,
           textColor: "var(--color-text-primary)",
           boxShadow: `0 0 16px rgba(${QUIZ_RED_RGB}, 0.2)`,
           icon: <X className="w-4 h-4" />,

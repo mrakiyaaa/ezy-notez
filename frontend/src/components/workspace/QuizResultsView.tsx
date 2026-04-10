@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, RotateCcw, Plus, ArrowLeft, Trophy, Target } from "lucide-react";
 import type { AttemptResults } from "@/types/quiz";
 import type { AuraProps } from "./quiz/constants";
-import { QUIZ_GREEN, isPassing } from "./quiz/constants";
+import { QUIZ_GREEN, QUIZ_RED, isPassing } from "./quiz/constants";
 import { getAttemptResults } from "@/services/quiz.service";
 import TeddyCompanion from "./quiz/TeddyCompanion";
 import ScoreRing from "./quiz/ScoreRing";
@@ -160,7 +160,7 @@ export default function QuizResultsView({
                 <div>
                   <h3
                     className="text-2xl font-bold"
-                    style={{ color: passed ? QUIZ_GREEN : "#EF4444" }}
+                    style={{ color: passed ? QUIZ_GREEN : QUIZ_RED }}
                   >
                     {passed ? "Congratulations!" : "Keep Practicing!"}
                   </h3>

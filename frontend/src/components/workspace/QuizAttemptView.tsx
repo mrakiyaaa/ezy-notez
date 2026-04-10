@@ -48,22 +48,12 @@ export default function QuizAttemptView({
         onComplete(quizId, completedAttempt.id);
       }, 800);
     },
-    onError: (errorMsg) => {
-      console.error("[QuizAttemptView] Error:", errorMsg);
-    },
+    onError: () => {},
   });
 
   const handleExit = () => {
     exitAttempt();
     onExit();
-  };
-
-  const handleSubmit = async () => {
-    await submitCurrentAnswer();
-  };
-
-  const handleNext = () => {
-    goToNextQuestion();
   };
 
   // Loading state
@@ -158,7 +148,7 @@ export default function QuizAttemptView({
         {/* Submit button (only shown before feedback) */}
         {!showFeedback && (
           <button
-            onClick={handleSubmit}
+            onClick={submitCurrentAnswer}
             disabled={!selectedOptionId || isSubmitting}
             className="w-full max-w-2xl py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
@@ -204,7 +194,7 @@ export default function QuizAttemptView({
                 ? `${correctOption.label}. ${correctOption.text}`
                 : undefined
             }
-            onNext={handleNext}
+            onNext={goToNextQuestion}
             isLastQuestion={isLastQuestion}
             {...auraProps}
           />
