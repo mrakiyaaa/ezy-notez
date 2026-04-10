@@ -21,18 +21,18 @@ export default function StudyInvites({
         {invites.map((invite) => (
           <div
             key={invite.id}
-            className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+            className="rounded-xl border border-white/10 bg-slate-950/40 p-5"
           >
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-white/10" />
+              <div className="h-9 w-9 shrink-0 rounded-full bg-white/10" />
               <div>
-                <p className="text-sm text-text-primary">
+                <p className="text-xs text-text-primary">
                   {invite.inviterName} invited you to {invite.workspaceName}
                 </p>
-                <p className="text-xs text-white/50">{invite.message}</p>
+                <p className="text-[11px] text-white/50">{invite.message}</p>
               </div>
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-5 flex gap-2">
               <button
                 type="button"
                 onClick={() => onAccept?.(invite.id)}
