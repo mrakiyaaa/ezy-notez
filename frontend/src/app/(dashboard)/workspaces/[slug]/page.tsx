@@ -145,7 +145,11 @@ export default function WorkspacePage() {
 
   return (
     <div
-      className="flex min-h-screen bg-main"
+      // Bound the shell to (viewport - dashboard header) so the inner <main>
+      // becomes the scroll surface. This keeps the sidebar and workspace top
+      // header fixed while only the main content area scrolls.
+      // Offset matches the dashboard layout header (logo 60 + py-4 32 + border 1 = 93px).
+      className="flex h-[calc(100vh-93px)] bg-main overflow-hidden"
       style={{
         "--workspace-aura": auraHex,
         "--workspace-aura-rgb": auraRgb,

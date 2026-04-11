@@ -122,8 +122,17 @@ export default function QuizAttemptView({
           {currentQuestion.options.map((option) => {
             const isSelected = selectedOptionId === option.id;
             const isCorrectOption = option.id === currentQuestion.correct_option_id;
+
+            // For the selected option use the backend's verdict (lastAnswerCorrect)
+            // so the colour is always consistent with the "Correct!" / "Incorrect"
+            // feedback panel, regardless of any frontend ID mismatch.
+            // For unselected options keep the ID comparison so the correct answer
+            // still glows green when the user picked the wrong one.
+            const isCorrectHighlight = showFeedback && (
+              isSelected ? lastAnswerCorrect === true : isCorrectOption
+            );
             const isWrongSelected =
-              showFeedback && isSelected && !isCorrectOption;
+              showFeedback && isSelected && lastAnswerCorrect === false;
 
             return (
               <OptionButton
@@ -131,7 +140,7 @@ export default function QuizAttemptView({
                 label={option.label}
                 text={option.text}
                 isSelected={isSelected}
-                isCorrect={showFeedback && isCorrectOption}
+                isCorrect={isCorrectHighlight}
                 isWrong={isWrongSelected}
                 isDisabled={isSubmitting}
                 showResult={showFeedback}

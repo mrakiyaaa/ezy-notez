@@ -1,17 +1,20 @@
 """
 EZY Notez — Quiz ML Microservice
-FastAPI app that exposes a single /generate-quiz endpoint.
-Models are loaded once at startup via the lifespan context manager.
+FastAPI app that exposes a single /generate-quiz endpoint backed by an
+OpenRouter LLM. No local ML models are loaded — startup only ensures the
+NLTK sentence tokenizer data is present.
 """
 
 import logging
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-import model_cache
 from models import GenerateRequest, GenerateResponse, HealthResponse
 from pipeline import run_pipeline
 
@@ -22,20 +25,29 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _ensure_nltk_data() -> None:
+    """Download NLTK punkt tokenizer data if missing. Safe to call repeatedly."""
+    import nltk
+    for pkg in ("punkt_tab", "punkt"):
+        try:
+            nltk.download(pkg, quiet=True)
+        except Exception as e:
+            logger.warning(f"NLTK download warning for {pkg}: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load all ML models on startup; nothing to do on shutdown."""
-    logger.info("Starting up Quiz ML service — loading models...")
+    """Ensure NLTK data is available on startup. No model loading required."""
+    logger.info("Starting up Quiz ML service — preparing NLTK data...")
     try:
-        model_cache.load_all()
-        logger.info("Models loaded. Service is ready.")
+        _ensure_nltk_data()
+        logger.info("NLTK data ready. Service is online.")
     except Exception as e:
-        logger.error(f"Model loading failed: {e}")
-        # Service still starts; /health will report models_loaded=False
+        logger.error(f"NLTK data preparation failed: {e}")
     yield
 
 
-app = FastAPI(title="EZY Notez Quiz ML", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="EZY Notez Quiz ML", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,20 +59,16 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthResponse)
 def health():
-    return HealthResponse(
-        status="ok" if model_cache.are_models_loaded() else "loading",
-        models_loaded=model_cache.are_models_loaded(),
-    )
+    """
+    Service is ready as soon as the process is up — there are no local
+    models to load. The models_loaded field is retained for backwards
+    compatibility with existing clients and is always True.
+    """
+    return HealthResponse(status="ok", models_loaded=True)
 
 
 @app.post("/generate-quiz", response_model=GenerateResponse)
 async def generate_quiz(request: GenerateRequest):
-    if not model_cache.are_models_loaded():
-        raise HTTPException(
-            status_code=503,
-            detail="Models are still loading. Please retry in a moment.",
-        )
-
     try:
         questions = await run_pipeline(
             text=request.text,
