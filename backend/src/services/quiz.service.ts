@@ -155,10 +155,16 @@ const fetchResourceText = async (
 const checkMLServiceHealth = async (): Promise<void> => {
   try {
     await axios.get(`${QUIZ_ML_SERVICE_URL}/health`, { timeout: 5_000 });
-  } catch {
-    throw new Error(
-      `Quiz ML service is not running. Start it with: npm run dev:ml`,
-    );
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+        throw new Error("Quiz ML service health check timed out — the service may be overloaded.");
+      }
+      if (err.response) {
+        throw new Error(`Quiz ML service returned ${err.response.status} on health check.`);
+      }
+    }
+    throw new Error(`Quiz ML service is unreachable at ${QUIZ_ML_SERVICE_URL}. Start it with: npm run dev:ml`);
   }
 };
 
@@ -177,13 +183,28 @@ const callMLService = async (
     return response.data.questions;
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      const detail = err.response
-        ? `ML service returned ${err.response.status}: ${JSON.stringify(err.response.data)}`
-        : `Cannot reach ML service at ${QUIZ_ML_SERVICE_URL} — ${err.message}`;
-      console.error(`[quiz] ML service call failed:`, detail);
-      throw new Error(detail);
+      if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+        const msg = `Quiz generation timed out after ${ML_TIMEOUT_MS / 1000}s — the model may be under load.`;
+        console.error(`[quiz] ML service timeout:`, msg);
+        throw new Error(msg);
+      }
+      if (err.response) {
+        const detail = err.response.data?.detail;
+        const mlMessage =
+          typeof detail === "object" && detail !== null
+            ? ((detail as Record<string, unknown>).message ?? JSON.stringify(detail))
+            : typeof detail === "string"
+              ? detail
+              : JSON.stringify(err.response.data);
+        const msg = `ML service returned ${err.response.status}: ${mlMessage}`;
+        console.error(`[quiz] ML service error:`, msg);
+        throw new Error(msg);
+      }
+      const msg = `Cannot reach ML service at ${QUIZ_ML_SERVICE_URL} — ${err.message}`;
+      console.error(`[quiz] ML service unreachable:`, msg);
+      throw new Error(msg);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
 };
 

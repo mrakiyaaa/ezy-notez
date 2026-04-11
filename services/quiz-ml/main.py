@@ -7,6 +7,7 @@ NLTK sentence tokenizer data is present.
 
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -23,6 +24,14 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+_STAGE_PATTERN = re.compile(r"\[Stage\s+(\d+)\]")
+
+
+def _extract_stage(message: str) -> str:
+    """Return 'stage_N' from a '[Stage N] ...' error message, or 'pipeline' if absent."""
+    m = _STAGE_PATTERN.search(message)
+    return f"stage_{m.group(1)}" if m else "pipeline"
 
 
 def _ensure_nltk_data() -> None:
@@ -44,6 +53,14 @@ async def lifespan(app: FastAPI):
         logger.info("NLTK data ready. Service is online.")
     except Exception as e:
         logger.error(f"NLTK data preparation failed: {e}")
+
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        logger.warning(
+            "OPENROUTER_API_KEY is not set — quiz generation will be unavailable "
+            "until the key is configured."
+        )
+
     yield
 
 
@@ -69,6 +86,17 @@ def health():
 
 @app.post("/generate-quiz", response_model=GenerateResponse)
 async def generate_quiz(request: GenerateRequest):
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": True,
+                "stage": "configuration",
+                "message": "OPENROUTER_API_KEY is not configured on this server.",
+            },
+        )
+
     try:
         questions = await run_pipeline(
             text=request.text,
@@ -77,10 +105,25 @@ async def generate_quiz(request: GenerateRequest):
         )
         return GenerateResponse(questions=questions)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        msg = str(e)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": True,
+                "stage": _extract_stage(msg),
+                "message": msg,
+            },
+        )
     except Exception as e:
         logger.error(f"Pipeline error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Question generation failed.")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": True,
+                "stage": "pipeline",
+                "message": "Question generation failed due to an unexpected error.",
+            },
+        )
 
 
 if __name__ == "__main__":

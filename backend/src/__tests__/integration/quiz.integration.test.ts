@@ -134,7 +134,7 @@ describe("POST /api/quiz/generate", () => {
 
     // Assert
     expect(res.status).toBe(201);
-    expect(res.body.status).toBe("success");
+    expect(res.body).toHaveProperty("data");
     expect(res.body.data.status).toBe("pending");
     expect(res.body.data.question_type).toBe("mcq");
   });
@@ -446,6 +446,6 @@ describe("DELETE /api/quiz/:quizId", () => {
 
     // Assert
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("success");
+    expect(res.body.success).toBe(true);
   });
 });

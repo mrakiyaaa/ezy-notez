@@ -303,8 +303,14 @@ async def _post_to_openrouter(
     except httpx.HTTPStatusError as e:
         body = e.response.text[:300] if e.response is not None else ""
         logger.error(
-            f"[Stage 2] OpenRouter HTTP error (model={OPENROUTER_MODEL}, "
-            f"temp={temperature}): {e} | body={body!r}"
+            f"[Stage 2] OpenRouter HTTP {e.response.status_code} error "
+            f"(model={OPENROUTER_MODEL}, temp={temperature}) | body={body!r}"
+        )
+        return None
+    except httpx.TimeoutException as e:
+        logger.error(
+            f"[Stage 2] OpenRouter request timed out after {OPENROUTER_TIMEOUT_SECONDS}s "
+            f"(model={OPENROUTER_MODEL}, temp={temperature}): {e}"
         )
         return None
     except httpx.HTTPError as e:
@@ -392,134 +398,141 @@ def parse_and_validate_questions(
         logger.error("[Stage 3] Empty response from OpenRouter.")
         return []
 
-    payload_text = _extract_json_array(raw_response)
-
     try:
-        parsed = json.loads(payload_text)
-    except json.JSONDecodeError as e:
-        logger.error(
-            f"[Stage 3] JSON parse failed: {e} | raw={raw_response[:500]!r}"
-        )
-        return []
+        payload_text = _extract_json_array(raw_response)
 
-    if not isinstance(parsed, list):
-        logger.error(
-            f"[Stage 3] Expected JSON array, got {type(parsed).__name__}: "
-            f"{str(parsed)[:200]!r}"
-        )
-        return []
-
-    questions: list[GeneratedQuestion] = []
-    for idx, item in enumerate(parsed):
-        if len(questions) >= question_count:
-            break
-        if not isinstance(item, dict):
-            logger.warning(f"[Stage 3] Item {idx}: not a dict, skipping")
-            continue
-
-        question_text = (item.get("question_text") or "").strip()
-        options_raw = item.get("options")
-        correct_index = item.get("correct_index")
-        explanation = (item.get("explanation") or "").strip()
-        topic_tag = (item.get("topic_tag") or "General").strip() or "General"
-        q_type_raw = (item.get("question_type") or "mcq").strip().lower()
-
-        if q_type_raw not in ("mcq", "scenario"):
-            q_type_raw = "mcq"
-
-        if not question_text:
-            logger.warning(f"[Stage 3] Item {idx}: missing question_text, skipping")
-            continue
-        if not isinstance(options_raw, list) or len(options_raw) != EXPECTED_OPTION_COUNT:
-            actual = len(options_raw) if isinstance(options_raw, list) else type(options_raw).__name__
-            logger.warning(
-                f"[Stage 3] Item {idx}: expected {EXPECTED_OPTION_COUNT} options, "
-                f"got {actual}; skipping"
+        try:
+            parsed = json.loads(payload_text)
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"[Stage 3] JSON parse failed: {e} | raw={raw_response[:500]!r}"
             )
-            continue
-        option_texts = [str(o).strip() for o in options_raw]
-        if any(not t for t in option_texts):
-            logger.warning(f"[Stage 3] Item {idx}: empty option text, skipping")
-            continue
+            return []
 
-        labels = ["A", "B", "C", "D"]
-        options = [
-            QuestionOption(id=str(uuid.uuid4()), label=labels[i], text=option_texts[i])
-            for i in range(EXPECTED_OPTION_COUNT)
-        ]
-
-        # Resolve correct_option_id from the raw correct_index field.
-        # The LLM may return an integer (0-3), a letter label ("A"/"b"),
-        # a stringified integer ("0"), or the correct answer text itself.
-        # Strategy 1: integer index
-        # Strategy 2: letter label or stringified integer (case-insensitive)
-        # Strategy 3: text match against option texts (case-insensitive, stripped)
-        _LABEL_TO_INDEX = {"a": 0, "b": 1, "c": 2, "d": 3}
-        resolved_index: int | None = None
-
-        if isinstance(correct_index, int) and 0 <= correct_index < EXPECTED_OPTION_COUNT:
-            resolved_index = correct_index
-        elif isinstance(correct_index, str):
-            _ci = correct_index.strip().lower()
-            if _ci in _LABEL_TO_INDEX:
-                resolved_index = _LABEL_TO_INDEX[_ci]
-            elif _ci.isdigit() and 0 <= int(_ci) < EXPECTED_OPTION_COUNT:
-                resolved_index = int(_ci)
-
-        if resolved_index is not None:
-            correct_option_id = options[resolved_index].id
-        else:
-            # Strategy 3: match the raw value as answer text against option texts
-            _ci_text = str(correct_index).strip().lower() if correct_index is not None else ""
-            _text_match = next(
-                (opt for opt in options if opt.text.strip().lower() == _ci_text),
-                None,
+        if not isinstance(parsed, list):
+            logger.error(
+                f"[Stage 3] Expected JSON array, got {type(parsed).__name__}: "
+                f"{str(parsed)[:200]!r}"
             )
-            if _text_match:
-                correct_option_id = _text_match.id
-                logger.warning(
-                    f"[Stage 3] Item {idx}: correct_index={correct_index!r} resolved "
-                    f"by text match to option id={_text_match.id[:8]} "
-                    f"text={_text_match.text!r}"
-                )
-            else:
-                logger.warning(
-                    f"[Stage 3] Item {idx}: cannot resolve correct_index={correct_index!r} "
-                    f"to any option (tried int, label, text); skipping"
-                )
+            return []
+
+        questions: list[GeneratedQuestion] = []
+        for idx, item in enumerate(parsed):
+            if len(questions) >= question_count:
+                break
+            if not isinstance(item, dict):
+                logger.warning(f"[Stage 3] Item {idx}: not a dict, skipping")
                 continue
 
-        # Confirm the mapping is intact before the question is accepted
-        _confirmed = next((opt for opt in options if opt.id == correct_option_id), None)
-        if _confirmed is None:
-            logger.warning(
-                f"[Stage 3] Item {idx}: correct_option_id={correct_option_id!r} "
-                f"not found in assembled options after resolution; skipping"
+            question_text = (item.get("question_text") or "").strip()
+            options_raw = item.get("options")
+            correct_index = item.get("correct_index")
+            explanation = (item.get("explanation") or "").strip()
+            topic_tag = (item.get("topic_tag") or "General").strip() or "General"
+            q_type_raw = (item.get("question_type") or "mcq").strip().lower()
+
+            if q_type_raw not in ("mcq", "scenario"):
+                q_type_raw = "mcq"
+
+            if not question_text:
+                logger.warning(f"[Stage 3] Item {idx}: missing question_text, skipping")
+                continue
+            if not isinstance(options_raw, list) or len(options_raw) != EXPECTED_OPTION_COUNT:
+                actual = len(options_raw) if isinstance(options_raw, list) else type(options_raw).__name__
+                logger.warning(
+                    f"[Stage 3] Item {idx}: expected {EXPECTED_OPTION_COUNT} options, "
+                    f"got {actual}; skipping"
+                )
+                continue
+            option_texts = [str(o).strip() for o in options_raw]
+            if any(not t for t in option_texts):
+                logger.warning(f"[Stage 3] Item {idx}: empty option text, skipping")
+                continue
+
+            labels = ["A", "B", "C", "D"]
+            options = [
+                QuestionOption(id=str(uuid.uuid4()), label=labels[i], text=option_texts[i])
+                for i in range(EXPECTED_OPTION_COUNT)
+            ]
+
+            # Resolve correct_option_id from the raw correct_index field.
+            # The LLM may return an integer (0-3), a letter label ("A"/"b"),
+            # a stringified integer ("0"), or the correct answer text itself.
+            # Strategy 1: integer index
+            # Strategy 2: letter label or stringified integer (case-insensitive)
+            # Strategy 3: text match against option texts (case-insensitive, stripped)
+            _LABEL_TO_INDEX = {"a": 0, "b": 1, "c": 2, "d": 3}
+            resolved_index: int | None = None
+
+            if isinstance(correct_index, int) and 0 <= correct_index < EXPECTED_OPTION_COUNT:
+                resolved_index = correct_index
+            elif isinstance(correct_index, str):
+                _ci = correct_index.strip().lower()
+                if _ci in _LABEL_TO_INDEX:
+                    resolved_index = _LABEL_TO_INDEX[_ci]
+                elif _ci.isdigit() and 0 <= int(_ci) < EXPECTED_OPTION_COUNT:
+                    resolved_index = int(_ci)
+
+            if resolved_index is not None:
+                correct_option_id = options[resolved_index].id
+            else:
+                # Strategy 3: match the raw value as answer text against option texts
+                _ci_text = str(correct_index).strip().lower() if correct_index is not None else ""
+                _text_match = next(
+                    (opt for opt in options if opt.text.strip().lower() == _ci_text),
+                    None,
+                )
+                if _text_match:
+                    correct_option_id = _text_match.id
+                    logger.warning(
+                        f"[Stage 3] Item {idx}: correct_index={correct_index!r} resolved "
+                        f"by text match to option id={_text_match.id[:8]} "
+                        f"text={_text_match.text!r}"
+                    )
+                else:
+                    logger.warning(
+                        f"[Stage 3] Item {idx}: cannot resolve correct_index={correct_index!r} "
+                        f"to any option (tried int, label, text); skipping"
+                    )
+                    continue
+
+            # Confirm the mapping is intact before the question is accepted
+            _confirmed = next((opt for opt in options if opt.id == correct_option_id), None)
+            if _confirmed is None:
+                logger.warning(
+                    f"[Stage 3] Item {idx}: correct_option_id={correct_option_id!r} "
+                    f"not found in assembled options after resolution; skipping"
+                )
+                continue
+            logger.info(
+                f"[Stage 3] Item {idx}: correct_option_id={correct_option_id[:8]} "
+                f"label={_confirmed.label} text={_confirmed.text!r}"
             )
-            continue
-        logger.info(
-            f"[Stage 3] Item {idx}: correct_option_id={correct_option_id[:8]} "
-            f"label={_confirmed.label} text={_confirmed.text!r}"
+
+            if not explanation:
+                explanation = (
+                    f'The correct answer is "{_confirmed.text}". '
+                    f"This relates to the topic of {topic_tag}."
+                )
+
+            questions.append(
+                GeneratedQuestion(
+                    question_text=question_text,
+                    question_type=q_type_raw,  # type: ignore[arg-type]
+                    options=options,
+                    correct_option_id=correct_option_id,
+                    explanation=explanation,
+                    topic_tag=topic_tag,
+                )
+            )
+
+        return questions
+
+    except Exception as e:
+        logger.error(
+            f"[Stage 3] Unexpected error during response parsing: {e}", exc_info=True
         )
-
-        if not explanation:
-            explanation = (
-                f'The correct answer is "{_confirmed.text}". '
-                f"This relates to the topic of {topic_tag}."
-            )
-
-        questions.append(
-            GeneratedQuestion(
-                question_text=question_text,
-                question_type=q_type_raw,  # type: ignore[arg-type]
-                options=options,
-                correct_option_id=correct_option_id,
-                explanation=explanation,
-                topic_tag=topic_tag,
-            )
-        )
-
-    return questions
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -573,21 +586,25 @@ def filter_and_rank(
     question_count: int,
 ) -> list[GeneratedQuestion]:
     """Apply quality gate, deduplicate by Jaccard similarity, return up to N."""
-    valid: list[GeneratedQuestion] = []
-    for q in questions:
-        if not is_valid_question(q):
-            logger.info(f"[Stage 4] Quality gate rejected: {q.question_text[:80]!r}")
-            continue
-        if any(
-            _jaccard(q.question_text, kept.question_text) >= DUPLICATE_JACCARD_THRESHOLD
-            for kept in valid
-        ):
-            logger.info(f"[Stage 4] Duplicate rejected: {q.question_text[:80]!r}")
-            continue
-        valid.append(q)
-        if len(valid) >= question_count:
-            break
-    return valid
+    try:
+        valid: list[GeneratedQuestion] = []
+        for q in questions:
+            if not is_valid_question(q):
+                logger.info(f"[Stage 4] Quality gate rejected: {q.question_text[:80]!r}")
+                continue
+            if any(
+                _jaccard(q.question_text, kept.question_text) >= DUPLICATE_JACCARD_THRESHOLD
+                for kept in valid
+            ):
+                logger.info(f"[Stage 4] Duplicate rejected: {q.question_text[:80]!r}")
+                continue
+            valid.append(q)
+            if len(valid) >= question_count:
+                break
+        return valid
+    except Exception as e:
+        logger.error(f"[Stage 4] Unexpected error during quality filtering: {e}", exc_info=True)
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -603,56 +620,76 @@ async def run_pipeline(
     logger.info(f"Pipeline start: type={question_type}, count={question_count}")
 
     # Stage 1 — preprocessing
-    layer1 = clean_extracted_text(text)
-    if not layer1:
-        raise ValueError("Text is empty after extraction cleanup.")
+    try:
+        layer1 = clean_extracted_text(text)
+        if not layer1:
+            raise ValueError("Text is empty after extraction cleanup.")
 
-    cleaned_text = preprocess(layer1)
-    if not cleaned_text or len(cleaned_text.split()) < 20:
-        raise ValueError("Text is too short to generate questions from.")
-    logger.info(f"[Stage 1] Cleaned text ready: {len(cleaned_text)} chars")
+        cleaned_text = preprocess(layer1)
+        if not cleaned_text or len(cleaned_text.split()) < 20:
+            raise ValueError("Text is too short to generate questions from.")
+        logger.info(f"[Stage 1] Cleaned text ready: {len(cleaned_text)} chars")
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"[Stage 1] Preprocessing failed unexpectedly: {e}") from e
 
     # Stage 2 — OpenRouter call. Over-generate so Stage 4 has room to drop
     # weak items without falling below the user's requested count.
-    target_count = max(question_count + 2, int(question_count * 1.5))
-    raw_response = await generate_quiz_via_openrouter(
-        cleaned_text=cleaned_text,
-        question_type=question_type,
-        question_count=target_count,
-    )
-    if raw_response is None:
-        raise ValueError("Quiz generation service is temporarily unavailable.")
-    logger.info(f"[Stage 2] OpenRouter returned {len(raw_response)} chars")
-
-    # Stage 3 — parse + validate
-    candidates = parse_and_validate_questions(raw_response, question_count=target_count)
-    logger.info(f"[Stage 3] Parsed {len(candidates)} candidate questions")
-
-    # Retry once at higher temperature if yield is too low
-    if len(candidates) < question_count:
-        logger.warning(
-            f"[Stage 3] Initial yield {len(candidates)}/{question_count} below "
-            f"target — retrying at temperature={OPENROUTER_RETRY_TEMPERATURE}"
-        )
-        retry_raw = await generate_quiz_via_openrouter(
+    try:
+        target_count = max(question_count + 2, int(question_count * 1.5))
+        raw_response = await generate_quiz_via_openrouter(
             cleaned_text=cleaned_text,
             question_type=question_type,
             question_count=target_count,
-            temperature=OPENROUTER_RETRY_TEMPERATURE,
         )
-        if retry_raw is not None:
-            retry_candidates = parse_and_validate_questions(
-                retry_raw, question_count=target_count
+        if raw_response is None:
+            raise ValueError("Quiz generation service is temporarily unavailable.")
+        logger.info(f"[Stage 2] OpenRouter returned {len(raw_response)} chars")
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"[Stage 2] OpenRouter call failed unexpectedly: {e}") from e
+
+    # Stage 3 — parse + validate
+    try:
+        candidates = parse_and_validate_questions(raw_response, question_count=target_count)
+        logger.info(f"[Stage 3] Parsed {len(candidates)} candidate questions")
+
+        # Retry once at higher temperature if yield is too low
+        if len(candidates) < question_count:
+            logger.warning(
+                f"[Stage 3] Initial yield {len(candidates)}/{question_count} below "
+                f"target — retrying at temperature={OPENROUTER_RETRY_TEMPERATURE}"
             )
-            candidates.extend(retry_candidates)
-            logger.info(f"[Stage 3] After retry: {len(candidates)} total candidates")
+            retry_raw = await generate_quiz_via_openrouter(
+                cleaned_text=cleaned_text,
+                question_type=question_type,
+                question_count=target_count,
+                temperature=OPENROUTER_RETRY_TEMPERATURE,
+            )
+            if retry_raw is not None:
+                retry_candidates = parse_and_validate_questions(
+                    retry_raw, question_count=target_count
+                )
+                candidates.extend(retry_candidates)
+                logger.info(f"[Stage 3] After retry: {len(candidates)} total candidates")
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"[Stage 3] Response parsing failed unexpectedly: {e}") from e
 
     # Stage 4 — filter & rank
-    final = filter_and_rank(candidates, question_count=question_count)
-    if not final:
-        raise ValueError(
-            "Pipeline could not produce any valid questions. Try adding more resources."
-        )
+    try:
+        final = filter_and_rank(candidates, question_count=question_count)
+        if not final:
+            raise ValueError(
+                "Pipeline could not produce any valid questions. Try adding more resources."
+            )
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"[Stage 4] Quality filtering failed unexpectedly: {e}") from e
 
     logger.info(f"Pipeline complete: returned {len(final)} questions")
     return final
