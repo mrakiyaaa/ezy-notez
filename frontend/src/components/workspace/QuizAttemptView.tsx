@@ -109,9 +109,6 @@ export default function QuizAttemptView({
 
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 py-8 gap-6">
-        {/* Teddy companion */}
-        <TeddyCompanion emotion={bearEmotion} size={140} />
-
         {/* Question card */}
         <QuestionCard
           questionNumber={currentQuestionIndex + 1}
@@ -199,6 +196,11 @@ export default function QuizAttemptView({
             {...auraProps}
           />
         )}
+      </div>
+
+      {/* Teddy companion — fixed floating at bottom-right of viewport */}
+      <div className="fixed bottom-6 right-6 z-40 pointer-events-none">
+        <TeddyCompanion emotion={bearEmotion} size={100} />
       </div>
     </div>
   );

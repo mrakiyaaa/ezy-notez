@@ -5,26 +5,48 @@ Pipeline stages (in execution order):
   1. Preprocessing  — sentence segmentation, cleaning, 512-token chunking
   2. Answer extraction — KeyBERT keyphrases per chunk
   3. Question generation — valhalla/t5-base-qg-hl with highlighted answer
-  4. Distractor generation — WordNet synsets; KeyBERT fallback
+  4. Distractor generation — OpenRouter LLM (mistralai/mistral-7b-instruct,
+       google/gemma-2-9b-it fallback)
   5. Topic tagging — KeyBERT top keyword per question
   6. Quality filtering — dedup, confidence ranking, return exactly question_count
 """
 
+import json
+import logging
+import os
+import random
 import re
 import uuid
-import random
-import logging
 from typing import Literal
 
+import httpx
 import torch
-import nltk
-from nltk.corpus import wordnet
 from nltk.tokenize import sent_tokenize
 
 import model_cache
 from models import GeneratedQuestion, QuestionOption
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# OpenRouter configuration (Stage 4)
+# ---------------------------------------------------------------------------
+
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_PRIMARY_MODEL = "mistralai/mistral-7b-instruct"
+OPENROUTER_FALLBACK_MODEL = "google/gemma-2-9b-it"
+OPENROUTER_HTTP_REFERER = "https://ezynotez.com"
+OPENROUTER_APP_TITLE = "EZY Notez"
+OPENROUTER_TIMEOUT_SECONDS = 10.0
+OPENROUTER_TEMPERATURE = 0.7
+
+DISTRACTOR_COUNT = 3
+PLACEHOLDER_DISTRACTORS: list[str] = [
+    "None of the above",
+    "All of the above",
+    "Cannot be determined from the given information",
+]
+
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Preprocessing
@@ -159,79 +181,222 @@ def generate_questions_batch(
 
 
 # ---------------------------------------------------------------------------
-# Stage 4 — Distractor Generation
+# Stage 4 — Distractor Generation (OpenRouter LLM)
 # ---------------------------------------------------------------------------
 
-def _wordnet_distractors(answer: str, n: int = 3) -> list[str]:
-    """Get semantically related but incorrect options via WordNet synsets."""
-    head = answer.split()[-1].lower()
-    candidates: set[str] = set()
+def _extract_source_context(chunk: str, answer: str, max_sentences: int = 2) -> str:
+    """
+    Return 1-2 sentences from the chunk to anchor the distractor prompt.
+    Prefers the sentence containing the answer; otherwise the first sentences.
+    """
+    sentences = sent_tokenize(chunk)
+    if not sentences:
+        return chunk[:300]
 
-    for syn in wordnet.synsets(head):
-        # hypernym siblings
-        for hypernym in syn.hypernyms():
-            for hyponym in hypernym.hyponyms():
-                for lemma in hyponym.lemma_names():
-                    word = lemma.replace("_", " ")
-                    if word.lower() != answer.lower() and len(word) > 2:
-                        candidates.add(word)
-        # direct hyponyms
-        for hyponym in syn.hyponyms():
-            for lemma in hyponym.lemma_names():
-                word = lemma.replace("_", " ")
-                if word.lower() != answer.lower():
-                    candidates.add(word)
+    answer_lower = answer.lower()
+    for i, sent in enumerate(sentences):
+        if answer_lower in sent.lower():
+            end = min(i + max_sentences, len(sentences))
+            return " ".join(sentences[i:end])
 
-    candidates.discard(answer)
-    candidates.discard(answer.lower())
-    pool = list(candidates)
-    random.shuffle(pool)
-    return pool[:n]
+    return " ".join(sentences[:max_sentences])
 
 
-def _keybert_distractors(answer: str, chunk: str, n: int = 3) -> list[str]:
-    """Fallback: use KeyBERT on same chunk to find distinct phrases."""
-    kb = model_cache.get_keybert()
+def _build_distractor_prompt(
+    question_text: str,
+    correct_answer: str,
+    source_context: str,
+) -> str:
+    return (
+        "You are generating multiple-choice distractors for an academic quiz.\n\n"
+        f"Question: {question_text}\n"
+        f"Correct answer: {correct_answer}\n"
+        f"Source context: {source_context}\n\n"
+        "Task: produce exactly 3 short, academically plausible but INCORRECT "
+        "answer options for the question above. Each distractor must be a "
+        "concise phrase (a few words), topically related to the source "
+        "context, and clearly distinct from the correct answer.\n\n"
+        "Output rules:\n"
+        '- Return ONLY a valid JSON array of exactly 3 strings, e.g. ["foo", "bar", "baz"]\n'
+        "- No explanation, no preamble, no markdown fences, no keys or labels "
+        "— raw JSON array only."
+    )
+
+
+def _strip_markdown_fences(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    return cleaned.strip()
+
+
+def _parse_distractor_payload(raw_content: str, model: str) -> list[str] | None:
+    """Parse an OpenRouter message payload into exactly DISTRACTOR_COUNT strings."""
+    cleaned = _strip_markdown_fences(raw_content)
+
     try:
-        keywords = kb.extract_keywords(
-            chunk,
-            keyphrase_ngram_range=(1, 2),
-            stop_words="english",
-            top_n=n + 5,
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        logger.error(
+            f"OpenRouter JSON parse failed (model={model}): {e} | raw={raw_content[:300]!r}"
         )
-        distractors = [
-            phrase for phrase, _ in keywords
-            if phrase.lower() != answer.lower()
-        ]
-        return distractors[:n]
-    except Exception:
-        return []
+        return None
+
+    if not isinstance(parsed, list):
+        logger.error(
+            f"OpenRouter returned non-array payload (model={model}): {parsed!r}"
+        )
+        return None
+
+    distractors = [str(item).strip() for item in parsed if item is not None]
+    distractors = [d for d in distractors if d]
+
+    if len(distractors) != DISTRACTOR_COUNT:
+        logger.error(
+            f"OpenRouter returned {len(distractors)} distractors, expected "
+            f"{DISTRACTOR_COUNT} (model={model}): {parsed!r}"
+        )
+        return None
+
+    return distractors
 
 
-def build_options(answer: str, chunk: str) -> tuple[list[QuestionOption], str]:
+async def _call_openrouter_model(
+    client: httpx.AsyncClient,
+    model: str,
+    prompt: str,
+) -> list[str] | None:
+    """Single OpenRouter chat-completions call. Returns parsed distractors or None."""
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        logger.error("OPENROUTER_API_KEY is not set; cannot call OpenRouter.")
+        return None
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": OPENROUTER_HTTP_REFERER,
+        "X-Title": OPENROUTER_APP_TITLE,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": OPENROUTER_TEMPERATURE,
+    }
+
+    try:
+        response = await client.post(
+            OPENROUTER_API_URL,
+            json=payload,
+            headers=headers,
+            timeout=OPENROUTER_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        body = e.response.text[:300] if e.response is not None else ""
+        logger.error(
+            f"OpenRouter HTTP error (model={model}): {e} | body={body!r}"
+        )
+        return None
+    except httpx.HTTPError as e:
+        logger.error(f"OpenRouter transport error (model={model}): {e}")
+        return None
+
+    try:
+        data = response.json()
+        content = data["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError, TypeError) as e:
+        logger.error(
+            f"OpenRouter response shape invalid (model={model}): {e} | "
+            f"raw={response.text[:300]!r}"
+        )
+        return None
+
+    return _parse_distractor_payload(content, model)
+
+
+async def generate_distractors_via_openrouter(
+    question_text: str,
+    correct_answer: str,
+    source_context: str,
+) -> list[str]:
     """
-    Build 4 QuestionOption objects (correct + 3 distractors).
-    Returns (options, correct_option_id).
+    Call OpenRouter to synthesise exactly 3 academically plausible distractors.
+
+    Never raises. Tries the primary model first; on parse failure or transport
+    error, retries once with the fallback model. On double failure, returns
+    3 generic placeholder distractors so the pipeline never crashes.
     """
-    distractors = _wordnet_distractors(answer, n=3)
+    prompt = _build_distractor_prompt(question_text, correct_answer, source_context)
 
-    if len(distractors) < 3:
-        extra = _keybert_distractors(answer, chunk, n=3 - len(distractors))
-        distractors.extend(extra)
+    try:
+        async with httpx.AsyncClient(timeout=OPENROUTER_TIMEOUT_SECONDS) as client:
+            distractors = await _call_openrouter_model(
+                client, OPENROUTER_PRIMARY_MODEL, prompt
+            )
+            if distractors is None:
+                logger.warning(
+                    f"Primary model '{OPENROUTER_PRIMARY_MODEL}' failed — "
+                    f"retrying with fallback '{OPENROUTER_FALLBACK_MODEL}'"
+                )
+                distractors = await _call_openrouter_model(
+                    client, OPENROUTER_FALLBACK_MODEL, prompt
+                )
+    except Exception as e:
+        logger.error(f"OpenRouter client raised unexpectedly: {e}")
+        distractors = None
 
-    # Pad with generic fallbacks if still short
-    fallbacks = ["None of the above", "All of the above", "Cannot be determined"]
-    for fb in fallbacks:
-        if len(distractors) >= 3:
+    if distractors is None:
+        logger.warning(
+            "All OpenRouter attempts failed — returning placeholder distractors."
+        )
+        return list(PLACEHOLDER_DISTRACTORS)
+
+    return distractors
+
+
+async def build_options(
+    question_text: str,
+    answer: str,
+    chunk: str,
+) -> tuple[list[QuestionOption], str]:
+    """
+    Build 4 QuestionOption objects (correct + 3 distractors) and return them
+    together with the id of the correct option. Distractors come from the
+    OpenRouter LLM.
+    """
+    source_context = _extract_source_context(chunk, answer)
+    distractors = await generate_distractors_via_openrouter(
+        question_text=question_text,
+        correct_answer=answer,
+        source_context=source_context,
+    )
+
+    # Defensive: ensure exactly 3 unique, non-empty distractors distinct from the
+    # correct answer. In practice generate_distractors_via_openrouter already
+    # guarantees this, but the pipeline must remain crash-free.
+    seen: set[str] = {answer.lower()}
+    unique_distractors: list[str] = []
+    for d in distractors:
+        key = d.lower()
+        if key and key not in seen:
+            unique_distractors.append(d)
+            seen.add(key)
+
+    for fb in PLACEHOLDER_DISTRACTORS:
+        if len(unique_distractors) >= DISTRACTOR_COUNT:
             break
-        if fb not in distractors:
-            distractors.append(fb)
+        if fb.lower() not in seen:
+            unique_distractors.append(fb)
+            seen.add(fb.lower())
 
-    distractors = distractors[:3]
+    unique_distractors = unique_distractors[:DISTRACTOR_COUNT]
 
-    # Build pool: 1 correct + 3 distractors, shuffle
     correct_id = str(uuid.uuid4())
-    pool = [(correct_id, answer)] + [(str(uuid.uuid4()), d) for d in distractors]
+    pool = [(correct_id, answer)] + [
+        (str(uuid.uuid4()), d) for d in unique_distractors
+    ]
     random.shuffle(pool)
 
     labels = ["A", "B", "C", "D"]
@@ -304,13 +469,14 @@ def filter_and_rank(
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def run_pipeline(
+async def run_pipeline(
     text: str,
     question_type: Literal["mcq", "scenario", "mixed"],
     question_count: int,
 ) -> list[GeneratedQuestion]:
     """
     Execute the full NLP pipeline and return generated questions.
+    Async because Stage 4 (distractor generation) awaits OpenRouter.
     """
     logger.info(f"Pipeline start: type={question_type}, count={question_count}")
 
@@ -333,17 +499,19 @@ def run_pipeline(
     raw_questions = generate_questions_batch(pairs, batch_size=4)
     logger.info(f"Generated {len(raw_questions)} raw questions")
 
-    # Stage 6 — filter early to avoid unnecessary work
+    # Stage 6 — filter early to avoid unnecessary distractor calls
     filtered = filter_and_rank(raw_questions, question_count=target_candidates)
 
-    # Stages 4 + 5 — build options and topic tags
+    # Stages 4 + 5 — build options (OpenRouter) and topic tags
     questions: list[GeneratedQuestion] = []
     for i, (question_text, answer, chunk) in enumerate(filtered):
         if len(questions) >= question_count:
             break
 
         try:
-            options, correct_option_id = build_options(answer, chunk)
+            options, correct_option_id = await build_options(
+                question_text, answer, chunk
+            )
             topic_tag = extract_topic_tag(chunk)
 
             # Determine per-question type for mixed mode
@@ -357,7 +525,6 @@ def run_pipeline(
             # For scenario questions, prefix question with a situational frame
             display_question = question_text
             if q_type == "scenario":
-                # Extract a brief context sentence from the chunk
                 context_sentences = sent_tokenize(chunk)
                 context = context_sentences[0] if context_sentences else ""
                 if context and context.lower() not in question_text.lower():

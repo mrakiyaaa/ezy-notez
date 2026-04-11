@@ -54,7 +54,7 @@ def health():
 
 
 @app.post("/generate-quiz", response_model=GenerateResponse)
-def generate_quiz(request: GenerateRequest):
+async def generate_quiz(request: GenerateRequest):
     if not model_cache.are_models_loaded():
         raise HTTPException(
             status_code=503,
@@ -62,7 +62,7 @@ def generate_quiz(request: GenerateRequest):
         )
 
     try:
-        questions = run_pipeline(
+        questions = await run_pipeline(
             text=request.text,
             question_type=request.question_type,
             question_count=request.question_count,

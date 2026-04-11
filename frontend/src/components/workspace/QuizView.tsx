@@ -115,17 +115,8 @@ export default function QuizView({
 
   const hasAnyQuizzes = quizzes.length > 0;
 
-  // Show generating state
-  if (isGenerating) {
-    return (
-      <div className="flex flex-col h-full">
-        <QuizGeneratingState onCancel={resetGeneration} {...auraProps} />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
       {/* Notification banner */}
       {notification && (
         <div
@@ -307,6 +298,11 @@ export default function QuizView({
           </div>
         )}
       </div>
+
+      {/* Floating generating state — bottom-right corner */}
+      {isGenerating && (
+        <QuizGeneratingState onCancel={resetGeneration} {...auraProps} />
+      )}
     </div>
   );
 }

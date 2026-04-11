@@ -30,7 +30,7 @@ def load_all() -> None:
 
     logger.info("Loading NLTK data...")
     import nltk
-    for pkg in ("punkt_tab", "wordnet", "stopwords", "averaged_perceptron_tagger_eng", "omw-1.4"):
+    for pkg in ("punkt_tab", "stopwords", "averaged_perceptron_tagger_eng"):
         try:
             nltk.download(pkg, quiet=True)
         except Exception as e:

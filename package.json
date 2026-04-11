@@ -4,6 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "concurrently --names \"BACKEND,FRONTEND,QUIZ-ML\" --prefix-colors \"cyan,magenta,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:ml\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:ml": "cd services/quiz-ml && .\\venv\\Scripts\\python.exe -m uvicorn main:app --port 8001 --reload",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky",
     "lint:frontend": "cd frontend && npm run lint",
@@ -22,6 +26,7 @@
   },
   "homepage": "https://github.com/mrakiyaaa/ezy-notez#readme",
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "husky": "^9.1.7"
   },
   "dependencies": {

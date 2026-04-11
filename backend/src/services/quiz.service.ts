@@ -152,11 +152,22 @@ const fetchResourceText = async (
 // FastAPI communication
 // ---------------------------------------------------------------------------
 
+const checkMLServiceHealth = async (): Promise<void> => {
+  try {
+    await axios.get(`${QUIZ_ML_SERVICE_URL}/health`, { timeout: 5_000 });
+  } catch {
+    throw new Error(
+      `Quiz ML service is not running. Start it with: npm run dev:ml`,
+    );
+  }
+};
+
 const callMLService = async (
   text: string,
   questionType: QuestionType,
   questionCount: number,
 ): Promise<FastAPIQuestion[]> => {
+  await checkMLServiceHealth();
   try {
     const response = await axios.post<{ questions: FastAPIQuestion[] }>(
       `${QUIZ_ML_SERVICE_URL}/generate-quiz`,

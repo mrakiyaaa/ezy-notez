@@ -29,7 +29,6 @@ export default function StudyInvites({
                 <p className="text-xs text-text-primary">
                   {invite.inviterName} invited you to {invite.workspaceName}
                 </p>
-                <p className="text-[11px] text-white/50">{invite.message}</p>
               </div>
             </div>
             <div className="mt-5 flex gap-2">
