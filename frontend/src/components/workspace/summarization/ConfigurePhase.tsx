@@ -1,20 +1,14 @@
 import {
-  AlignLeft,
-  Clock,
-  FileText,
-  Loader2,
-  Sparkles,
+  Zap,
   Check,
+  Loader2,
+  FileText
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { Resource } from "@/types/resource";
 import type { Summary, SummaryFormat } from "@/types/summary";
 import {
   FORMAT_OPTIONS,
   RESOURCE_TYPE_ICONS,
-  getBatchPreview,
-  getFormatLabel,
-  formatSummaryDate,
   type SummarizationMode,
 } from "./constants";
 
@@ -57,6 +51,13 @@ const MODE_DESCRIPTIONS: Record<SummarizationMode, string> = {
     "Select specific resources \u2014 each gets its own separate summary.",
 };
 
+const TYPE_STYLES: Record<string, string> = {
+  pdf: "bg-red-500/10 text-red-400",
+  ppt: "bg-orange-500/10 text-orange-400",
+  audio: "bg-purple-500/10 text-purple-400",
+  youtube: "bg-red-500/10 text-red-400",
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -68,7 +69,6 @@ export default function ConfigurePhase({
   selectedIds,
   isLoadingResources,
   error,
-  completedBatches,
   isGenerateDisabled,
   onModeChange,
   onFormatChange,
@@ -76,263 +76,174 @@ export default function ConfigurePhase({
   onSelectAll,
   onDeselectAll,
   onGenerate,
-  onViewBatch,
   onClearError,
 }: ConfigurePhaseProps) {
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
-        >
-          <AlignLeft className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
+    <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto w-full">
+      {/* Page Header */}
+      <div className="flex items-center gap-4 mb-2">
+        <div className="w-12 h-12 rounded-xl bg-blue-accent/10 border border-blue-accent/30 flex items-center justify-center shrink-0">
+          <Zap className="w-6 h-6 text-blue-accent" />
         </div>
         <div>
-          <h2 className="text-text-primary text-lg font-semibold">
+          <h1 className="text-text-primary font-semibold text-xl">
             AI Summarization
-          </h2>
+          </h1>
           <p className="text-text-muted text-sm">
-            Generate smart summaries from your resources
+            Generate smart summaries from your workspace resources
           </p>
         </div>
       </div>
 
-      {/* Two-column layout: config left, history right */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* LEFT COLUMN — Configuration */}
-        <div className="flex-1 flex flex-col gap-6">
-          {/* Mode selector */}
-          <div>
-            <label className="text-text-secondary text-sm font-medium mb-2 block">
-              Mode
-            </label>
-            <div className="flex items-center gap-1">
-              {MODE_OPTIONS.map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    onModeChange(id);
-                    onClearError();
-                  }}
-                  className={
-                    mode === id
-                      ? "rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200"
-                      : "text-text-muted px-4 py-1.5 text-sm font-medium hover:text-text-primary transition-all duration-200"
-                  }
-                  style={
-                    mode === id
-                      ? { backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }
-                      : undefined
-                  }
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="text-text-muted text-xs mt-2">
-              {MODE_DESCRIPTIONS[mode]}
-            </p>
-          </div>
-
-          {/* Resource picker (customize mode) */}
-          {mode === "customize" && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-text-secondary text-sm font-medium">
-                  Select Resources
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={onSelectAll}
-                    className="text-xs text-text-muted hover:text-text-primary hover:underline transition-all duration-200"
-                  >
-                    Select All
-                  </button>
-                  <span className="text-text-muted text-xs">|</span>
-                  <button
-                    onClick={onDeselectAll}
-                    className="text-xs text-text-muted hover:text-text-primary transition-all duration-200"
-                  >
-                    Deselect All
-                  </button>
-                </div>
-              </div>
-
-              {isLoadingResources ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2
-                    className="w-6 h-6 animate-spin"
-                    style={{ color: "var(--color-text-muted)" }}
-                  />
-                </div>
-              ) : readyResources.length === 0 ? (
-                <div className="rounded-xl border border-fade-border bg-bg-card p-6 text-center">
-                  <p className="text-text-muted text-sm">
-                    No resources with extracted text available.
-                  </p>
-                  <p className="text-text-muted text-xs mt-1">
-                    Upload and process resources first.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-fade-border bg-bg-card max-h-64 overflow-y-auto">
-                  {readyResources.map((resource) => {
-                    const Icon =
-                      RESOURCE_TYPE_ICONS[resource.type] ?? FileText;
-                    const isSelected = selectedIds.has(resource.id);
-                    return (
-                      <button
-                        key={resource.id}
-                        onClick={() => onToggleSelection(resource.id)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-all duration-200 border-b border-fade-border last:border-b-0"
-                      >
-                        <div
-                          className="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all duration-200"
-                          style={{
-                            borderColor: isSelected
-                              ? "var(--color-blue-accent)"
-                              : "var(--color-fade-border)",
-                            backgroundColor: isSelected
-                              ? "var(--color-blue-accent)"
-                              : "transparent",
-                          }}
-                        >
-                          {isSelected && (
-                            <Check
-                              className="w-3 h-3"
-                              style={{ color: "#ffffff" }}
-                            />
-                          )}
-                        </div>
-                        <Icon className="w-4 h-4 text-text-muted shrink-0" />
-                        <span className="text-text-primary text-sm truncate text-left">
-                          {resource.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {selectedIds.size > 0 && (
-                <p className="text-text-muted text-xs mt-1.5">
-                  {selectedIds.size} resource
-                  {selectedIds.size > 1 ? "s" : ""} selected
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Format picker */}
-          <div>
-            <label className="text-text-secondary text-sm font-medium mb-2 block">
-              Summary Format
-            </label>
-            <div className="flex items-center gap-1">
-              {FORMAT_OPTIONS.map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => onFormatChange(id)}
-                  className={
-                    format === id
-                      ? "rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200"
-                      : "text-text-muted px-4 py-1.5 text-sm font-medium hover:text-text-primary transition-all duration-200"
-                  }
-                  style={
-                    format === id
-                      ? { backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }
-                      : undefined
-                  }
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Error */}
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
-          {/* Generate button */}
-          <Button
-            onClick={onGenerate}
-            disabled={isGenerateDisabled}
-            className="rounded-lg px-6 py-2.5 text-sm font-medium flex items-center gap-2 disabled:opacity-50 w-fit"
-            style={{ backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
-          >
-            <Sparkles className="w-4 h-4" />
-            Generate Summary
-          </Button>
+      {/* Card 1 - Mode */}
+      <div className="bg-bg-card border border-fade-border rounded-xl p-5">
+        <label className="text-text-muted text-xs font-bold uppercase tracking-wide block mb-3">
+          Mode
+        </label>
+        <div className="bg-main border border-fade-border rounded-lg p-1 w-fit flex items-center">
+          {MODE_OPTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => {
+                onModeChange(id);
+                onClearError();
+              }}
+              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                mode === id
+                  ? "bg-blue-accent/10 border border-blue-accent/30 text-text-secondary rounded-md"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+        <p className="text-text-muted text-xs mt-3">
+          {MODE_DESCRIPTIONS[mode]}
+        </p>
+      </div>
 
-        {/* RIGHT COLUMN — Previous Summaries */}
-        <div className="flex-1 lg:max-w-[45%]">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-4 h-4 text-text-muted" />
-            <h3 className="text-text-secondary text-sm font-medium">
-              Previous Summaries
-            </h3>
+      {/* Card 2 - Select Resources (customize only) */}
+      {mode === "customize" && (
+        <div className="bg-bg-card border border-fade-border rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <label className="text-text-muted text-xs font-bold uppercase tracking-wide">
+              Select Resources
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onSelectAll}
+                className="text-blue-accent text-xs hover:underline"
+              >
+                Select All
+              </button>
+              <span className="text-text-muted text-xs">|</span>
+              <button
+                onClick={onDeselectAll}
+                className="text-blue-accent text-xs hover:underline"
+              >
+                Deselect All
+              </button>
+            </div>
           </div>
 
-          {completedBatches.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <AlignLeft className="w-10 h-10 text-text-muted opacity-30" />
+          {isLoadingResources ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
+            </div>
+          ) : readyResources.length === 0 ? (
+            <div className="text-center py-6">
               <p className="text-text-muted text-sm">
-                No summaries yet. Generate your first one.
+                No resources with extracted text available.
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {completedBatches.map((batch) => {
-                const isGeneral = batch.some(
-                  (summary) => summary.resource_id === null
-                );
-                const batchFormatLabel = getFormatLabel(batch[0].format);
-                const createdDate = formatSummaryDate(batch[0].created_at);
-                const preview = getBatchPreview(batch);
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-75 overflow-y-auto pr-2">
+              {readyResources.map((resource) => {
+                const isSelected = selectedIds.has(resource.id);
+                const Icon = RESOURCE_TYPE_ICONS[resource.type] ?? FileText;
+                const typeStyle = TYPE_STYLES[resource.type] || "bg-white/10 text-white";
 
                 return (
                   <button
-                    key={batch[0].id}
-                    onClick={() => onViewBatch(batch)}
-                    className="group text-left rounded-xl border border-fade-border bg-bg-card p-4 transition-all duration-200 hover:-translate-y-0.5"
-                    style={{
-                      borderLeftWidth: "3px",
-                      borderLeftColor: "var(--color-blue-accent)",
-                    }}
+                    key={resource.id}
+                    onClick={() => onToggleSelection(resource.id)}
+                    className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-blue-accent/50 bg-blue-accent/6"
+                        : "border-fade-border bg-main hover:border-fade-border/60 hover:bg-bg-card"
+                    }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                        style={{
-                          backgroundColor: "rgba(80, 125, 188, 0.12)",
-                          color: "var(--color-blue-accent)",
-                        }}
-                      >
-                        {isGeneral ? "General" : "Customize"}
+                    {isSelected && (
+                      <div className="absolute left-0 top-0 bottom-0 w-0.75 bg-blue-accent rounded-r" />
+                    )}
+                    
+                    <div className={`w-8.5 h-8.5 rounded flex items-center justify-center shrink-0 ${typeStyle}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+
+                    <div className="flex flex-col text-left overflow-hidden min-w-0">
+                      <span className="text-text-primary text-xs font-medium truncate">
+                        {resource.name}
                       </span>
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-medium text-text-muted bg-white/5">
-                        {batchFormatLabel}
+                      <span className="text-text-muted text-[11px] truncate mt-0.5">
+                        {resource.type.toUpperCase()} • {Math.round((resource.size || 0) / 1024)} KB
                       </span>
                     </div>
-                    <p className="text-text-secondary text-sm leading-relaxed line-clamp-2 mb-2">
-                      {preview}
-                    </p>
-                    <span className="text-text-muted text-xs">
-                      {createdDate}
-                    </span>
+
+                    <div
+                      className={`w-4.5 h-4.5 rounded-md ml-auto shrink-0 flex items-center justify-center ${
+                        isSelected
+                          ? "bg-blue-accent border-blue-accent"
+                          : "border border-text-muted"
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </div>
                   </button>
                 );
               })}
             </div>
           )}
+          {selectedIds.size > 0 && (
+            <p className="text-text-muted text-xs mt-3">
+              {selectedIds.size} resource{selectedIds.size !== 1 ? "s" : ""} selected
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Card 3 - Summary Format + Generate */}
+      <div className="bg-bg-card border border-fade-border rounded-xl p-5">
+        <label className="text-text-muted text-xs font-bold uppercase tracking-wide block mb-3">
+          Summary Format
+        </label>
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          {FORMAT_OPTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => onFormatChange(id)}
+              className={`px-4 py-2 text-sm rounded-lg border transition-colors cursor-pointer ${
+                format === id
+                  ? "bg-blue-accent/10 border-blue-accent/30 text-text-secondary"
+                  : "bg-main border-fade-border text-text-muted hover:text-text-primary hover:border-fade-border/60"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="border-t border-fade-border pt-5 flex flex-col items-end gap-3">
+          {error && <p className="text-red-400 text-xs text-right">{error}</p>}
+          <button
+            onClick={onGenerate}
+            disabled={isGenerateDisabled}
+            className="bg-blue-accent text-white font-semibold rounded-lg px-6 py-3 flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <Zap className="w-4 h-4" />
+            Generate Summary
+          </button>
         </div>
       </div>
     </div>

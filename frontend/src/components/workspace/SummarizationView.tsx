@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlignLeft } from "lucide-react";
+import { AlignLeft, Clock } from "lucide-react";
 import { getWorkspaceResources } from "@/services/resource.service";
 import {
   generateGeneralSummary,
@@ -14,6 +14,9 @@ import type { Resource } from "@/types/resource";
 import type { Summary, SummaryFormat } from "@/types/summary";
 import {
   groupIntoBatches,
+  getFormatLabel,
+  formatSummaryDate,
+  getBatchPreview,
   POLLING_INTERVAL_MS,
   type SummarizationMode,
   type SummarizationPhase,
@@ -316,67 +319,150 @@ export default function SummarizationView({
   // Render
   // ---------------------------------------------------------------------------
 
-  if (phase === "processing") {
-    return (
-      <div className="h-full overflow-y-auto">
-        <ProcessingPhase summaries={summaries} />
-      </div>
-    );
-  }
-
-  if (phase === "results") {
-    if (summaries.length === 0 || !activeSummary) {
+  const renderPhase = () => {
+    if (phase === "processing") {
       return (
         <div className="h-full overflow-y-auto">
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-            <AlignLeft className="w-12 h-12" />
-            <p className="text-sm">No summaries yet.</p>
+          <ProcessingPhase summaries={summaries} />
+        </div>
+      );
+    }
+
+    if (phase === "results") {
+      if (summaries.length === 0 || !activeSummary) {
+        return (
+          <div className="h-full overflow-y-auto">
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+              <AlignLeft className="w-12 h-12" />
+              <p className="text-sm">No summaries yet.</p>
+            </div>
           </div>
+        );
+      }
+
+      return (
+        <div className="h-full overflow-y-auto">
+          <ResultsPhase
+            activeSummary={activeSummary}
+            activeBatch={activeBatch}
+            activeTabId={activeTabId!}
+            error={error}
+            regeneratingId={regeneratingId}
+            sourcesExpanded={sourcesExpanded}
+            resources={resources}
+            onBack={handleBackToHome}
+            onNewSummary={handleNewSummary}
+            onDelete={handleDelete}
+            onRegenerate={handleRegenerate}
+            onTabChange={setActiveTabId}
+            onToggleSources={() => setSourcesExpanded((prev) => !prev)}
+          />
         </div>
       );
     }
 
     return (
       <div className="h-full overflow-y-auto">
-        <ResultsPhase
-          activeSummary={activeSummary}
-          activeBatch={activeBatch}
-          activeTabId={activeTabId!}
+        <ConfigurePhase
+          mode={mode}
+          format={format}
+          readyResources={readyResources}
+          selectedIds={selectedIds}
+          isLoadingResources={isLoadingResources}
           error={error}
-          regeneratingId={regeneratingId}
-          sourcesExpanded={sourcesExpanded}
-          resources={resources}
-          onBack={handleBackToHome}
-          onNewSummary={handleNewSummary}
-          onDelete={handleDelete}
-          onRegenerate={handleRegenerate}
-          onTabChange={setActiveTabId}
-          onToggleSources={() => setSourcesExpanded((prev) => !prev)}
+          completedBatches={completedBatches}
+          isGenerateDisabled={isGenerateDisabled}
+          onModeChange={setMode}
+          onFormatChange={setFormat}
+          onToggleSelection={toggleSelection}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onGenerate={handleGenerate}
+          onViewBatch={handleViewBatch}
+          onClearError={() => setError(null)}
         />
       </div>
     );
-  }
+  };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <ConfigurePhase
-        mode={mode}
-        format={format}
-        readyResources={readyResources}
-        selectedIds={selectedIds}
-        isLoadingResources={isLoadingResources}
-        error={error}
-        completedBatches={completedBatches}
-        isGenerateDisabled={isGenerateDisabled}
-        onModeChange={setMode}
-        onFormatChange={setFormat}
-        onToggleSelection={toggleSelection}
-        onSelectAll={selectAll}
-        onDeselectAll={deselectAll}
-        onGenerate={handleGenerate}
-        onViewBatch={handleViewBatch}
-        onClearError={() => setError(null)}
-      />
+    <div className="h-full flex overflow-hidden">
+      {/* Center - Main Content */}
+      <div className="flex-1 bg-main overflow-y-auto">
+        {renderPhase()}
+      </div>
+
+      {/* Right - Previous Summaries Panel */}
+      <div className="hidden lg:flex w-96 shrink-0 bg-bg-card border-l border-fade-border flex-col h-full">
+        <div className="p-4 border-b border-fade-border shrink-0 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-text-muted" />
+            <span className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">PREVIOUS SUMMARIES</span>
+          </div>
+          <span className="bg-blue-accent/10 text-text-secondary text-[10px] font-semibold rounded-full px-2 py-0.5">
+            {batches.length}
+          </span>
+        </div>
+        <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-3">
+          {batches.length === 0 ? (
+            <div className="text-center text-text-muted text-sm py-10">No summaries yet.</div>
+          ) : (
+            batches.map((batch) => {
+              const isGeneral = batch.some((s) => s.resource_id === null);
+              const formatLabel = getFormatLabel(batch[0].format);
+              const createdDate = formatSummaryDate(batch[0].created_at);
+              const isPending = batch.some(
+                (s) => s.status === "pending" || s.status === "processing"
+              );
+              const preview = getBatchPreview(batch);
+
+              return (
+                <div
+                  key={batch[0].id}
+                  onClick={() => handleViewBatch(batch)}
+                  className="group relative bg-main border border-fade-border rounded-lg p-3 cursor-pointer hover:border-fade-border/60 overflow-hidden"
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-0.75 opacity-50 ${
+                      isGeneral ? "bg-teal-500" : "bg-blue-accent"
+                    }`}
+                  />
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className={`text-[9px] font-bold uppercase rounded px-2 py-0.5 ${
+                        isGeneral
+                          ? "bg-teal-500/10 text-teal-400"
+                          : "bg-blue-accent/10 text-text-secondary"
+                      }`}
+                    >
+                      {isGeneral ? "GENERAL" : "CUSTOMIZE"}
+                    </span>
+                    <span className="bg-white/5 text-text-muted text-[9px] font-bold uppercase rounded px-2 py-0.5">
+                      {formatLabel}
+                    </span>
+                  </div>
+
+                  {isPending ? (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      <span className="text-amber-400 text-xs font-medium">Processing...</span>
+                    </div>
+                  ) : (
+                    <p className="text-text-secondary text-xs leading-relaxed line-clamp-2 mb-2">
+                      {preview}
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-1.5 mt-auto">
+                    <Clock className="w-3 h-3 text-text-muted" />
+                    <span className="text-text-muted text-[10px]">{createdDate}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
