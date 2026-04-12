@@ -8,19 +8,12 @@ import {
   MessageCircle,
   Brain,
   ClipboardList,
-  Settings,
   Search,
   Layers,
   ArrowLeft,
   AlignLeft,
   WalletCards,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import WorkspaceHome from "@/components/workspace/WorkspaceHome";
 import Chattie from "@/components/workspace/Chattie";
 import ResourcesView from "@/components/workspace/ResourcesView";
@@ -165,51 +158,90 @@ export default function WorkspacePage() {
       className="flex h-[calc(100vh-93px)] bg-main overflow-hidden"
     >
       {/* Left Sidebar */}
-      <TooltipProvider delayDuration={0}>
-        <aside className="w-16 flex flex-col items-center border-r border-fade-border bg-main py-4">
-          {/* Top nav icons */}
-          <div className="flex flex-col items-center gap-2 flex-1">
-            {navItems.map(({ id, icon: Icon, label }) => (
-              <Tooltip key={id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleNavChange(id)}
-                    className={
-                      activeNav === id
-                        ? "bg-bg-card rounded-xl p-2 text-text-primary"
-                        : "text-text-muted p-2 hover:text-text-primary transition-colors"
-                    }
-                  >
-                    <Icon className="w-5 h-5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>{label}</p>
-                </TooltipContent>
-              </Tooltip>
-            ))}
+      <aside className="w-64 flex flex-col border-r border-fade-border bg-main h-full shrink-0">
+        {/* 2. Active workspace chip */}
+        <div className="px-4 mt-6 shrink-0">
+          <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
+            Active Workspace
           </div>
+          <div className="flex items-center justify-between w-full px-3 py-2 bg-blue-accent/10 border border-blue-accent/30 rounded-lg cursor-pointer">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div 
+                className="w-2 h-2 rounded-full shrink-0" 
+                style={{ backgroundColor: auraHex }} 
+              />
+              <span className="text-sm font-medium text-text-secondary truncate">
+                {workspace?.name ?? "Loading..."}
+              </span>
+            </div>
+            <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+          </div>
+        </div>
 
-          {/* Bottom icons */}
-          <div className="flex flex-col items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className="text-text-muted p-2 hover:text-text-primary transition-colors"
-                >
-                  <Settings className="w-5 h-5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Settings</p>
-              </TooltipContent>
-            </Tooltip>
+        {/* 3. Nav section */}
+        <div className="px-4 mt-8 flex-1 overflow-y-auto">
+          <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
+            Navigation
           </div>
-        </aside>
-      </TooltipProvider>
+          <nav className="flex flex-col gap-1">
+            {navItems.map(({ id, icon: Icon, label }) => {
+              const isActive = activeNav === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleNavChange(id)}
+                  className={`relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-blue-accent/10 text-text-secondary"
+                      : "text-text-muted hover:bg-white/[0.04] hover:text-text-primary"
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[18px] bg-blue-accent rounded-r" />
+                  )}
+                  <Icon
+                    className={`w-[15px] h-[15px] ${
+                      isActive ? "opacity-100" : "opacity-60"
+                    }`}
+                  />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* 4. Footer */}
+        <div className="p-4 border-t border-fade-border shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-blue-accent flex items-center justify-center shrink-0 overflow-hidden">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-semibold text-white">
+                  {initials || "U"}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-medium text-text-primary truncate">
+                {displayName}
+              </span>
+              <span className="text-xs text-text-muted truncate">
+                {displayEmail}
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <header
           className="w-full bg-main px-6 py-4 flex items-center border-b border-fade-border"
