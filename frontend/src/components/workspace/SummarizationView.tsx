@@ -28,9 +28,6 @@ import ResultsPhase from "./summarization/ResultsPhase";
 
 interface SummarizationViewProps {
   workspaceId: string;
-  auraHex: string;
-  auraRgb: string;
-  auraContrast: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -39,9 +36,6 @@ interface SummarizationViewProps {
 
 export default function SummarizationView({
   workspaceId,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: SummarizationViewProps) {
   // --- Phase state ---
   const [phase, setPhase] = useState<SummarizationPhase>("configure");
@@ -322,12 +316,10 @@ export default function SummarizationView({
   // Render
   // ---------------------------------------------------------------------------
 
-  const auraProps = { auraHex, auraRgb, auraContrast };
-
   if (phase === "processing") {
     return (
       <div className="h-full overflow-y-auto">
-        <ProcessingPhase {...auraProps} summaries={summaries} />
+        <ProcessingPhase summaries={summaries} />
       </div>
     );
   }
@@ -347,7 +339,6 @@ export default function SummarizationView({
     return (
       <div className="h-full overflow-y-auto">
         <ResultsPhase
-          {...auraProps}
           activeSummary={activeSummary}
           activeBatch={activeBatch}
           activeTabId={activeTabId!}
@@ -369,7 +360,6 @@ export default function SummarizationView({
   return (
     <div className="h-full overflow-y-auto">
       <ConfigurePhase
-        {...auraProps}
         mode={mode}
         format={format}
         readyResources={readyResources}

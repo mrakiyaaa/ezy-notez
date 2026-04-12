@@ -1,14 +1,11 @@
 import { Sparkles, Loader2 } from "lucide-react";
 import type { Summary } from "@/types/summary";
-import type { AuraProps } from "./constants";
 
-interface ProcessingPhaseProps extends AuraProps {
+interface ProcessingPhaseProps {
   summaries: Summary[];
 }
 
 export default function ProcessingPhase({
-  auraHex,
-  auraRgb,
   summaries,
 }: ProcessingPhaseProps) {
   const completedCount = summaries.filter(
@@ -20,9 +17,9 @@ export default function ProcessingPhase({
       <div className="relative">
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse"
-          style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+          style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
         >
-          <Sparkles className="w-8 h-8" style={{ color: auraHex }} />
+          <Sparkles className="w-8 h-8" style={{ color: "var(--color-blue-accent)" }} />
         </div>
       </div>
       <div className="text-center">
@@ -37,7 +34,7 @@ export default function ProcessingPhase({
         <div
           className="h-full rounded-full animate-pulse"
           style={{
-            backgroundColor: auraHex,
+            backgroundColor: "var(--color-blue-accent)",
             width: "60%",
             animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
           }}

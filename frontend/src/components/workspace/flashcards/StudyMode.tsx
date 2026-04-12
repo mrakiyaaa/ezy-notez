@@ -9,11 +9,11 @@ import {
   Check,
   BookmarkPlus,
 } from "lucide-react";
-import type { FlashcardSet, AuraProps } from "./constants";
+import type { FlashcardSet } from "./constants";
 import FlashcardFlipCard from "./FlashcardFlipCard";
 import { updateCardStatus } from "@/services/flashcard.service";
 
-interface StudyModeProps extends AuraProps {
+interface StudyModeProps {
   set: FlashcardSet;
   onExit: () => void;
   onComplete: (knownIds: string[], reviewIds: string[]) => void;
@@ -23,9 +23,6 @@ export default function StudyMode({
   set,
   onExit,
   onComplete,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: StudyModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -127,12 +124,11 @@ export default function StudyMode({
         <div
           className="w-20 h-20 rounded-2xl flex items-center justify-center"
           style={{
-            backgroundColor: `rgba(${auraRgb}, 0.12)`,
-            boxShadow: `0 0 48px rgba(${auraRgb}, 0.22)`,
-            border: `1px solid rgba(${auraRgb}, 0.25)`,
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
-          <Check className="w-10 h-10" style={{ color: auraHex }} />
+          <Check className="w-10 h-10" style={{ color: "var(--color-blue-accent)" }} />
         </div>
 
         {/* Title */}
@@ -149,10 +145,7 @@ export default function StudyMode({
         {/* Score cards */}
         <div className="flex gap-4 flex-wrap justify-center">
           <div className="rounded-xl border border-fade-border bg-bg-card px-7 py-4 text-center min-w-[88px]">
-            <p
-              className="text-2xl font-bold tabular-nums"
-              style={{ color: auraHex }}
-            >
+            <p className="text-2xl font-bold tabular-nums text-text-primary">
               {knownIds.size}
             </p>
             <p className="text-text-muted text-xs mt-1">Known</p>
@@ -188,7 +181,7 @@ export default function StudyMode({
               onExit();
             }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
-            style={{ backgroundColor: auraHex, color: auraContrast }}
+            style={{ backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = "0.88";
             }}
@@ -208,8 +201,7 @@ export default function StudyMode({
     <div className="flex flex-col h-full min-h-0">
       {/* Top bar with progress */}
       <div
-        className="flex items-center gap-4 px-6 py-4"
-        style={{ borderBottom: `1px solid rgba(${auraRgb}, 0.12)` }}
+        className="flex items-center gap-4 px-6 py-4 border-b border-fade-border"
       >
         <button
           onClick={onExit}
@@ -225,7 +217,7 @@ export default function StudyMode({
           <div className="w-full h-1 rounded-full bg-white/5 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progressPct}%`, backgroundColor: auraHex }}
+              style={{ width: `${progressPct}%`, backgroundColor: "var(--color-blue-accent)" }}
             />
           </div>
         </div>
@@ -243,9 +235,6 @@ export default function StudyMode({
           onFlip={handleFlip}
           cardNumber={currentIndex + 1}
           totalCards={total}
-          auraHex={auraHex}
-          auraRgb={auraRgb}
-          auraContrast={auraContrast}
         />
 
         {/* Navigation + action controls */}
@@ -287,15 +276,9 @@ export default function StudyMode({
             onClick={handleKnown}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150"
             style={{
-              backgroundColor: `rgba(${auraRgb}, 0.12)`,
-              color: auraHex,
-              border: `1px solid rgba(${auraRgb}, 0.28)`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.24)`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.12)`;
+              backgroundColor: "rgba(80, 125, 188, 0.12)",
+              color: "var(--color-blue-accent)",
+              border: "1px solid rgba(80, 125, 188, 0.25)",
             }}
           >
             <Check className="w-4 h-4" />

@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { X, Check, FileText, Sparkles, Loader2 } from "lucide-react";
-import type { AuraProps } from "./constants";
 import type { Resource } from "@/types/resource";
 import { getWorkspaceResources } from "@/services/resource.service";
 
-interface FlashcardGenerationPanelProps extends AuraProps {
+interface FlashcardGenerationPanelProps {
   workspaceId: string;
   isGenerating: boolean;
   onGenerate: (resourceIds: string[], topic: string, cardCount: number) => void;
@@ -18,9 +17,6 @@ export default function FlashcardGenerationPanel({
   isGenerating,
   onGenerate,
   onClose,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: FlashcardGenerationPanelProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoadingResources, setIsLoadingResources] = useState(true);
@@ -59,22 +55,20 @@ export default function FlashcardGenerationPanel({
 
   const isDisabled = isGenerating || selectedIds.size === 0;
 
+  const sliderPct = ((cardCount - 5) / 15) * 100;
+
   return (
     <div
       className="rounded-xl border bg-bg-card p-5 flex flex-col gap-5 animate-in fade-in slide-in-from-top-2 duration-200"
-      style={{
-        borderColor: `rgba(${auraRgb}, 0.22)`,
-        boxShadow: `0 0 32px rgba(${auraRgb}, 0.08)`,
-      }}
     >
       {/* Panel header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+            style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
           >
-            <Sparkles className="w-4 h-4" style={{ color: auraHex }} />
+            <Sparkles className="w-4 h-4" style={{ color: "var(--color-blue-accent)" }} />
           </div>
           <div>
             <h3 className="text-text-primary text-sm font-semibold">
@@ -105,7 +99,7 @@ export default function FlashcardGenerationPanel({
             <div className="flex items-center justify-center py-6 rounded-xl border border-fade-border">
               <Loader2
                 className="w-5 h-5 animate-spin"
-                style={{ color: auraHex }}
+                style={{ color: "var(--color-text-muted)" }}
               />
             </div>
           ) : resources.length === 0 ? (
@@ -130,15 +124,15 @@ export default function FlashcardGenerationPanel({
                       className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all duration-150"
                       style={{
                         borderColor: isSelected
-                          ? auraHex
+                          ? "var(--color-blue-accent)"
                           : "var(--color-fade-border)",
-                        backgroundColor: isSelected ? auraHex : "transparent",
+                        backgroundColor: isSelected ? "var(--color-blue-accent)" : "transparent",
                       }}
                     >
                       {isSelected && (
                         <Check
                           className="w-2.5 h-2.5"
-                          style={{ color: auraContrast }}
+                          style={{ color: "#ffffff" }}
                         />
                       )}
                     </div>
@@ -172,15 +166,7 @@ export default function FlashcardGenerationPanel({
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Neural networks, sorting algorithms…"
-              className="w-full bg-bg-card border border-fade-border rounded-lg px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none transition-all"
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = auraHex;
-                e.currentTarget.style.boxShadow = `0 0 12px rgba(${auraRgb}, 0.12)`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "";
-                e.currentTarget.style.boxShadow = "";
-              }}
+              className="w-full bg-bg-card border border-fade-border rounded-lg px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-all"
             />
           </div>
 
@@ -188,10 +174,7 @@ export default function FlashcardGenerationPanel({
           <div>
             <label className="text-text-secondary text-xs font-medium mb-2 block">
               Number of Cards{" "}
-              <span
-                className="font-semibold"
-                style={{ color: auraHex }}
-              >
+              <span className="font-semibold text-text-primary">
                 {cardCount}
               </span>
             </label>
@@ -203,7 +186,7 @@ export default function FlashcardGenerationPanel({
               onChange={(e) => setCardCount(Number(e.target.value))}
               className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, ${auraHex} 0%, ${auraHex} ${((cardCount - 5) / 15) * 100}%, rgba(255,255,255,0.1) ${((cardCount - 5) / 15) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                background: `linear-gradient(to right, var(--color-blue-accent) 0%, var(--color-blue-accent) ${sliderPct}%, rgba(255,255,255,0.1) ${sliderPct}%, rgba(255,255,255,0.1) 100%)`,
               }}
             />
             <div className="flex justify-between text-[10px] text-text-muted mt-1">
@@ -216,7 +199,7 @@ export default function FlashcardGenerationPanel({
             onClick={() => onGenerate(Array.from(selectedIds), topic, cardCount)}
             disabled={isDisabled}
             className="mt-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: auraHex, color: auraContrast }}
+            style={{ backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }}
             onMouseEnter={(e) => {
               if (!isDisabled) e.currentTarget.style.opacity = "0.88";
             }}

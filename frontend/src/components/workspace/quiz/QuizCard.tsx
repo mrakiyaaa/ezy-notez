@@ -2,7 +2,6 @@
 
 import { Trash2, Play, Eye, RotateCcw, Calendar, FileText } from "lucide-react";
 import type { QuizWithAttempt } from "@/types/quiz";
-import type { AuraProps } from "./constants";
 import {
   QUIZ_GREEN,
   QUIZ_GREEN_RGB,
@@ -18,7 +17,7 @@ import {
   getQuestionTypeLabel,
 } from "./constants";
 
-interface QuizCardProps extends AuraProps {
+interface QuizCardProps {
   quiz: QuizWithAttempt;
   onContinue?: (quizId: string) => void;
   onViewResults?: (quizId: string, attemptId: string) => void;
@@ -32,9 +31,6 @@ export default function QuizCard({
   onViewResults,
   onRetake,
   onDelete,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: QuizCardProps) {
   const attempt = quiz.attempt;
   const isInProgress = attempt?.status === "in_progress";
@@ -49,9 +45,9 @@ export default function QuizCard({
   const score = attempt?.score ?? 0;
   const passed = isPassing(score, totalQuestions);
 
-  // In-progress uses amber, new/completed uses aura for chrome
-  const accentColor = isInProgress ? QUIZ_AMBER : auraHex;
-  const accentRgb = isInProgress ? QUIZ_AMBER_RGB : auraRgb;
+  // In-progress uses amber, new/completed uses blue-accent
+  const accentColor = isInProgress ? QUIZ_AMBER : "#507DBC";
+  const accentRgb = isInProgress ? QUIZ_AMBER_RGB : "80, 125, 188";
 
   const handleContinue = () => {
     onContinue?.(quiz.id);
@@ -75,15 +71,6 @@ export default function QuizCard({
   return (
     <div
       className="group rounded-xl border border-fade-border bg-bg-card p-5 flex flex-col gap-4 transition-all duration-200 hover:-translate-y-0.5"
-      style={{ boxShadow: "none" }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = `0 4px 28px rgba(${accentRgb}, 0.14)`;
-        e.currentTarget.style.borderColor = `rgba(${accentRgb}, 0.3)`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = "";
-      }}
     >
       {/* Header row with title and delete button */}
       <div className="flex items-start justify-between gap-2">
@@ -228,19 +215,9 @@ export default function QuizCard({
               onClick={handleViewResults}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all duration-200"
               style={{
-                backgroundColor: `rgba(${auraRgb}, 0.1)`,
-                color: auraHex,
-                border: `1px solid rgba(${auraRgb}, 0.2)`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = auraHex;
-                e.currentTarget.style.color = auraContrast;
-                e.currentTarget.style.borderColor = auraHex;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`;
-                e.currentTarget.style.color = auraHex;
-                e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.2)`;
+                backgroundColor: "rgba(80, 125, 188, 0.1)",
+                color: "var(--color-blue-accent)",
+                border: "1px solid rgba(80, 125, 188, 0.2)",
               }}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -260,19 +237,8 @@ export default function QuizCard({
             onClick={handleContinue}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all duration-200"
             style={{
-              backgroundColor: `rgba(${auraRgb}, 0.1)`,
-              color: auraHex,
-              border: `1px solid rgba(${auraRgb}, 0.2)`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = auraHex;
-              e.currentTarget.style.color = auraContrast;
-              e.currentTarget.style.borderColor = auraHex;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`;
-              e.currentTarget.style.color = auraHex;
-              e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.2)`;
+              backgroundColor: "var(--color-blue-accent)",
+              color: "#ffffff",
             }}
           >
             <Play className="w-3.5 h-3.5" />

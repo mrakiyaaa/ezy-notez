@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ClipboardList, Plus, Sparkles, X, Loader2 } from "lucide-react";
 import type { QuizWithAttempt } from "@/types/quiz";
-import type { AuraProps } from "./quiz/constants";
 import { QUIZ_AMBER, QUIZ_RED_RGB } from "./quiz/constants";
 import { getQuizzes, deleteQuiz } from "@/services/quiz.service";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
@@ -11,7 +10,7 @@ import QuizCard from "./quiz/QuizCard";
 import QuizConfigForm from "./quiz/QuizConfigForm";
 import QuizGeneratingState from "./quiz/QuizGeneratingState";
 
-interface QuizViewProps extends AuraProps {
+interface QuizViewProps {
   workspaceId: string;
   onStartAttempt?: (quizId: string) => void;
   onViewResults?: (quizId: string, attemptId: string) => void;
@@ -26,12 +25,7 @@ export default function QuizView({
   workspaceId,
   onStartAttempt,
   onViewResults,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: QuizViewProps) {
-  const auraProps = { auraHex, auraRgb, auraContrast };
-
   const [quizzes, setQuizzes] = useState<QuizWithAttempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showConfigForm, setShowConfigForm] = useState(false);
@@ -123,13 +117,13 @@ export default function QuizView({
           className="flex items-center justify-between px-5 py-2.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
           style={{
             backgroundColor: notification.success
-              ? `rgba(${auraRgb}, 0.1)`
+              ? "rgba(80, 125, 188, 0.1)"
               : "rgba(255,255,255,0.03)",
             borderBottom: notification.success
-              ? `1px solid rgba(${auraRgb}, 0.12)`
+              ? "1px solid rgba(80, 125, 188, 0.12)"
               : `1px solid rgba(${QUIZ_RED_RGB}, 0.12)`,
             color: notification.success
-              ? auraHex
+              ? "var(--color-blue-accent)"
               : "var(--color-text-secondary)",
           }}
         >
@@ -151,9 +145,9 @@ export default function QuizView({
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+              style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
             >
-              <ClipboardList className="w-5 h-5" style={{ color: auraHex }} />
+              <ClipboardList className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
             </div>
             <div>
               <h2 className="text-text-primary text-lg font-semibold">
@@ -170,18 +164,10 @@ export default function QuizView({
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
             style={{
               backgroundColor: showConfigForm
-                ? auraHex
-                : `rgba(${auraRgb}, 0.1)`,
-              color: showConfigForm ? auraContrast : auraHex,
-              border: `1px solid rgba(${auraRgb}, 0.25)`,
-            }}
-            onMouseEnter={(e) => {
-              if (!showConfigForm)
-                e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.2)`;
-            }}
-            onMouseLeave={(e) => {
-              if (!showConfigForm)
-                e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`;
+                ? "var(--color-blue-accent)"
+                : "rgba(80, 125, 188, 0.1)",
+              color: showConfigForm ? "#ffffff" : "var(--color-blue-accent)",
+              border: "1px solid rgba(80, 125, 188, 0.25)",
             }}
           >
             <Plus className="w-4 h-4" />
@@ -196,7 +182,6 @@ export default function QuizView({
             isGenerating={isGenerating}
             onGenerate={generate}
             onClose={() => setShowConfigForm(false)}
-            {...auraProps}
           />
         )}
 
@@ -205,7 +190,7 @@ export default function QuizView({
           <div className="flex items-center justify-center py-12">
             <Loader2
               className="w-6 h-6 animate-spin"
-              style={{ color: auraHex }}
+              style={{ color: "var(--color-text-muted)" }}
             />
           </div>
         )}
@@ -214,9 +199,6 @@ export default function QuizView({
         {!isLoading && !hasAnyQuizzes && !showConfigForm && (
           <EmptyState
             onGenerate={() => setShowConfigForm(true)}
-            auraHex={auraHex}
-            auraRgb={auraRgb}
-            auraContrast={auraContrast}
           />
         )}
 
@@ -240,7 +222,6 @@ export default function QuizView({
                       quiz={quiz}
                       onContinue={onStartAttempt}
                       onDelete={handleDelete}
-                      {...auraProps}
                     />
                   ))}
                 </div>
@@ -253,7 +234,7 @@ export default function QuizView({
                 <h3 className="text-text-primary text-base font-semibold mb-4 flex items-center gap-2">
                   <span
                     className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: auraHex }}
+                    style={{ backgroundColor: "var(--color-blue-accent)" }}
                   />
                   Ready to Start
                 </h3>
@@ -264,7 +245,6 @@ export default function QuizView({
                       quiz={quiz}
                       onContinue={onStartAttempt}
                       onDelete={handleDelete}
-                      {...auraProps}
                     />
                   ))}
                 </div>
@@ -277,7 +257,7 @@ export default function QuizView({
                 <h3 className="text-text-primary text-base font-semibold mb-4 flex items-center gap-2">
                   <span
                     className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: auraHex }}
+                    style={{ backgroundColor: "var(--color-blue-accent)" }}
                   />
                   Past Quizzes
                 </h3>
@@ -289,7 +269,6 @@ export default function QuizView({
                       onViewResults={onViewResults}
                       onRetake={onStartAttempt}
                       onDelete={handleDelete}
-                      {...auraProps}
                     />
                   ))}
                 </div>
@@ -301,7 +280,7 @@ export default function QuizView({
 
       {/* Floating generating state — bottom-right corner */}
       {isGenerating && (
-        <QuizGeneratingState onCancel={resetGeneration} {...auraProps} />
+        <QuizGeneratingState onCancel={resetGeneration} />
       )}
     </div>
   );
@@ -310,45 +289,20 @@ export default function QuizView({
 // Empty state component
 function EmptyState({
   onGenerate,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: {
   onGenerate: () => void;
-  auraHex: string;
-  auraRgb: string;
-  auraContrast: string;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-20 gap-6 relative overflow-hidden min-h-[400px]">
-      {/* Dot-grid background pattern */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle, rgba(${auraRgb}, 0.25) 1px, transparent 1px)`,
-          backgroundSize: "32px 32px",
-          opacity: 0.35,
-        }}
-      />
-
-      {/* Radial glow behind icon */}
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full pointer-events-none"
-        style={{
-          background: `radial-gradient(circle, rgba(${auraRgb}, 0.08) 0%, transparent 68%)`,
-        }}
-      />
-
       {/* Icon */}
       <div
         className="relative z-10 w-20 h-20 rounded-2xl flex items-center justify-center"
         style={{
-          backgroundColor: `rgba(${auraRgb}, 0.12)`,
-          boxShadow: `0 0 48px rgba(${auraRgb}, 0.22)`,
-          border: `1px solid rgba(${auraRgb}, 0.22)`,
+          backgroundColor: "rgba(255, 255, 255, 0.06)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <ClipboardList className="w-10 h-10" style={{ color: auraHex }} />
+        <ClipboardList className="w-10 h-10" style={{ color: "var(--color-blue-accent)" }} />
       </div>
 
       {/* Copy */}
@@ -367,17 +321,8 @@ function EmptyState({
         onClick={onGenerate}
         className="relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
         style={{
-          backgroundColor: auraHex,
-          color: auraContrast,
-          boxShadow: `0 0 28px rgba(${auraRgb}, 0.42)`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 44px rgba(${auraRgb}, 0.64)`;
-          e.currentTarget.style.transform = "scale(1.04)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 28px rgba(${auraRgb}, 0.42)`;
-          e.currentTarget.style.transform = "scale(1)";
+          backgroundColor: "var(--color-blue-accent)",
+          color: "#ffffff",
         }}
       >
         <Sparkles className="w-4 h-4" />

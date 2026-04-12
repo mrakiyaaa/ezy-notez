@@ -3,12 +3,10 @@ import type { Summary } from "@/types/summary";
 
 interface SummaryContentProps {
   summary: Summary;
-  auraHex: string;
 }
 
 export default function SummaryContent({
   summary,
-  auraHex,
 }: SummaryContentProps) {
   if (summary.status === "failed") {
     return (
@@ -35,8 +33,7 @@ export default function SummaryContent({
         components={{
           h2: ({ children }) => (
             <h2
-              className="text-lg font-semibold mb-3"
-              style={{ color: auraHex }}
+              className="text-lg font-semibold mb-3 text-text-primary"
             >
               {children}
             </h2>
@@ -53,7 +50,7 @@ export default function SummaryContent({
             <li className="flex gap-2.5 items-start list-none">
               <span
                 className="mt-1.5 w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: auraHex }}
+                style={{ backgroundColor: "var(--color-blue-accent)" }}
               />
               <span className="text-text-primary text-sm leading-relaxed">
                 {children}

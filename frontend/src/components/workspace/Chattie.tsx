@@ -11,8 +11,6 @@ import {
 interface ChattieProps {
   workspaceId: string;
   workspaceName: string;
-  auraHex: string;
-  auraRgb: string;
 }
 
 interface Message {
@@ -42,8 +40,6 @@ function formatTime(date: Date): string {
 
 export default function Chattie({
   workspaceName,
-  auraHex,
-  auraRgb,
 }: ChattieProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -119,16 +115,16 @@ export default function Chattie({
             <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
               <div
                 className="w-20 h-20 rounded-full flex items-center justify-center animate-pulse"
-                style={{ backgroundColor: `rgba(${auraRgb}, 0.1)` }}
+                style={{ backgroundColor: "rgba(80, 125, 188, 0.1)" }}
               >
-                <MessageCircle className="w-10 h-10" style={{ color: auraHex }} />
+                <MessageCircle className="w-10 h-10" style={{ color: "var(--color-blue-accent)" }} />
               </div>
               <h2 className="text-text-primary text-lg font-semibold mt-4">
                 Hey there! I&apos;m Chattie 👋
               </h2>
               <p className="text-text-muted text-sm text-center max-w-sm mt-2">
                 Ask me anything about your uploaded resources in{" "}
-                <span style={{ color: auraHex }}>{workspaceName}</span>. I&apos;m
+                <span className="text-text-primary">{workspaceName}</span>. I&apos;m
                 here to help you study!
               </p>
               <div className="flex flex-wrap gap-2 mt-6 justify-center">
@@ -139,15 +135,7 @@ export default function Chattie({
                       setInput(chip);
                       textareaRef.current?.focus();
                     }}
-                    className="bg-bg-card border border-fade-border rounded-full px-4 py-2 text-text-secondary text-xs cursor-pointer transition-all duration-200"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.5)`;
-                      e.currentTarget.style.color = auraHex;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "";
-                      e.currentTarget.style.color = "";
-                    }}
+                    className="bg-bg-card border border-fade-border rounded-full px-4 py-2 text-text-secondary text-xs cursor-pointer transition-all duration-200 hover:border-white/20 hover:text-text-primary"
                   >
                     {chip}
                   </button>
@@ -164,11 +152,11 @@ export default function Chattie({
                   >
                     <div
                       className="rounded-full w-8 h-8 shrink-0 flex items-center justify-center mt-1"
-                      style={{ backgroundColor: `rgba(${auraRgb}, 0.2)` }}
+                      style={{ backgroundColor: "rgba(80, 125, 188, 0.15)" }}
                     >
                       <MessageCircle
                         className="w-4 h-4"
-                        style={{ color: auraHex }}
+                        style={{ color: "var(--color-blue-accent)" }}
                       />
                     </div>
                     <div className="min-w-0">
@@ -189,16 +177,16 @@ export default function Chattie({
                   >
                     <div
                       className="rounded-full w-8 h-8 shrink-0 flex items-center justify-center mt-1"
-                      style={{ backgroundColor: auraHex }}
+                      style={{ backgroundColor: "var(--color-blue-accent)" }}
                     >
-                      <User className="text-text-primary w-4 h-4" />
+                      <User className="text-white w-4 h-4" />
                     </div>
                     <div className="min-w-0 flex flex-col items-end">
                       <div
                         className="rounded-2xl rounded-tr-sm px-4 py-3"
                         style={{
-                          backgroundColor: `rgba(${auraRgb}, 0.1)`,
-                          border: `1px solid rgba(${auraRgb}, 0.15)`,
+                          backgroundColor: "rgba(80, 125, 188, 0.1)",
+                          border: "1px solid rgba(80, 125, 188, 0.15)",
                         }}
                       >
                         <p className="text-text-primary text-sm leading-relaxed">
@@ -218,26 +206,26 @@ export default function Chattie({
                 <div className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div
                     className="rounded-full w-8 h-8 shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: `rgba(${auraRgb}, 0.2)` }}
+                    style={{ backgroundColor: "rgba(80, 125, 188, 0.15)" }}
                   >
                     <MessageCircle
                       className="w-4 h-4"
-                      style={{ color: auraHex }}
+                      style={{ color: "var(--color-blue-accent)" }}
                     />
                   </div>
                   <div className="bg-bg-card border border-fade-border rounded-2xl rounded-tl-sm px-4 py-3">
                     <div className="flex items-center gap-1">
                       <div
                         className="w-2 h-2 rounded-full animate-bounce [animation-delay:0ms]"
-                        style={{ backgroundColor: `rgba(${auraRgb}, 0.6)` }}
+                        style={{ backgroundColor: "rgba(80, 125, 188, 0.5)" }}
                       />
                       <div
                         className="w-2 h-2 rounded-full animate-bounce [animation-delay:150ms]"
-                        style={{ backgroundColor: `rgba(${auraRgb}, 0.6)` }}
+                        style={{ backgroundColor: "rgba(80, 125, 188, 0.5)" }}
                       />
                       <div
                         className="w-2 h-2 rounded-full animate-bounce [animation-delay:300ms]"
-                        style={{ backgroundColor: `rgba(${auraRgb}, 0.6)` }}
+                        style={{ backgroundColor: "rgba(80, 125, 188, 0.5)" }}
                       />
                     </div>
                   </div>
@@ -255,15 +243,7 @@ export default function Chattie({
           <div className="bg-bg-card border border-fade-border rounded-xl px-4 py-3">
           <div className="flex items-end gap-3">
             <button
-              className="w-9 h-9 rounded-full bg-main border border-fade-border flex items-center justify-center text-text-muted transition-all shrink-0"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = auraHex;
-                e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.5)`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "";
-                e.currentTarget.style.borderColor = "";
-              }}
+              className="w-9 h-9 rounded-full bg-main border border-fade-border flex items-center justify-center text-text-muted hover:text-text-primary hover:border-white/20 transition-all shrink-0"
             >
               <Paperclip className="w-4 h-4" />
             </button>
@@ -284,7 +264,7 @@ export default function Chattie({
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-200"
               style={
                 hasInput
-                  ? { backgroundColor: auraHex, cursor: "pointer" }
+                  ? { backgroundColor: "var(--color-blue-accent)", cursor: "pointer" }
                   : {
                       backgroundColor: "var(--main)",
                       border: "1px solid var(--color-fade-border)",
@@ -296,7 +276,7 @@ export default function Chattie({
                 className="w-4 h-4"
                 style={{
                   color: hasInput
-                    ? "var(--color-text-primary)"
+                    ? "#ffffff"
                     : "var(--color-text-muted)",
                 }}
               />

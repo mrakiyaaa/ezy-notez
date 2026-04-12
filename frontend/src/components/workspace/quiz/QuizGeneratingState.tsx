@@ -2,17 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { Sparkles, X } from "lucide-react";
-import type { AuraProps } from "./constants";
 import {
   GENERATION_STATUS_MESSAGES,
   MESSAGE_CYCLE_INTERVAL_MS,
 } from "./constants";
 
-interface QuizGeneratingStateProps extends AuraProps {
+interface QuizGeneratingStateProps {
   onCancel?: () => void;
 }
 
-export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: QuizGeneratingStateProps) {
+export default function QuizGeneratingState({ onCancel }: QuizGeneratingStateProps) {
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
@@ -27,10 +26,6 @@ export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: Quiz
   return (
     <div className="absolute bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <style>{`
-        @keyframes quiz-pulse-glow {
-          0%, 100% { box-shadow: 0 0 20px rgba(${auraRgb}, 0.2), 0 0 40px rgba(${auraRgb}, 0.08); }
-          50%       { box-shadow: 0 0 32px rgba(${auraRgb}, 0.35), 0 0 64px rgba(${auraRgb}, 0.15); }
-        }
         @keyframes quiz-spin {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
@@ -44,8 +39,7 @@ export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: Quiz
       <div
         className="relative rounded-2xl border bg-bg-card p-4 flex items-center gap-4 w-72"
         style={{
-          borderColor: `rgba(${auraRgb}, 0.3)`,
-          animation: "quiz-pulse-glow 2s ease-in-out infinite",
+          borderColor: "var(--color-fade-border)",
         }}
       >
         {/* Spinning icon */}
@@ -53,8 +47,8 @@ export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: Quiz
           <div
             className="absolute inset-0 rounded-full border-2 border-transparent"
             style={{
-              borderTopColor: auraHex,
-              borderRightColor: `rgba(${auraRgb}, 0.3)`,
+              borderTopColor: "var(--color-blue-accent)",
+              borderRightColor: "rgba(255, 255, 255, 0.1)",
               animation: "quiz-spin 1.5s linear infinite",
               width: "48px",
               height: "48px",
@@ -64,11 +58,11 @@ export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: Quiz
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center"
             style={{
-              backgroundColor: `rgba(${auraRgb}, 0.15)`,
+              backgroundColor: "rgba(255, 255, 255, 0.06)",
               animation: "quiz-pulse-icon 2s ease-in-out infinite",
             }}
           >
-            <Sparkles className="w-4 h-4" style={{ color: auraHex }} />
+            <Sparkles className="w-4 h-4" style={{ color: "var(--color-blue-accent)" }} />
           </div>
         </div>
 
@@ -77,7 +71,7 @@ export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: Quiz
           <p className="text-text-primary text-xs font-semibold mb-1">Generating Quiz</p>
           <p
             className="text-xs truncate transition-all duration-300"
-            style={{ color: auraHex }}
+            style={{ color: "var(--color-blue-accent)" }}
           >
             {GENERATION_STATUS_MESSAGES[messageIndex]}
           </p>
@@ -89,7 +83,7 @@ export default function QuizGeneratingState({ onCancel, auraHex, auraRgb }: Quiz
                 key={i}
                 className="w-1.5 h-1.5 rounded-full transition-all duration-300"
                 style={{
-                  backgroundColor: i <= messageIndex ? auraHex : `rgba(${auraRgb}, 0.2)`,
+                  backgroundColor: i <= messageIndex ? "var(--color-blue-accent)" : "rgba(255, 255, 255, 0.15)",
                   transform: i === messageIndex ? "scale(1.3)" : "scale(1)",
                 }}
               />

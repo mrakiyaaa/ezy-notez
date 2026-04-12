@@ -1,7 +1,4 @@
-import type { AuraProps } from "../summarization/constants";
 import type { QuestionType, AttemptStatus } from "@/types/quiz";
-
-export type { AuraProps };
 
 // ---------------------------------------------------------------------------
 // Quiz-specific Colors

@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { Check, FileText, Loader2 } from "lucide-react";
 import type { Resource } from "@/types/resource";
 import { getWorkspaceResources } from "@/services/resource.service";
-import type { AuraProps } from "./constants";
 
-interface ResourceChipSelectorProps extends AuraProps {
+interface ResourceChipSelectorProps {
   workspaceId: string;
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
@@ -16,8 +15,6 @@ export default function ResourceChipSelector({
   workspaceId,
   selectedIds,
   onSelectionChange,
-  auraHex,
-  auraRgb,
 }: ResourceChipSelectorProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +72,7 @@ export default function ResourceChipSelector({
       <div className="flex items-center justify-center py-8 rounded-xl border border-fade-border bg-white/[0.02]">
         <Loader2
           className="w-5 h-5 animate-spin"
-          style={{ color: auraHex }}
+          style={{ color: "var(--color-text-muted)" }}
         />
         <span className="text-text-muted text-sm ml-2">Loading resources…</span>
       </div>
@@ -113,7 +110,6 @@ export default function ResourceChipSelector({
           <button
             onClick={selectAll}
             className="text-xs text-text-muted hover:text-text-primary transition-colors"
-            style={{ color: selectedIds.size === resources.length ? auraHex : undefined }}
           >
             Select all
           </button>
@@ -138,31 +134,19 @@ export default function ResourceChipSelector({
               className="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-150"
               style={{
                 backgroundColor: isSelected
-                  ? `rgba(${auraRgb}, 0.12)`
+                  ? "rgba(255, 255, 255, 0.04)"
                   : "rgba(255, 255, 255, 0.02)",
                 borderColor: isSelected
-                  ? `rgba(${auraRgb}, 0.4)`
+                  ? "var(--color-blue-accent)"
                   : "var(--color-fade-border)",
-              }}
-              onMouseEnter={(e) => {
-                if (!isSelected) {
-                  e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.3)`;
-                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.04)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSelected) {
-                  e.currentTarget.style.borderColor = "var(--color-fade-border)";
-                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
-                }
               }}
             >
               {/* Checkbox indicator */}
               <div
                 className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all duration-150"
                 style={{
-                  borderColor: isSelected ? auraHex : "var(--color-fade-border)",
-                  backgroundColor: isSelected ? auraHex : "transparent",
+                  borderColor: isSelected ? "var(--color-blue-accent)" : "var(--color-fade-border)",
+                  backgroundColor: isSelected ? "var(--color-blue-accent)" : "transparent",
                 }}
               >
                 {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
@@ -171,7 +155,7 @@ export default function ResourceChipSelector({
               {/* Resource icon and name */}
               <FileText
                 className="w-3.5 h-3.5 shrink-0"
-                style={{ color: isSelected ? auraHex : "var(--color-text-muted)" }}
+                style={{ color: isSelected ? "var(--color-blue-accent)" : "var(--color-text-muted)" }}
               />
               <span
                 className="text-sm truncate max-w-[180px]"

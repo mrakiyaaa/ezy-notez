@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import type { AuraProps } from "./quiz/constants";
 import { useQuizAttempt } from "@/hooks/useQuizAttempt";
 import AttemptTopBar from "./quiz/AttemptTopBar";
 import TeddyCompanion from "./quiz/TeddyCompanion";
@@ -9,7 +8,7 @@ import QuestionCard from "./quiz/QuestionCard";
 import OptionButton from "./quiz/OptionButton";
 import AnswerFeedback from "./quiz/AnswerFeedback";
 
-interface QuizAttemptViewProps extends AuraProps {
+interface QuizAttemptViewProps {
   quizId: string;
   onExit: () => void;
   onComplete: (quizId: string, attemptId: string) => void;
@@ -19,12 +18,7 @@ export default function QuizAttemptView({
   quizId,
   onExit,
   onComplete,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: QuizAttemptViewProps) {
-  const auraProps = { auraHex, auraRgb, auraContrast };
-
   const {
     isLoading,
     error,
@@ -62,7 +56,7 @@ export default function QuizAttemptView({
       <div className="flex flex-col h-full items-center justify-center">
         <Loader2
           className="w-8 h-8 animate-spin mb-4"
-          style={{ color: auraHex }}
+          style={{ color: "var(--color-text-muted)" }}
         />
         <p className="text-text-muted text-sm">Loading quiz…</p>
       </div>
@@ -104,7 +98,6 @@ export default function QuizAttemptView({
         currentQuestion={currentQuestionIndex + 1}
         totalQuestions={totalQuestions}
         onExit={handleExit}
-        {...auraProps}
       />
 
       {/* Main content area */}
@@ -114,7 +107,6 @@ export default function QuizAttemptView({
           questionNumber={currentQuestionIndex + 1}
           questionText={currentQuestion.question_text}
           questionType={currentQuestion.question_type}
-          {...auraProps}
         />
 
         {/* Option buttons */}
@@ -145,7 +137,6 @@ export default function QuizAttemptView({
                 isDisabled={isSubmitting}
                 showResult={showFeedback}
                 onSelect={() => selectOption(option.id)}
-                {...auraProps}
               />
             );
           })}
@@ -160,23 +151,9 @@ export default function QuizAttemptView({
             style={{
               backgroundColor:
                 selectedOptionId && !isSubmitting
-                  ? auraHex
-                  : `rgba(${auraRgb}, 0.15)`,
-              color: selectedOptionId && !isSubmitting ? auraContrast : auraHex,
-              boxShadow:
-                selectedOptionId && !isSubmitting
-                  ? `0 0 20px rgba(${auraRgb}, 0.3)`
-                  : "none",
-            }}
-            onMouseEnter={(e) => {
-              if (selectedOptionId && !isSubmitting) {
-                e.currentTarget.style.boxShadow = `0 0 32px rgba(${auraRgb}, 0.45)`;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedOptionId && !isSubmitting) {
-                e.currentTarget.style.boxShadow = `0 0 20px rgba(${auraRgb}, 0.3)`;
-              }
+                  ? "var(--color-blue-accent)"
+                  : "rgba(80, 125, 188, 0.15)",
+              color: selectedOptionId && !isSubmitting ? "#ffffff" : "var(--color-blue-accent)",
             }}
           >
             {isSubmitting ? (
@@ -202,7 +179,6 @@ export default function QuizAttemptView({
             }
             onNext={goToNextQuestion}
             isLastQuestion={isLastQuestion}
-            {...auraProps}
           />
         )}
       </div>

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { X, Sparkles, Loader2 } from "lucide-react";
 import type { QuestionType } from "@/types/quiz";
-import type { AuraProps } from "./constants";
 import {
   QUESTION_COUNT_OPTIONS,
   type QuestionCountOption,
@@ -11,7 +10,7 @@ import {
 import ResourceChipSelector from "./ResourceChipSelector";
 import QuestionTypeToggle from "./QuestionTypeToggle";
 
-interface QuizConfigFormProps extends AuraProps {
+interface QuizConfigFormProps {
   workspaceId: string;
   isGenerating: boolean;
   onGenerate: (
@@ -27,9 +26,6 @@ export default function QuizConfigForm({
   isGenerating,
   onGenerate,
   onClose,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: QuizConfigFormProps) {
   const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(
     new Set()
@@ -47,19 +43,15 @@ export default function QuizConfigForm({
   return (
     <div
       className="rounded-xl border bg-bg-card p-6 flex flex-col gap-6 animate-in fade-in slide-in-from-top-2 duration-200"
-      style={{
-        borderColor: `rgba(${auraRgb}, 0.22)`,
-        boxShadow: `0 0 32px rgba(${auraRgb}, 0.08)`,
-      }}
     >
       {/* Panel header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+            style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
           >
-            <Sparkles className="w-5 h-5" style={{ color: auraHex }} />
+            <Sparkles className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
           </div>
           <div>
             <h3 className="text-text-primary text-base font-semibold">
@@ -90,9 +82,6 @@ export default function QuizConfigForm({
             workspaceId={workspaceId}
             selectedIds={selectedResourceIds}
             onSelectionChange={setSelectedResourceIds}
-            auraHex={auraHex}
-            auraRgb={auraRgb}
-            auraContrast={auraContrast}
           />
         </div>
 
@@ -106,9 +95,6 @@ export default function QuizConfigForm({
             <QuestionTypeToggle
               selectedType={questionType}
               onTypeChange={setQuestionType}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           </div>
 
@@ -127,22 +113,20 @@ export default function QuizConfigForm({
                     className="flex-1 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200"
                     style={{
                       backgroundColor: isSelected
-                        ? `rgba(${auraRgb}, 0.15)`
+                        ? "rgba(255, 255, 255, 0.06)"
                         : "rgba(255, 255, 255, 0.02)",
                       borderColor: isSelected
-                        ? auraHex
+                        ? "var(--color-blue-accent)"
                         : "var(--color-fade-border)",
-                      color: isSelected ? auraHex : "var(--color-text-secondary)",
+                      color: isSelected ? "var(--color-blue-accent)" : "var(--color-text-secondary)",
                     }}
                     onMouseEnter={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.4)`;
                         e.currentTarget.style.color = "var(--color-text-primary)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.borderColor = "var(--color-fade-border)";
                         e.currentTarget.style.color = "var(--color-text-secondary)";
                       }
                     }}
@@ -160,23 +144,8 @@ export default function QuizConfigForm({
             disabled={isDisabled}
             className="mt-auto flex items-center justify-center gap-2 py-3 px-6 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: auraHex,
-              color: auraContrast,
-              boxShadow: isDisabled
-                ? "none"
-                : `0 0 24px rgba(${auraRgb}, 0.3)`,
-            }}
-            onMouseEnter={(e) => {
-              if (!isDisabled) {
-                e.currentTarget.style.boxShadow = `0 0 36px rgba(${auraRgb}, 0.45)`;
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isDisabled) {
-                e.currentTarget.style.boxShadow = `0 0 24px rgba(${auraRgb}, 0.3)`;
-                e.currentTarget.style.transform = "translateY(0)";
-              }
+              backgroundColor: "var(--color-blue-accent)",
+              color: "#ffffff",
             }}
           >
             {isGenerating ? (

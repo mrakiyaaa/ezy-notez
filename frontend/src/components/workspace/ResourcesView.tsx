@@ -65,17 +65,11 @@ function getExtractor(fileName: string): ((id: string, url: string) => Promise<v
 interface ResourcesViewProps {
   activeTab: TabItem;
   setActiveTab: (tab: TabItem) => void;
-  auraHex: string;
-  auraRgb: string;
-  auraContrast: string;
 }
 
 export default function ResourcesView({
   activeTab,
   setActiveTab,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: ResourcesViewProps) {
   const params = useParams();
   const slug = params.slug as string;
@@ -348,14 +342,13 @@ export default function ResourcesView({
 
       {/* Upload Card */}
       <div
-        className="mx-6 mt-6 border-2 border-dashed bg-bg-card rounded-xl p-12 text-center"
-        style={{ borderColor: `rgba(${auraRgb}, 0.3)` }}
+        className="mx-6 mt-6 border-2 border-dashed border-fade-border bg-bg-card rounded-xl p-12 text-center"
       >
         <div
           className="p-4 rounded-full mx-auto mb-4 w-fit"
-          style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+          style={{ backgroundColor: "rgba(80, 125, 188, 0.1)" }}
         >
-          <Upload className="w-8 h-8" style={{ color: auraHex }} />
+          <Upload className="w-8 h-8" style={{ color: "var(--color-blue-accent)" }} />
         </div>
         <h2 className="text-text-primary font-bold text-xl">
           Upload Academic Resources
@@ -368,7 +361,7 @@ export default function ResourcesView({
           onClick={handleSelectFiles}
           disabled={isUploading || !workspaceId}
           className="rounded-lg px-8 py-2 mt-6 mx-auto block disabled:opacity-50"
-          style={{ backgroundColor: auraHex, color: auraContrast }}
+          style={{ backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }}
           onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
         >
@@ -396,8 +389,8 @@ export default function ResourcesView({
             style={{
               borderColor: youtubeError
                 ? "rgb(248, 113, 113)"
-                : `rgba(${auraRgb}, 0.2)`,
-              backgroundColor: `rgba(${auraRgb}, 0.05)`,
+                : "var(--color-fade-border)",
+              backgroundColor: "rgba(80, 125, 188, 0.04)",
             }}
           >
             <Video className="w-5 h-5 text-red-500 shrink-0" />
@@ -418,7 +411,7 @@ export default function ResourcesView({
             onClick={handleAddYoutube}
             disabled={isAddingYoutube || !workspaceId || !youtubeUrl.trim()}
             className="rounded-lg px-6 py-2 disabled:opacity-50"
-            style={{ backgroundColor: auraHex, color: auraContrast }}
+            style={{ backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
           >
@@ -447,7 +440,7 @@ export default function ResourcesView({
             }
             style={
               activeTab === id
-                ? { backgroundColor: auraHex, color: auraContrast }
+                ? { backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }
                 : undefined
             }
           >
@@ -476,7 +469,7 @@ Current URL: {typeof window !== "undefined" ? window.location.pathname : "N/A"}
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center mt-20">
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: auraHex }} />
+          <Loader2 className="w-8 h-8 animate-spin text-text-muted" />
         </div>
       ) : filtered.length > 0 ? (
         <div className="mx-6 mt-4 flex flex-col gap-3 pb-6">
@@ -485,7 +478,6 @@ Current URL: {typeof window !== "undefined" ? window.location.pathname : "N/A"}
               key={resource.id}
               resource={resource}
               onDelete={handleDelete}
-              auraRgb={auraRgb}
             />
           ))}
         </div>

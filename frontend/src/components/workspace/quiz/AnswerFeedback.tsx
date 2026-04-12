@@ -1,10 +1,9 @@
 "use client";
 
 import { CheckCircle2, XCircle, ArrowRight, Lightbulb } from "lucide-react";
-import type { AuraProps } from "./constants";
 import { QUIZ_GREEN, QUIZ_GREEN_RGB, QUIZ_RED, QUIZ_RED_RGB } from "./constants";
 
-interface AnswerFeedbackProps extends AuraProps {
+interface AnswerFeedbackProps {
   isCorrect: boolean;
   explanation: string;
   correctAnswerText?: string;
@@ -18,9 +17,6 @@ export default function AnswerFeedback({
   correctAnswerText,
   onNext,
   isLastQuestion,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: AnswerFeedbackProps) {
   // Semantic colors for correct/incorrect feedback
   const accentColor = isCorrect ? QUIZ_GREEN : QUIZ_RED;
@@ -80,22 +76,13 @@ export default function AnswerFeedback({
         </div>
       </div>
 
-      {/* Next button — uses aura for chrome */}
+      {/* Next button */}
       <button
         onClick={onNext}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-all duration-200"
         style={{
-          backgroundColor: auraHex,
-          color: auraContrast,
-          boxShadow: `0 0 20px rgba(${auraRgb}, 0.25)`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 32px rgba(${auraRgb}, 0.4)`;
-          e.currentTarget.style.transform = "translateY(-1px)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 20px rgba(${auraRgb}, 0.25)`;
-          e.currentTarget.style.transform = "translateY(0)";
+          backgroundColor: "var(--color-blue-accent)",
+          color: "#ffffff",
         }}
       >
         {isLastQuestion ? "View Results" : "Next Question"}

@@ -30,9 +30,12 @@ import QuizView from "@/components/workspace/QuizView";
 import QuizAttemptView from "@/components/workspace/QuizAttemptView";
 import QuizResultsView from "@/components/workspace/QuizResultsView";
 import type { TabItem } from "@/components/workspace/ResourcesView";
-import { hexToRgb, getContrastColor } from "@/lib/utils";
+import AuraIndicator from "@/components/ui/AuraIndicator";
 import { getWorkspaceBySlug } from "@/services/resource.service";
 import type { WorkspaceInfo } from "@/types/resource";
+import { useProfile } from "@/hooks/useProfile";
+import { useMemo } from "react";
+import { ChevronDown } from "lucide-react";
 
 type NavItem = "home" | "resources" | "chattie" | "summarization" | "flashcards" | "studyroom" | "quiz";
 
@@ -101,6 +104,18 @@ export default function WorkspacePage() {
     return () => { mounted = false; };
   }, [slug]);
 
+  const { profile, user } = useProfile();
+  const displayName = profile?.full_name || "Student";
+  const displayEmail = profile?.email || user?.email || "";
+  const initials = useMemo(() => {
+    return displayName
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase())
+      .slice(0, 2)
+      .join("");
+  }, [displayName]);
+
   // Switch nav and reset quiz state when navigating away
   const handleNavChange = useCallback((nav: NavItem) => {
     setActiveNav(nav);
@@ -138,10 +153,8 @@ export default function WorkspacePage() {
     setQuizState({ mode: "list" });
   }, []);
 
-  // Derive CSS-ready aura values: use API data > cached > fallback
+  // Keep auraHex for the AuraIndicator dot only
   const auraHex = workspace?.aura || cachedAura || "#507DBC";
-  const auraRgb = hexToRgb(auraHex);
-  const auraContrast = getContrastColor(auraHex);
 
   return (
     <div
@@ -150,10 +163,6 @@ export default function WorkspacePage() {
       // header fixed while only the main content area scrolls.
       // Offset matches the dashboard layout header (logo 60 + py-4 32 + border 1 = 93px).
       className="flex h-[calc(100vh-93px)] bg-main overflow-hidden"
-      style={{
-        "--workspace-aura": auraHex,
-        "--workspace-aura-rgb": auraRgb,
-      } as React.CSSProperties}
     >
       {/* Left Sidebar */}
       <TooltipProvider delayDuration={0}>
@@ -167,22 +176,9 @@ export default function WorkspacePage() {
                     onClick={() => handleNavChange(id)}
                     className={
                       activeNav === id
-                        ? "bg-bg-card rounded-xl p-2"
-                        : "text-text-muted p-2 transition-colors"
+                        ? "bg-bg-card rounded-xl p-2 text-text-primary"
+                        : "text-text-muted p-2 hover:text-text-primary transition-colors"
                     }
-                    style={
-                      activeNav === id
-                        ? { color: auraHex }
-                        : undefined
-                    }
-                    onMouseEnter={(e) => {
-                      if (activeNav !== id)
-                        e.currentTarget.style.color = auraHex;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeNav !== id)
-                        e.currentTarget.style.color = "";
-                    }}
                   >
                     <Icon className="w-5 h-5" />
                   </button>
@@ -199,9 +195,7 @@ export default function WorkspacePage() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  className="text-text-muted p-2 transition-colors"
-                  onMouseEnter={(e) => { e.currentTarget.style.color = auraHex; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = ""; }}
+                  className="text-text-muted p-2 hover:text-text-primary transition-colors"
                 >
                   <Settings className="w-5 h-5" />
                 </button>
@@ -210,10 +204,6 @@ export default function WorkspacePage() {
                 <p>Settings</p>
               </TooltipContent>
             </Tooltip>
-            <div
-              className="w-8 h-8 rounded-full"
-              style={{ backgroundColor: auraHex }}
-            />
           </div>
         </aside>
       </TooltipProvider>
@@ -222,8 +212,7 @@ export default function WorkspacePage() {
       <div className="flex-1 flex flex-col">
         {/* Top Header */}
         <header
-          className="w-full bg-main px-6 py-4 flex items-center"
-          style={{ borderBottom: `1px solid rgba(${auraRgb}, 0.15)` }}
+          className="w-full bg-main px-6 py-4 flex items-center border-b border-fade-border"
         >
           {/* Left */}
           <div className="flex items-center gap-3">
@@ -235,16 +224,13 @@ export default function WorkspacePage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-text-primary font-semibold text-lg">
-                {workspace?.name ?? "Loading…"}
-              </h1>
-              <span
-                className="text-xs rounded-full px-2 py-0.5 mt-1 inline-block"
-                style={{
-                  backgroundColor: `rgba(${auraRgb}, 0.1)`,
-                  color: auraHex,
-                }}
-              >
+              <div className="flex items-center gap-2">
+                <h1 className="text-text-primary font-semibold text-lg">
+                  {workspace?.name ?? "Loading…"}
+                </h1>
+                <AuraIndicator hex={auraHex} />
+              </div>
+              <span className="text-xs text-text-muted mt-1 inline-block">
                 {navSubtitles[activeNav]}
               </span>
             </div>
@@ -256,15 +242,7 @@ export default function WorkspacePage() {
             <input
               type="text"
               placeholder="Search Projects"
-              className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none"
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = auraHex;
-                e.currentTarget.style.boxShadow = `0 0 12px rgba(${auraRgb}, 0.15)`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "";
-                e.currentTarget.style.boxShadow = "";
-              }}
+              className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20"
             />
           </div>
         </header>
@@ -275,16 +253,11 @@ export default function WorkspacePage() {
             <ResourcesView
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           )}
           {activeNav === "home" && workspace && (
             <WorkspaceHome
               workspaceName={workspace.name}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
               onNavigate={(nav) => setActiveNav(nav as NavItem)}
             />
           )}
@@ -292,24 +265,16 @@ export default function WorkspacePage() {
             <Chattie
               workspaceId={workspace.id}
               workspaceName={workspace.name}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
             />
           )}
           {activeNav === "summarization" && workspace && (
             <SummarizationView
               workspaceId={workspace.id}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           )}
           {activeNav === "flashcards" && workspace && (
             <FlashcardsView
               workspaceId={workspace.id}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           )}
           {activeNav === "studyroom" && <StudyRoomView />}
@@ -320,9 +285,6 @@ export default function WorkspacePage() {
                   workspaceId={workspace.id}
                   onStartAttempt={handleQuizStartAttempt}
                   onViewResults={handleQuizViewResults}
-                  auraHex={auraHex}
-                  auraRgb={auraRgb}
-                  auraContrast={auraContrast}
                 />
               )}
               {quizState.mode === "attempt" && quizState.quizId && (
@@ -330,9 +292,6 @@ export default function WorkspacePage() {
                   quizId={quizState.quizId}
                   onExit={handleQuizExitAttempt}
                   onComplete={handleQuizComplete}
-                  auraHex={auraHex}
-                  auraRgb={auraRgb}
-                  auraContrast={auraContrast}
                 />
               )}
               {quizState.mode === "results" && quizState.quizId && quizState.attemptId && (
@@ -342,9 +301,6 @@ export default function WorkspacePage() {
                   onRetake={handleQuizRetake}
                   onGenerateNew={handleQuizGenerateNew}
                   onBack={handleQuizBack}
-                  auraHex={auraHex}
-                  auraRgb={auraRgb}
-                  auraContrast={auraContrast}
                 />
               )}
             </>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { WalletCards, Plus, Sparkles, X } from "lucide-react";
-import type { AuraProps } from "./flashcards/constants";
 import type { FlashcardSet as LocalFlashcardSet, Flashcard as LocalFlashcard } from "./flashcards/constants";
 import type { FlashcardSet, FlashcardSetWithCards } from "@/types/flashcard";
 import {
@@ -19,7 +18,7 @@ import StudyMode from "./flashcards/StudyMode";
 // Props
 // ---------------------------------------------------------------------------
 
-interface FlashcardsViewProps extends AuraProps {
+interface FlashcardsViewProps {
   workspaceId: string;
 }
 
@@ -63,12 +62,7 @@ function toLocalSet(apiSet: FlashcardSet | FlashcardSetWithCards): LocalFlashcar
 
 export default function FlashcardsView({
   workspaceId,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: FlashcardsViewProps) {
-  const auraProps = { auraHex, auraRgb, auraContrast };
-
   const [sets, setSets] = useState<LocalFlashcardSet[]>([]);
   const [studyingSet, setStudyingSet] = useState<LocalFlashcardSet | null>(null);
   const [showPanel, setShowPanel] = useState(false);
@@ -260,7 +254,6 @@ export default function FlashcardsView({
           set={studyingSet}
           onExit={() => setStudyingSet(null)}
           onComplete={handleStudyComplete}
-          {...auraProps}
         />
       </div>
     );
@@ -278,11 +271,11 @@ export default function FlashcardsView({
           className="flex items-center justify-between px-5 py-2.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
           style={{
             backgroundColor: notification.success
-              ? `rgba(${auraRgb}, 0.1)`
+              ? "rgba(80, 125, 188, 0.1)"
               : "rgba(255,255,255,0.03)",
-            borderBottom: `1px solid rgba(${auraRgb}, 0.12)`,
+            borderBottom: "1px solid rgba(80, 125, 188, 0.12)",
             color: notification.success
-              ? auraHex
+              ? "var(--color-blue-accent)"
               : "var(--color-text-secondary)",
           }}
         >
@@ -304,9 +297,9 @@ export default function FlashcardsView({
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+              style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
             >
-              <WalletCards className="w-5 h-5" style={{ color: auraHex }} />
+              <WalletCards className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
             </div>
             <div>
               <h2 className="text-text-primary text-lg font-semibold">
@@ -323,18 +316,10 @@ export default function FlashcardsView({
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
             style={{
               backgroundColor: showPanel
-                ? auraHex
-                : `rgba(${auraRgb}, 0.1)`,
-              color: showPanel ? auraContrast : auraHex,
-              border: `1px solid rgba(${auraRgb}, 0.25)`,
-            }}
-            onMouseEnter={(e) => {
-              if (!showPanel)
-                e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.2)`;
-            }}
-            onMouseLeave={(e) => {
-              if (!showPanel)
-                e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`;
+                ? "var(--color-blue-accent)"
+                : "rgba(80, 125, 188, 0.1)",
+              color: showPanel ? "#ffffff" : "var(--color-blue-accent)",
+              border: "1px solid rgba(80, 125, 188, 0.25)",
             }}
           >
             <Plus className="w-4 h-4" />
@@ -349,25 +334,21 @@ export default function FlashcardsView({
             isGenerating={isGenerating}
             onGenerate={handleGenerate}
             onClose={() => setShowPanel(false)}
-            {...auraProps}
           />
         )}
 
         {/* Body */}
         {isLoading || isGenerating ? (
-          <GenerationShimmer auraRgb={auraRgb} />
+          <GenerationShimmer />
         ) : sets.length === 0 ? (
           <EmptyState
             onGenerate={() => setShowPanel(true)}
-            auraHex={auraHex}
-            auraRgb={auraRgb}
           />
         ) : (
           <FlashcardSetGrid
             sets={sets}
             onStudy={handleStudy}
             onDelete={handleDelete}
-            {...auraProps}
           />
         )}
       </div>
@@ -379,7 +360,7 @@ export default function FlashcardsView({
 // Generation shimmer skeleton
 // ---------------------------------------------------------------------------
 
-function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
+function GenerationShimmer() {
   return (
     <>
       <style>{`
@@ -402,7 +383,7 @@ function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
               <div
                 className="fc-shimmer absolute inset-y-0 w-1/2"
                 style={{
-                  background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.22), transparent)`,
+                  background: "linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent)",
                 }}
               />
             </div>
@@ -411,7 +392,7 @@ function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
               <div
                 className="fc-shimmer absolute inset-y-0 w-1/2"
                 style={{
-                  background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.16), transparent)`,
+                  background: "linear-gradient(to right, transparent, rgba(255,255,255,0.06), transparent)",
                   animationDelay: "0.15s",
                 }}
               />
@@ -421,7 +402,7 @@ function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
               <div
                 className="fc-shimmer absolute inset-y-0 w-1/2"
                 style={{
-                  background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.12), transparent)`,
+                  background: "linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent)",
                   animationDelay: "0.3s",
                 }}
               />
@@ -431,7 +412,7 @@ function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
               <div
                 className="fc-shimmer absolute inset-y-0 w-1/2"
                 style={{
-                  background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.2), transparent)`,
+                  background: "linear-gradient(to right, transparent, rgba(255,255,255,0.07), transparent)",
                   animationDelay: "0.05s",
                 }}
               />
@@ -441,7 +422,7 @@ function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
               <div
                 className="fc-shimmer absolute inset-y-0 w-1/2"
                 style={{
-                  background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.14), transparent)`,
+                  background: "linear-gradient(to right, transparent, rgba(255,255,255,0.06), transparent)",
                   animationDelay: "0.1s",
                 }}
               />
@@ -458,44 +439,21 @@ function GenerationShimmer({ auraRgb }: { auraRgb: string }) {
 // ---------------------------------------------------------------------------
 
 function EmptyState({
-  auraHex,
-  auraRgb,
   onGenerate,
 }: {
-  auraHex: string;
-  auraRgb: string;
   onGenerate: () => void;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-20 gap-6 relative overflow-hidden min-h-[400px]">
-      {/* Subtle dot-grid background pattern */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle, rgba(${auraRgb}, 0.25) 1px, transparent 1px)`,
-          backgroundSize: "32px 32px",
-          opacity: 0.35,
-        }}
-      />
-
-      {/* Radial glow behind icon */}
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full pointer-events-none"
-        style={{
-          background: `radial-gradient(circle, rgba(${auraRgb}, 0.08) 0%, transparent 68%)`,
-        }}
-      />
-
       {/* Icon */}
       <div
         className="relative z-10 w-20 h-20 rounded-2xl flex items-center justify-center"
         style={{
-          backgroundColor: `rgba(${auraRgb}, 0.12)`,
-          boxShadow: `0 0 48px rgba(${auraRgb}, 0.22)`,
-          border: `1px solid rgba(${auraRgb}, 0.22)`,
+          backgroundColor: "rgba(255, 255, 255, 0.06)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <WalletCards className="w-10 h-10" style={{ color: auraHex }} />
+        <WalletCards className="w-10 h-10" style={{ color: "var(--color-blue-accent)" }} />
       </div>
 
       {/* Copy */}
@@ -514,17 +472,8 @@ function EmptyState({
         onClick={onGenerate}
         className="relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
         style={{
-          backgroundColor: auraHex,
+          backgroundColor: "var(--color-blue-accent)",
           color: "#ffffff",
-          boxShadow: `0 0 28px rgba(${auraRgb}, 0.42)`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 44px rgba(${auraRgb}, 0.64)`;
-          e.currentTarget.style.transform = "scale(1.04)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 28px rgba(${auraRgb}, 0.42)`;
-          e.currentTarget.style.transform = "scale(1)";
         }}
       >
         <Sparkles className="w-4 h-4" />

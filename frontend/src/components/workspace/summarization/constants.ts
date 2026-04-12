@@ -15,12 +15,6 @@ import type { Summary, SummaryFormat } from "@/types/summary";
 export type SummarizationMode = "general" | "customize";
 export type SummarizationPhase = "configure" | "processing" | "results";
 
-export interface AuraProps {
-  auraHex: string;
-  auraRgb: string;
-  auraContrast: string;
-}
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------

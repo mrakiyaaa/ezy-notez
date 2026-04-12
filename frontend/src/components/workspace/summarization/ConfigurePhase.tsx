@@ -15,7 +15,6 @@ import {
   getBatchPreview,
   getFormatLabel,
   formatSummaryDate,
-  type AuraProps,
   type SummarizationMode,
 } from "./constants";
 
@@ -23,7 +22,7 @@ import {
 // Props
 // ---------------------------------------------------------------------------
 
-interface ConfigurePhaseProps extends AuraProps {
+interface ConfigurePhaseProps {
   mode: SummarizationMode;
   format: SummaryFormat;
   readyResources: Resource[];
@@ -63,9 +62,6 @@ const MODE_DESCRIPTIONS: Record<SummarizationMode, string> = {
 // ---------------------------------------------------------------------------
 
 export default function ConfigurePhase({
-  auraHex,
-  auraRgb,
-  auraContrast,
   mode,
   format,
   readyResources,
@@ -89,9 +85,9 @@ export default function ConfigurePhase({
       <div className="flex items-center gap-3">
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+          style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
         >
-          <AlignLeft className="w-5 h-5" style={{ color: auraHex }} />
+          <AlignLeft className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
         </div>
         <div>
           <h2 className="text-text-primary text-lg font-semibold">
@@ -127,7 +123,7 @@ export default function ConfigurePhase({
                   }
                   style={
                     mode === id
-                      ? { backgroundColor: auraHex, color: auraContrast }
+                      ? { backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }
                       : undefined
                   }
                 >
@@ -150,8 +146,7 @@ export default function ConfigurePhase({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onSelectAll}
-                    className="text-xs hover:underline transition-all duration-200"
-                    style={{ color: auraHex }}
+                    className="text-xs text-text-muted hover:text-text-primary hover:underline transition-all duration-200"
                   >
                     Select All
                   </button>
@@ -169,7 +164,7 @@ export default function ConfigurePhase({
                 <div className="flex items-center justify-center py-8">
                   <Loader2
                     className="w-6 h-6 animate-spin"
-                    style={{ color: auraHex }}
+                    style={{ color: "var(--color-text-muted)" }}
                   />
                 </div>
               ) : readyResources.length === 0 ? (
@@ -197,17 +192,17 @@ export default function ConfigurePhase({
                           className="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all duration-200"
                           style={{
                             borderColor: isSelected
-                              ? auraHex
+                              ? "var(--color-blue-accent)"
                               : "var(--color-fade-border)",
                             backgroundColor: isSelected
-                              ? auraHex
+                              ? "var(--color-blue-accent)"
                               : "transparent",
                           }}
                         >
                           {isSelected && (
                             <Check
                               className="w-3 h-3"
-                              style={{ color: auraContrast }}
+                              style={{ color: "#ffffff" }}
                             />
                           )}
                         </div>
@@ -246,7 +241,7 @@ export default function ConfigurePhase({
                   }
                   style={
                     format === id
-                      ? { backgroundColor: auraHex, color: auraContrast }
+                      ? { backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }
                       : undefined
                   }
                 >
@@ -264,7 +259,7 @@ export default function ConfigurePhase({
             onClick={onGenerate}
             disabled={isGenerateDisabled}
             className="rounded-lg px-6 py-2.5 text-sm font-medium flex items-center gap-2 disabled:opacity-50 w-fit"
-            style={{ backgroundColor: auraHex, color: auraContrast }}
+            style={{ backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = "0.9";
             }}
@@ -310,22 +305,15 @@ export default function ConfigurePhase({
                     className="group text-left rounded-xl border border-fade-border bg-bg-card p-4 transition-all duration-200 hover:-translate-y-0.5"
                     style={{
                       borderLeftWidth: "3px",
-                      borderLeftColor: auraHex,
-                      boxShadow: "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = `0 4px 20px rgba(${auraRgb}, 0.1)`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = "none";
+                      borderLeftColor: "var(--color-blue-accent)",
                     }}
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <span
                         className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                         style={{
-                          backgroundColor: `rgba(${auraRgb}, 0.15)`,
-                          color: auraHex,
+                          backgroundColor: "rgba(80, 125, 188, 0.12)",
+                          color: "var(--color-blue-accent)",
                         }}
                       >
                         {isGeneral ? "General" : "Customize"}

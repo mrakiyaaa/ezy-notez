@@ -1,9 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { AuraProps } from "./constants";
 
-interface AttemptTopBarProps extends AuraProps {
+interface AttemptTopBarProps {
   quizTitle: string;
   currentQuestion: number;
   totalQuestions: number;
@@ -15,8 +14,6 @@ export default function AttemptTopBar({
   currentQuestion,
   totalQuestions,
   onExit,
-  auraHex,
-  auraRgb,
 }: AttemptTopBarProps) {
   const progressPct = totalQuestions > 0
     ? (currentQuestion / totalQuestions) * 100
@@ -24,10 +21,7 @@ export default function AttemptTopBar({
 
   return (
     <div
-      className="flex items-center gap-4 px-6 py-4 bg-bg-card/50 backdrop-blur-sm"
-      style={{
-        borderBottom: `1px solid rgba(${auraRgb}, 0.12)`,
-      }}
+      className="flex items-center gap-4 px-6 py-4 bg-bg-card/50 backdrop-blur-sm border-b border-fade-border"
     >
       {/* Exit button */}
       <button
@@ -65,8 +59,7 @@ export default function AttemptTopBar({
             className="h-full rounded-full transition-all duration-500 ease-out"
             style={{
               width: `${progressPct}%`,
-              backgroundColor: auraHex,
-              boxShadow: `0 0 8px rgba(${auraRgb}, 0.4)`,
+              backgroundColor: "var(--color-blue-accent)",
             }}
           />
         </div>
