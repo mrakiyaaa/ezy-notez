@@ -51,6 +51,15 @@ next-env.d.ts
 # Workspace folders
 /frontend/.turbo/
 
+# Python virtual environments
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 # OS
 .DS_Store
 Thumbs.db
