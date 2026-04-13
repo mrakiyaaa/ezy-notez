@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import type { Summary } from "@/types/summary";
 
@@ -5,20 +7,47 @@ interface SummaryContentProps {
   summary: Summary;
 }
 
+function FailedSummary({ errorMessage }: { errorMessage: string | null }) {
+  const [showDetail, setShowDetail] = useState(false);
+
+  const isLong = (errorMessage?.length ?? 0) > 120;
+  const preview = isLong ? errorMessage!.slice(0, 120).trimEnd() + "…" : errorMessage;
+
+  return (
+    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 shrink-0 w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center">
+          <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-red-400 text-sm font-semibold mb-1">Summarization failed</p>
+          <p className="text-red-400/70 text-xs leading-relaxed">
+            {isLong && !showDetail ? preview : (errorMessage ?? "An unknown error occurred.")}
+          </p>
+        </div>
+      </div>
+
+      {isLong && (
+        <button
+          onClick={() => setShowDetail((v) => !v)}
+          className="self-start flex items-center gap-1 text-[11px] text-red-400/60 hover:text-red-400 transition-colors"
+        >
+          {showDetail ? (
+            <><ChevronUp className="w-3 h-3" /> Show less</>
+          ) : (
+            <><ChevronDown className="w-3 h-3" /> Show full error</>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SummaryContent({
   summary,
 }: SummaryContentProps) {
   if (summary.status === "failed") {
-    return (
-      <div className="rounded-xl border border-red-900/40 bg-red-900/10 p-4">
-        <p className="text-red-400 text-sm font-medium mb-1">
-          Summarization failed
-        </p>
-        <p className="text-red-400/80 text-xs">
-          {summary.error_message ?? "An unknown error occurred."}
-        </p>
-      </div>
-    );
+    return <FailedSummary errorMessage={summary.error_message} />;
   }
 
   if (!summary.content) {

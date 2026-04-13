@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, FileText, Loader2 } from "lucide-react";
+import { FileText, Presentation, Music, Loader2 } from "lucide-react";
 import type { Resource } from "@/types/resource";
 import { getWorkspaceResources } from "@/services/resource.service";
 
@@ -29,7 +29,6 @@ export default function ResourceChipSelector({
     getWorkspaceResources(workspaceId)
       .then((res) => {
         if (mounted) {
-          // Only resources with extracted text can be used for quiz generation
           const readyResources = res.filter(
             (r) => r.status === "ready" && r.extracted_text
           );
@@ -69,12 +68,9 @@ export default function ResourceChipSelector({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8 rounded-xl border border-fade-border bg-white/[0.02]">
-        <Loader2
-          className="w-5 h-5 animate-spin"
-          style={{ color: "var(--color-text-muted)" }}
-        />
-        <span className="text-text-muted text-sm ml-2">Loading resources…</span>
+      <div className="flex items-center justify-center py-8 rounded-xl border border-fade-border bg-main">
+        <Loader2 className="w-4 h-4 animate-spin text-text-muted" />
+        <span className="text-text-muted text-xs ml-2">Loading resources…</span>
       </div>
     );
   }
@@ -82,91 +78,66 @@ export default function ResourceChipSelector({
   if (error) {
     return (
       <div className="rounded-xl border border-red-400/30 bg-red-400/5 px-4 py-4 text-center">
-        <p className="text-red-400 text-sm">{error}</p>
+        <p className="text-red-400 text-xs">{error}</p>
       </div>
     );
   }
 
   if (resources.length === 0) {
     return (
-      <div className="rounded-xl border border-fade-border bg-white/[0.02] px-4 py-6 text-center">
-        <FileText className="w-8 h-8 text-text-muted mx-auto mb-2" />
-        <p className="text-text-muted text-sm">No ready resources found.</p>
-        <p className="text-text-muted text-xs mt-1">
-          Upload and process resources first.
-        </p>
+      <div className="rounded-xl border border-fade-border bg-main px-4 py-6 text-center">
+        <FileText className="w-6 h-6 text-text-muted mx-auto mb-2" />
+        <p className="text-text-muted text-xs">No ready resources found.</p>
+        <p className="text-text-muted text-[10px] mt-1">Upload and process resources first.</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Header with select/clear actions */}
-      <div className="flex items-center justify-between">
-        <span className="text-text-secondary text-xs">
+      {/* Meta row */}
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-text-muted text-xs">
           {selectedIds.size} of {resources.length} selected
         </span>
-        <div className="flex gap-2">
+        <div className="flex items-center">
           <button
             onClick={selectAll}
-            className="text-xs text-text-muted hover:text-text-primary transition-colors"
+            className="text-blue-accent text-xs cursor-pointer hover:opacity-75 transition-opacity"
           >
             Select all
           </button>
-          <span className="text-text-muted">·</span>
+          <span className="text-text-muted mx-1">·</span>
           <button
             onClick={clearAll}
-            className="text-xs text-text-muted hover:text-text-primary transition-colors"
+            className="text-blue-accent text-xs cursor-pointer hover:opacity-75 transition-opacity"
           >
             Clear
           </button>
         </div>
       </div>
 
-      {/* Resource chips grid */}
+      {/* Resource pills */}
       <div className="flex flex-wrap gap-2">
         {resources.map((resource) => {
           const isSelected = selectedIds.has(resource.id);
+          let Icon = FileText;
+          if (resource.type === "ppt") Icon = Presentation;
+          else if (resource.type === "audio") Icon = Music;
+
           return (
             <button
               key={resource.id}
               onClick={() => toggleResource(resource.id)}
-              className="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-150"
-              style={{
-                backgroundColor: isSelected
-                  ? "rgba(255, 255, 255, 0.04)"
-                  : "rgba(255, 255, 255, 0.02)",
-                borderColor: isSelected
-                  ? "var(--color-blue-accent)"
-                  : "var(--color-fade-border)",
-              }}
+              className={[
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs cursor-pointer max-w-57.5 transition-all duration-150",
+                isSelected
+                  ? "bg-blue-accent/10 border-blue-accent/50 text-text-secondary"
+                  : "bg-main border-fade-border text-text-muted hover:border-[#253040]",
+              ].join(" ")}
             >
-              {/* Checkbox indicator */}
-              <div
-                className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all duration-150"
-                style={{
-                  borderColor: isSelected ? "var(--color-blue-accent)" : "var(--color-fade-border)",
-                  backgroundColor: isSelected ? "var(--color-blue-accent)" : "transparent",
-                }}
-              >
-                {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-              </div>
-
-              {/* Resource icon and name */}
-              <FileText
-                className="w-3.5 h-3.5 shrink-0"
-                style={{ color: isSelected ? "var(--color-blue-accent)" : "var(--color-text-muted)" }}
-              />
-              <span
-                className="text-sm truncate max-w-[180px]"
-                style={{
-                  color: isSelected
-                    ? "var(--color-text-primary)"
-                    : "var(--color-text-secondary)",
-                }}
-              >
-                {resource.name}
-              </span>
+              <Icon className="w-2.75 h-2.75 shrink-0" />
+              <span className="truncate">{resource.name}</span>
             </button>
           );
         })}

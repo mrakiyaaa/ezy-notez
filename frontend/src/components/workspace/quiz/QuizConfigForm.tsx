@@ -41,43 +41,34 @@ export default function QuizConfigForm({
   };
 
   return (
-    <div
-      className="rounded-xl border bg-bg-card p-6 flex flex-col gap-6 animate-in fade-in slide-in-from-top-2 duration-200"
-    >
+    <div className="bg-bg-card border border-fade-border rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
       {/* Panel header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
-          >
-            <Sparkles className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
+          <div className="w-9 h-9 shrink-0 bg-blue-accent/10 border border-blue-accent/30 rounded-lg flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-blue-accent" />
           </div>
-          <div>
-            <h3 className="text-text-primary text-base font-semibold">
-              Generate Quiz
-            </h3>
-            <p className="text-text-muted text-sm">
-              Create AI-powered questions from your resources
-            </p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-text-primary font-semibold font-display text-sm">Generate Quiz</p>
+            <p className="text-text-muted text-xs font-light">Create AI-powered questions from your resources</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/5 transition-all"
+          className="w-6 h-6 border border-fade-border rounded-md flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 self-start transition-all duration-150"
           aria-label="Close panel"
         >
-          <X className="w-5 h-5" />
+          <X className="w-3 h-3" />
         </button>
       </div>
 
-      {/* Form content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left column: Resource selection */}
-        <div className="flex flex-col gap-3">
-          <label className="text-text-secondary text-sm font-medium">
+      {/* Panel body */}
+      <div className="grid grid-cols-2 border-t border-fade-border">
+        {/* Left col — Select Resources */}
+        <div className="p-5 border-r border-fade-border">
+          <p className="text-text-primary font-semibold font-display text-sm mb-2">
             Select Resources
-          </label>
+          </p>
           <ResourceChipSelector
             workspaceId={workspaceId}
             selectedIds={selectedResourceIds}
@@ -85,51 +76,37 @@ export default function QuizConfigForm({
           />
         </div>
 
-        {/* Right column: Question type and count */}
-        <div className="flex flex-col gap-5">
-          {/* Question type */}
-          <div className="flex flex-col gap-2">
-            <label className="text-text-secondary text-sm font-medium">
+        {/* Right col — Config */}
+        <div className="p-5 flex flex-col gap-5">
+          {/* Question Type */}
+          <div>
+            <p className="text-text-primary font-semibold font-display text-sm mb-3">
               Question Type
-            </label>
+            </p>
             <QuestionTypeToggle
               selectedType={questionType}
               onTypeChange={setQuestionType}
             />
           </div>
 
-          {/* Question count */}
-          <div className="flex flex-col gap-3">
-            <label className="text-text-secondary text-sm font-medium">
+          {/* Number of Questions */}
+          <div>
+            <p className="text-text-primary font-semibold font-display text-sm mb-3">
               Number of Questions
-            </label>
-            <div className="flex gap-2">
+            </p>
+            <div className="grid grid-cols-4 gap-2">
               {QUESTION_COUNT_OPTIONS.map((count) => {
                 const isSelected = questionCount === count;
                 return (
                   <button
                     key={count}
                     onClick={() => setQuestionCount(count)}
-                    className="flex-1 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200"
-                    style={{
-                      backgroundColor: isSelected
-                        ? "rgba(255, 255, 255, 0.06)"
-                        : "rgba(255, 255, 255, 0.02)",
-                      borderColor: isSelected
-                        ? "var(--color-blue-accent)"
-                        : "var(--color-fade-border)",
-                      color: isSelected ? "var(--color-blue-accent)" : "var(--color-text-secondary)",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.color = "var(--color-text-primary)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.color = "var(--color-text-secondary)";
-                      }
-                    }}
+                    className={[
+                      "py-2.5 rounded-lg border text-center font-semibold font-display text-sm cursor-pointer transition-all duration-150",
+                      isSelected
+                        ? "bg-blue-accent/10 border-blue-accent/30 text-text-secondary"
+                        : "bg-main border-fade-border text-text-muted hover:border-[#253040]",
+                    ].join(" ")}
                   >
                     {count}
                   </button>
@@ -138,35 +115,29 @@ export default function QuizConfigForm({
             </div>
           </div>
 
-          {/* Generate button */}
-          <button
-            onClick={handleSubmit}
-            disabled={isDisabled}
-            className="mt-auto flex items-center justify-center gap-2 py-3 px-6 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: "var(--color-blue-accent)",
-              color: "#ffffff",
-            }}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating…
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Generate Quiz
-              </>
-            )}
-          </button>
-
-          {/* Help text */}
-          {selectedResourceIds.size === 0 && (
-            <p className="text-text-muted text-xs text-center">
+          {/* Generate button + hint */}
+          <div>
+            <button
+              onClick={handleSubmit}
+              disabled={isDisabled}
+              className="w-full bg-blue-accent text-white font-semibold font-display text-sm rounded-lg py-3 flex items-center justify-center gap-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Generate Quiz
+                </>
+              )}
+            </button>
+            <p className="text-text-muted text-[11px] text-center mt-2">
               Select at least one resource to generate a quiz
             </p>
-          )}
+          </div>
         </div>
       </div>
     </div>

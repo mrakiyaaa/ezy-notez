@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ClipboardList, Plus, Sparkles, X, Loader2 } from "lucide-react";
+import { HelpCircle, Plus, Sparkles, X, Loader2 } from "lucide-react";
 import type { QuizWithAttempt } from "@/types/quiz";
-import { QUIZ_AMBER, QUIZ_RED_RGB } from "./quiz/constants";
 import { getQuizzes, deleteQuiz } from "@/services/quiz.service";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
 import QuizCard from "./quiz/QuizCard";
@@ -31,7 +30,6 @@ export default function QuizView({
   const [showConfigForm, setShowConfigForm] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
 
-  // Quiz generation hook
   const {
     isGenerating,
     generate,
@@ -39,15 +37,9 @@ export default function QuizView({
   } = useQuizGeneration({
     workspaceId,
     onSuccess: (quiz) => {
-      // Add the new quiz to the list
-      setQuizzes((prev) => [
-        { ...quiz, attempt: null },
-        ...prev,
-      ]);
+      setQuizzes((prev) => [{ ...quiz, attempt: null }, ...prev]);
       setNotification({ message: "Quiz generated successfully!", success: true });
       setShowConfigForm(false);
-
-      // Automatically start the attempt
       onStartAttempt?.(quiz.id);
     },
     onError: (errorMsg) => {
@@ -55,7 +47,6 @@ export default function QuizView({
     },
   });
 
-  // Fetch quizzes on mount
   const fetchQuizzes = useCallback(async () => {
     try {
       const data = await getQuizzes(workspaceId);
@@ -63,8 +54,7 @@ export default function QuizView({
     } catch (err) {
       console.error("[QuizView] Failed to fetch quizzes:", err);
       setNotification({
-        message:
-          err instanceof Error ? err.message : "Failed to load quizzes",
+        message: err instanceof Error ? err.message : "Failed to load quizzes",
         success: false,
       });
     } finally {
@@ -76,7 +66,6 @@ export default function QuizView({
     fetchQuizzes();
   }, [fetchQuizzes]);
 
-  // Auto-dismiss notifications
   useEffect(() => {
     if (!notification) return;
     const t = setTimeout(() => setNotification(null), 3500);
@@ -91,22 +80,15 @@ export default function QuizView({
     } catch (err) {
       console.error("[QuizView] Failed to delete quiz:", err);
       setNotification({
-        message:
-          err instanceof Error ? err.message : "Failed to delete quiz",
+        message: err instanceof Error ? err.message : "Failed to delete quiz",
         success: false,
       });
     }
   };
 
-  // Separate quizzes into in-progress and completed
-  const inProgressQuizzes = quizzes.filter(
-    (q) => q.attempt?.status === "in_progress"
-  );
-  const completedQuizzes = quizzes.filter(
-    (q) => q.attempt?.status === "completed"
-  );
+  const inProgressQuizzes = quizzes.filter((q) => q.attempt?.status === "in_progress");
+  const completedQuizzes = quizzes.filter((q) => q.attempt?.status === "completed");
   const newQuizzes = quizzes.filter((q) => !q.attempt);
-
   const hasAnyQuizzes = quizzes.length > 0;
 
   return (
@@ -114,18 +96,12 @@ export default function QuizView({
       {/* Notification banner */}
       {notification && (
         <div
-          className="flex items-center justify-between px-5 py-2.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
-          style={{
-            backgroundColor: notification.success
-              ? "rgba(80, 125, 188, 0.1)"
-              : "rgba(255,255,255,0.03)",
-            borderBottom: notification.success
-              ? "1px solid rgba(80, 125, 188, 0.12)"
-              : `1px solid rgba(${QUIZ_RED_RGB}, 0.12)`,
-            color: notification.success
-              ? "var(--color-blue-accent)"
-              : "var(--color-text-secondary)",
-          }}
+          className={[
+            "flex items-center justify-between px-5 py-2.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200 border-b",
+            notification.success
+              ? "bg-blue-accent/10 border-blue-accent/30 text-blue-accent"
+              : "bg-white/3 border-red-500/30 text-text-secondary",
+          ].join(" ")}
         >
           <span>{notification.message}</span>
           <button
@@ -139,21 +115,16 @@ export default function QuizView({
       )}
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+      <div className="flex-1 overflow-y-auto p-7 flex flex-col gap-6">
         {/* Page header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
-            >
-              <ClipboardList className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
+            <div className="w-12 h-12 shrink-0 bg-blue-accent/10 border border-blue-accent/30 rounded-xl flex items-center justify-center">
+              <HelpCircle className="w-5 h-5 text-blue-accent" />
             </div>
             <div>
-              <h2 className="text-text-primary text-lg font-semibold">
-                Quizzes
-              </h2>
-              <p className="text-text-muted text-sm">
+              <h2 className="text-text-primary font-bold text-xl">Quiz Generator</h2>
+              <p className="text-text-muted text-sm font-light">
                 AI-generated quizzes to test your knowledge
               </p>
             </div>
@@ -161,14 +132,7 @@ export default function QuizView({
 
           <button
             onClick={() => setShowConfigForm((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-            style={{
-              backgroundColor: showConfigForm
-                ? "var(--color-blue-accent)"
-                : "rgba(80, 125, 188, 0.1)",
-              color: showConfigForm ? "#ffffff" : "var(--color-blue-accent)",
-              border: "1px solid rgba(80, 125, 188, 0.25)",
-            }}
+            className="bg-blue-accent text-white font-semibold text-sm rounded-lg px-5 py-2.5 flex items-center gap-2 hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
             Generate Quiz
@@ -188,18 +152,13 @@ export default function QuizView({
         {/* Loading state */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2
-              className="w-6 h-6 animate-spin"
-              style={{ color: "var(--color-text-muted)" }}
-            />
+            <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
           </div>
         )}
 
         {/* Empty state */}
         {!isLoading && !hasAnyQuizzes && !showConfigForm && (
-          <EmptyState
-            onGenerate={() => setShowConfigForm(true)}
-          />
+          <EmptyState onGenerate={() => setShowConfigForm(true)} />
         )}
 
         {/* Quiz sections */}
@@ -208,14 +167,13 @@ export default function QuizView({
             {/* In-Progress Section */}
             {inProgressQuizzes.length > 0 && (
               <section>
-                <h3 className="text-text-primary text-base font-semibold mb-4 flex items-center gap-2">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: QUIZ_AMBER }}
-                  />
-                  Continue Where You Left Off
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-1.75 h-1.75 rounded-full bg-blue-accent" />
+                  <h3 className="text-text-primary font-semibold text-sm">
+                    Continue Where You Left Off
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-4">
                   {inProgressQuizzes.map((quiz) => (
                     <QuizCard
                       key={quiz.id}
@@ -228,17 +186,16 @@ export default function QuizView({
               </section>
             )}
 
-            {/* New quizzes (ready but not started) */}
+            {/* New quizzes */}
             {newQuizzes.length > 0 && (
               <section>
-                <h3 className="text-text-primary text-base font-semibold mb-4 flex items-center gap-2">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: "var(--color-blue-accent)" }}
-                  />
-                  Ready to Start
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-1.75 h-1.75 rounded-full bg-blue-accent" />
+                  <h3 className="text-text-primary font-semibold text-sm">
+                    Ready to Start
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-4">
                   {newQuizzes.map((quiz) => (
                     <QuizCard
                       key={quiz.id}
@@ -254,14 +211,13 @@ export default function QuizView({
             {/* Completed Section */}
             {completedQuizzes.length > 0 && (
               <section>
-                <h3 className="text-text-primary text-base font-semibold mb-4 flex items-center gap-2">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: "var(--color-blue-accent)" }}
-                  />
-                  Past Quizzes
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-1.75 h-1.75 rounded-full bg-text-muted" />
+                  <h3 className="text-text-primary font-semibold text-sm">
+                    All Quizzes
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-4">
                   {completedQuizzes.map((quiz) => (
                     <QuizCard
                       key={quiz.id}
@@ -278,52 +234,27 @@ export default function QuizView({
         )}
       </div>
 
-      {/* Floating generating state — bottom-right corner */}
-      {isGenerating && (
-        <QuizGeneratingState onCancel={resetGeneration} />
-      )}
+      {/* Floating generating state */}
+      {isGenerating && <QuizGeneratingState onCancel={resetGeneration} />}
     </div>
   );
 }
 
-// Empty state component
-function EmptyState({
-  onGenerate,
-}: {
-  onGenerate: () => void;
-}) {
+function EmptyState({ onGenerate }: { onGenerate: () => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center py-20 gap-6 relative overflow-hidden min-h-[400px]">
-      {/* Icon */}
-      <div
-        className="relative z-10 w-20 h-20 rounded-2xl flex items-center justify-center"
-        style={{
-          backgroundColor: "rgba(255, 255, 255, 0.06)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        <ClipboardList className="w-10 h-10" style={{ color: "var(--color-blue-accent)" }} />
+    <div className="flex-1 flex flex-col items-center justify-center py-20 gap-6 min-h-96">
+      <div className="w-20 h-20 rounded-2xl bg-blue-accent/10 border border-blue-accent/30 flex items-center justify-center">
+        <HelpCircle className="w-10 h-10 text-blue-accent" />
       </div>
-
-      {/* Copy */}
-      <div className="relative z-10 text-center">
-        <h2 className="text-text-primary text-xl font-bold mb-2">
-          No Quizzes Yet
-        </h2>
+      <div className="text-center">
+        <h2 className="text-text-primary text-xl font-bold mb-2">No Quizzes Yet</h2>
         <p className="text-text-muted text-sm max-w-xs">
-          Generate AI-powered quizzes from your workspace resources to test
-          your knowledge.
+          Generate AI-powered quizzes from your workspace resources to test your knowledge.
         </p>
       </div>
-
-      {/* CTA button */}
       <button
         onClick={onGenerate}
-        className="relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
-        style={{
-          backgroundColor: "var(--color-blue-accent)",
-          color: "#ffffff",
-        }}
+        className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-blue-accent text-white hover:opacity-90 transition-opacity"
       >
         <Sparkles className="w-4 h-4" />
         Generate Your First Quiz

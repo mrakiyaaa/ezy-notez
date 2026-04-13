@@ -49,9 +49,9 @@ export const BEAR_FALLBACK_ANIMATIONS: Record<BearEmotion, string> = {
 // ---------------------------------------------------------------------------
 
 export const QUESTION_TYPE_OPTIONS: { id: QuestionType; label: string; description: string }[] = [
-  { id: "mcq", label: "MCQ", description: "Multiple choice questions" },
-  { id: "scenario", label: "Scenario", description: "Scenario-based questions" },
-  { id: "mixed", label: "Mixed", description: "Mix of both types" },
+  { id: "mcq", label: "MCQ", description: "Multiple choice" },
+  { id: "scenario", label: "Scenario", description: "Case-based" },
+  { id: "mixed", label: "Mixed", description: "Mix of both" },
 ];
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlignLeft, Clock } from "lucide-react";
+import { AlignLeft, Clock, Trash2 } from "lucide-react";
 import { getWorkspaceResources } from "@/services/resource.service";
 import {
   generateGeneralSummary,
@@ -284,6 +284,25 @@ export default function SummarizationView({
     setError(null);
   };
 
+  const handleDeleteBatch = async (
+    e: React.MouseEvent,
+    batch: Summary[]
+  ) => {
+    e.stopPropagation();
+    try {
+      await Promise.all(batch.map((s) => deleteSummaryApi(s.id)));
+      const deletedIds = new Set(batch.map((s) => s.id));
+      setSummaries((prev) => prev.filter((s) => !deletedIds.has(s.id)));
+      // If the deleted batch was active, return to configure
+      if (batch.some((s) => s.id === activeTabId)) {
+        setActiveTabId(null);
+        setPhase("configure");
+      }
+    } catch {
+      setError("Failed to delete summary");
+    }
+  };
+
   const handleBackToHome = () => {
     setPhase("configure");
     setError(null);
@@ -392,8 +411,8 @@ export default function SummarizationView({
         {renderPhase()}
       </div>
 
-      {/* Right - Previous Summaries Panel */}
-      <div className="hidden lg:flex w-96 shrink-0 bg-bg-card border-l border-fade-border flex-col h-full">
+      {/* Right - Previous Summaries Panel (configure phase only) */}
+      <div className={`w-96 shrink-0 bg-bg-card border-l border-fade-border flex-col h-full ${phase === "configure" ? "hidden lg:flex" : "hidden"}`}>
         <div className="p-4 border-b border-fade-border shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-text-muted" />
@@ -403,7 +422,7 @@ export default function SummarizationView({
             {batches.length}
           </span>
         </div>
-        <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-3">
+        <div className="p-4 flex-1 overflow-y-auto scrollbar-hidden flex flex-col gap-3">
           {batches.length === 0 ? (
             <div className="text-center text-text-muted text-sm py-10">No summaries yet.</div>
           ) : (
@@ -420,41 +439,55 @@ export default function SummarizationView({
                 <div
                   key={batch[0].id}
                   onClick={() => handleViewBatch(batch)}
-                  className="group relative bg-main border border-fade-border rounded-lg p-3 cursor-pointer hover:border-fade-border/60 overflow-hidden"
+                  className="group relative bg-main border border-fade-border rounded-xl p-5 cursor-pointer hover:border-blue-accent/20 transition-colors overflow-hidden flex flex-col gap-3 min-h-36"
                 >
+                  {/* Left accent bar */}
                   <div
-                    className={`absolute left-0 top-0 bottom-0 w-0.75 opacity-50 ${
+                    className={`absolute left-0 top-0 bottom-0 w-0.75 rounded-r opacity-60 ${
                       isGeneral ? "bg-teal-500" : "bg-blue-accent"
                     }`}
                   />
-                  <div className="flex items-center gap-2 mb-2">
-                    <span
-                      className={`text-[9px] font-bold uppercase rounded px-2 py-0.5 ${
-                        isGeneral
-                          ? "bg-teal-500/10 text-teal-400"
-                          : "bg-blue-accent/10 text-text-secondary"
-                      }`}
+
+                  {/* Badges row + delete button */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-[9px] font-bold uppercase rounded px-2 py-0.5 ${
+                          isGeneral
+                            ? "bg-teal-500/10 text-teal-400"
+                            : "bg-blue-accent/10 text-text-secondary"
+                        }`}
+                      >
+                        {isGeneral ? "GENERAL" : "CUSTOMIZE"}
+                      </span>
+                      <span className="bg-white/5 text-text-muted text-[9px] font-bold uppercase rounded px-2 py-0.5">
+                        {formatLabel}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteBatch(e, batch)}
+                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded border border-transparent text-text-muted opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all duration-150"
+                      aria-label="Delete summary"
                     >
-                      {isGeneral ? "GENERAL" : "CUSTOMIZE"}
-                    </span>
-                    <span className="bg-white/5 text-text-muted text-[9px] font-bold uppercase rounded px-2 py-0.5">
-                      {formatLabel}
-                    </span>
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
 
+                  {/* Preview / status */}
                   {isPending ? (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                      <span className="text-amber-400 text-xs font-medium">Processing...</span>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                      <span className="text-amber-400 text-xs font-medium">Processing…</span>
                     </div>
                   ) : (
-                    <p className="text-text-secondary text-xs leading-relaxed line-clamp-2 mb-2">
+                    <p className="text-text-secondary text-xs leading-relaxed line-clamp-2">
                       {preview}
                     </p>
                   )}
 
+                  {/* Date */}
                   <div className="flex items-center gap-1.5 mt-auto">
-                    <Clock className="w-3 h-3 text-text-muted" />
+                    <Clock className="w-3 h-3 text-text-muted shrink-0" />
                     <span className="text-text-muted text-[10px]">{createdDate}</span>
                   </div>
                 </div>
