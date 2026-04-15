@@ -296,9 +296,9 @@ export default function ResourcesView({
   };
 
   // Poll for status updates when resources are indexing
+  const hasIndexingResources = resources.some((r) => r.status === "indexing");
   useEffect(() => {
-    const hasIndexing = resources.some((r) => r.status === "indexing");
-    if (!hasIndexing || !workspaceId) return;
+    if (!hasIndexingResources || !workspaceId) return;
 
     const interval = setInterval(async () => {
       try {
@@ -313,7 +313,7 @@ export default function ResourcesView({
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [resources.some((r) => r.status === "indexing"), workspaceId]);
+  }, [hasIndexingResources, workspaceId]);
 
   const tabTypeMap: Record<TabItem, ResourceType | null> = {
     all: null,

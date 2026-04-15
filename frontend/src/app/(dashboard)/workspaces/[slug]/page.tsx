@@ -9,7 +9,6 @@ import {
   Brain,
   ClipboardList,
   Search,
-  Layers,
   ArrowLeft,
   AlignLeft,
   WalletCards,
@@ -22,6 +21,7 @@ import FlashcardsView from "@/components/workspace/FlashcardsView";
 import QuizView from "@/components/workspace/QuizView";
 import QuizAttemptView from "@/components/workspace/QuizAttemptView";
 import QuizResultsView from "@/components/workspace/QuizResultsView";
+import StudyRoomView from "@/components/workspace/StudyRoomView";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import AuraIndicator from "@/components/ui/AuraIndicator";
 import { getWorkspaceBySlug } from "@/services/resource.service";
@@ -309,7 +309,9 @@ export default function WorkspacePage() {
               workspaceId={workspace.id}
             />
           )}
-          {activeNav === "studyroom" && <StudyRoomView />}
+          {activeNav === "studyroom" && workspace && (
+            <StudyRoomView workspaceId={workspace.id} />
+          )}
           {activeNav === "quiz" && workspace && (
             <>
               {quizState.mode === "list" && (
@@ -343,15 +345,3 @@ export default function WorkspacePage() {
   );
 }
 
-/* ─── Placeholder Views ─── */
-
-
-function StudyRoomView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <Layers className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Study Room</h2>
-      <p className="text-sm">Collaborative study tools coming soon.</p>
-    </div>
-  );
-}
