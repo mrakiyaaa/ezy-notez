@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useReducer, useMemo } from "react";
-import { Users, ChevronRight } from "lucide-react";
+import { useState, useEffect, useReducer, useRef } from "react";
+import { Users, ChevronRight, AlertTriangle } from "lucide-react";
 import type { StudyRoom, Participant, StudyRoomQuestion } from "@/types/studyRoom";
 import {
   getCurrentQuestion,
@@ -10,6 +10,7 @@ import {
   getLobbyParticipants,
 } from "@/services/studyRoom.service";
 import { supabase } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import PointsCounter from "./study-room/PointsCounter";
 import ParticipantAvatar from "./study-room/ParticipantAvatar";
 import DisconnectModal from "./study-room/DisconnectModal";
@@ -81,6 +82,24 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
   }
 }
 
+const CORRECT_ANSWER_INDEX: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+
+function normaliseQuestion(q: StudyRoomQuestion): StudyRoomQuestion {
+  // Backend may send options as {A,B,C,D} object — normalise to string[]
+  if (q.options && !Array.isArray(q.options)) {
+    const obj = q.options as Record<string, string>;
+    return {
+      ...q,
+      options: [obj.A ?? "", obj.B ?? "", obj.C ?? "", obj.D ?? ""],
+      correct_answer:
+        typeof q.correct_answer === "string" && isNaN(Number(q.correct_answer))
+          ? CORRECT_ANSWER_INDEX[q.correct_answer as string] ?? 0
+          : Number(q.correct_answer),
+    };
+  }
+  return q;
+}
+
 export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps) {
   const [state, dispatch] = useReducer(quizReducer, {
     currentQuestion: null,
@@ -95,18 +114,41 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [disconnectedUser, setDisconnectedUser] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [allConfirmed, setAllConfirmed] = useState(false);
+  const [channelError, setChannelError] = useState<string | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const isHost = room.host_id === "current-user";
-  const allConfirmed = useMemo(
-    () => participants.length > 0 && participants.every((p) => p.has_confirmed),
-    [participants]
-  );
+  const isHost = !!currentUserId && room.host_id === currentUserId;
 
-  // Initial load
+  // Resolve current user ID once on mount
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+  }, []);
+
+  // Initial load — prefer sessionStorage first question from lobby handoff
+  useEffect(() => {
+    const stored = sessionStorage.getItem(`ezn_room_first_question_${room.id}`);
+    if (stored) {
+      try {
+        const q = JSON.parse(stored) as StudyRoomQuestion;
+        sessionStorage.removeItem(`ezn_room_first_question_${room.id}`);
+        dispatch({ type: "SET_QUESTION", question: normaliseQuestion(q) });
+        getLobbyParticipants(room.id)
+          .then(setParticipants)
+          .catch(console.error)
+          .finally(() => setIsLoading(false));
+        return;
+      } catch {
+        // fall through to API fetch
+      }
+    }
+
     Promise.all([getCurrentQuestion(room.id), getLobbyParticipants(room.id)])
       .then(([question, parts]) => {
-        dispatch({ type: "SET_QUESTION", question });
+        dispatch({ type: "SET_QUESTION", question: normaliseQuestion(question) });
         setParticipants(parts);
       })
       .catch(console.error)
@@ -116,71 +158,100 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
   // Supabase Realtime
   useEffect(() => {
     const channel = supabase.channel(`study-room:${room.id}`);
+    channelRef.current = channel;
 
     channel
       .on("broadcast", { event: "answer:confirmed" }, (payload) => {
-        console.log("[Quiz] answer:confirmed", payload);
-        const userId = (payload.payload as { user_id?: string })?.user_id;
-        if (userId) {
-          setParticipants((prev) =>
-            prev.map((p) =>
-              p.user_id === userId ? { ...p, has_confirmed: true } : p
-            )
-          );
+        try {
+          console.log("[Quiz] answer:confirmed", payload);
+          const data = payload.payload as {
+            userId?: string;
+            allConfirmed?: boolean;
+          };
+          const userId = data?.userId;
+          if (userId) {
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.user_id === userId ? { ...p, has_confirmed: true } : p
+              )
+            );
+          }
+          if (data?.allConfirmed) {
+            setAllConfirmed(true);
+          }
+        } catch (err) {
+          console.error("[Quiz] answer:confirmed handler error:", err);
         }
       })
       .on("broadcast", { event: "question:next" }, (payload) => {
-        console.log("[Quiz] question:next", payload);
-        const data = payload.payload as {
-          question?: StudyRoomQuestion;
-          correct_answer?: number;
-          explanation?: string;
-        };
+        try {
+          console.log("[Quiz] question:next", payload);
+          const data = payload.payload as {
+            question?: StudyRoomQuestion;
+            previousAnswer?: { correct_answer: string | number; explanation: string };
+          };
 
-        // First reveal the answer
-        if (
-          state.currentQuestion &&
-          data.correct_answer !== undefined &&
-          data.explanation
-        ) {
-          const pointsEarned =
-            state.confirmedAnswer === data.correct_answer ? 100 : 0;
+          const prevAnswer = data?.previousAnswer;
+          const rawCorrect = prevAnswer?.correct_answer;
+          const correctIndex =
+            typeof rawCorrect === "string" && isNaN(Number(rawCorrect))
+              ? CORRECT_ANSWER_INDEX[rawCorrect] ?? 0
+              : Number(rawCorrect ?? 0);
+
           dispatch({
             type: "REVEAL_ANSWER",
-            correctAnswer: data.correct_answer,
-            explanation: data.explanation,
-            pointsEarned,
+            correctAnswer: correctIndex,
+            explanation: prevAnswer?.explanation ?? "",
+            pointsEarned: 0, // points already tracked server-side; local reveal is display-only
           });
-        }
 
-        // Then move to next question after a delay
-        if (data.question) {
-          setTimeout(() => {
-            dispatch({ type: "NEXT_QUESTION", question: data.question! });
-            setParticipants((prev) =>
-              prev.map((p) => ({ ...p, has_confirmed: false }))
-            );
-          }, 3000);
+          if (data?.question) {
+            setTimeout(() => {
+              dispatch({
+                type: "NEXT_QUESTION",
+                question: normaliseQuestion(data.question!),
+              });
+              setParticipants((prev) =>
+                prev.map((p) => ({ ...p, has_confirmed: false }))
+              );
+              setAllConfirmed(false);
+            }, 2500);
+          }
+        } catch (err) {
+          console.error("[Quiz] question:next handler error:", err);
         }
       })
       .on("broadcast", { event: "participant:disconnected" }, (payload) => {
-        console.log("[Quiz] participant:disconnected", payload);
-        const name =
-          (payload.payload as { name?: string })?.name ?? "A participant";
-        if (isHost) {
-          setDisconnectedUser(name);
+        try {
+          console.log("[Quiz] participant:disconnected", payload);
+          const name =
+            (payload.payload as { name?: string })?.name ?? "A participant";
+          if (isHost) {
+            setDisconnectedUser(name);
+          }
+        } catch (err) {
+          console.error("[Quiz] participant:disconnected handler error:", err);
         }
       })
       .on("broadcast", { event: "room:ended" }, (payload) => {
-        console.log("[Quiz] room:ended", payload);
-        onRoomEnded();
+        try {
+          console.log("[Quiz] room:ended", payload);
+          onRoomEnded();
+        } catch (err) {
+          console.error("[Quiz] room:ended handler error:", err);
+        }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          setChannelError("Lost connection to room. Please refresh the page.");
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
-  }, [room.id, isHost, onRoomEnded, state.currentQuestion, state.confirmedAnswer]);
+  }, [room.id, isHost, onRoomEnded]);
 
   const handleSelectAnswer = (index: number) => {
     dispatch({ type: "SELECT_ANSWER", index });
@@ -205,38 +276,24 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
   const handleNextQuestion = async () => {
     if (!state.currentQuestion) return;
 
-    // Reveal answer first
-    dispatch({
-      type: "REVEAL_ANSWER",
-      correctAnswer: state.currentQuestion.correct_answer,
-      explanation: state.currentQuestion.explanation,
-      pointsEarned:
-        state.confirmedAnswer === state.currentQuestion.correct_answer ? 100 : 0,
-    });
-
     try {
-      const next = await nextQuestionService(room.id);
-      if (next) {
-        setTimeout(() => {
-          dispatch({ type: "NEXT_QUESTION", question: next });
-          setParticipants((prev) =>
-            prev.map((p) => ({ ...p, has_confirmed: false }))
-          );
-          setAllConfirmed(false);
-        }, 3000);
-      } else {
-        // No more questions — end room
-        setTimeout(() => onRoomEnded(), 3000);
-      }
+      await nextQuestionService(room.id, state.currentQuestion.id);
+      // The question:next (or room:ended) broadcast drives the UI transition
     } catch (err) {
-      console.error("[Quiz] Failed to get next question:", err);
+      console.error("[Quiz] Failed to advance question:", err);
     }
   };
 
   if (isLoading || !state.currentQuestion) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
         <div className="w-6 h-6 border-2 border-blue-accent border-t-transparent rounded-full animate-spin" />
+        {channelError && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {channelError}
+          </div>
+        )}
       </div>
     );
   }
@@ -257,6 +314,14 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
           <span className="text-sm">{participants.length}</span>
         </div>
       </div>
+
+      {/* Channel error banner */}
+      {channelError && (
+        <div className="flex items-center gap-2 px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-300 text-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {channelError}
+        </div>
+      )}
 
       {/* Main Quiz Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 overflow-y-auto">

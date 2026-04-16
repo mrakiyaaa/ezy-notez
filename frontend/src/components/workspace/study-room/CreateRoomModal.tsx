@@ -11,7 +11,7 @@ interface CreateRoomModalProps {
   isOpen: boolean;
   workspaceId: string;
   onClose: () => void;
-  onCreated: (roomId: string) => void;
+  onCreated: (room: StudyRoom) => void;
 }
 
 type Step = "setup" | "confirmation";
@@ -419,7 +419,7 @@ export default function CreateRoomModal({
 
               {/* Go to Lobby */}
               <button
-                onClick={() => createdRoom && onCreated(createdRoom.id)}
+                onClick={() => createdRoom && onCreated(createdRoom)}
                 className="w-full py-3 rounded-lg bg-blue-accent text-white font-medium text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:bg-blue-accent/80"
               >
                 Go to Lobby

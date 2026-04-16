@@ -1,3 +1,5 @@
+import axios from "axios";
+import { apiClient } from "@/api/axios-config";
 import type {
   CreateStudyRoomPayload,
   StudyRoom,
@@ -9,6 +11,13 @@ import type {
   StudyRoomResults,
 } from "@/types/studyRoom";
 
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message ?? error.message ?? fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
 /**
  * Create a new study room.
  * Returns the created room with OTP code if applicable.
@@ -16,23 +25,20 @@ import type {
 export async function createStudyRoom(
   payload: CreateStudyRoomPayload
 ): Promise<StudyRoom> {
-  console.log("[StudyRoom] createStudyRoom called with:", payload);
-
-  // Mock response
-  return {
-    id: `room-${Date.now()}`,
-    workspace_id: payload.workspace_id,
-    title: payload.title,
-    description: payload.description,
-    question_count: payload.question_count,
-    invite_method: payload.invite_method,
-    otp_code: payload.invite_method === "otp" ? "482916" : undefined,
-    status: "waiting",
-    host_id: "current-user",
-    host_name: "You",
-    resource_ids: payload.resource_ids,
-    created_at: new Date().toISOString(),
-  };
+  try {
+    const response = await apiClient.post("/study-rooms", {
+      workspace_id: payload.workspace_id,
+      title: payload.title,
+      description: payload.description,
+      question_count: payload.question_count,
+      resource_ids: payload.resource_ids,
+      invite_method: payload.invite_method,
+      emails: payload.invited_emails,
+    });
+    return response.data.data as StudyRoom;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to create study room"));
+  }
 }
 
 /**
@@ -42,31 +48,25 @@ export async function joinRoomWithOtp(
   roomId: string,
   otp: string
 ): Promise<{ success: boolean; room: StudyRoom }> {
-  console.log("[StudyRoom] joinRoomWithOtp called:", { roomId, otp });
-
-  return {
-    success: true,
-    room: {
-      id: roomId,
-      workspace_id: "ws-1",
-      title: "Mock Study Room",
-      question_count: 20,
-      invite_method: "otp",
+  try {
+    const response = await apiClient.post(`/study-rooms/${roomId}/join-otp`, {
       otp_code: otp,
-      status: "waiting",
-      host_id: "host-user",
-      host_name: "Host",
-      resource_ids: [],
-      created_at: new Date().toISOString(),
-    },
-  };
+    });
+    return response.data.data as { success: boolean; room: StudyRoom };
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to join room"));
+  }
 }
 
 /**
  * Start the room quiz (host only).
  */
 export async function startRoom(roomId: string): Promise<void> {
-  console.log("[StudyRoom] startRoom called:", roomId);
+  try {
+    await apiClient.post(`/study-rooms/${roomId}/start`);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to start room"));
+  }
 }
 
 /**
@@ -77,82 +77,48 @@ export async function submitAnswer(
   questionId: string,
   answer: number
 ): Promise<{ correct: boolean; points: number }> {
-  console.log("[StudyRoom] submitAnswer called:", { roomId, questionId, answer });
-
-  return {
-    correct: answer === 2,
-    points: answer === 2 ? 100 : 0,
-  };
+  try {
+    const answerLetter = ["A", "B", "C", "D"][answer] ?? "A";
+    const response = await apiClient.post(`/study-rooms/${roomId}/answer`, {
+      question_id: questionId,
+      selected_answer: answerLetter,
+    });
+    return response.data.data as { correct: boolean; points: number };
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to submit answer"));
+  }
 }
 
 /**
  * Move to next question (host only).
+ * current_question_id is required by the backend to fetch the answer/explanation.
  */
 export async function nextQuestion(
-  roomId: string
+  roomId: string,
+  currentQuestionId?: string
 ): Promise<StudyRoomQuestion | null> {
-  console.log("[StudyRoom] nextQuestion called:", roomId);
-
-  return {
-    id: `q-${Date.now()}`,
-    room_id: roomId,
-    question_number: 2,
-    question_text: "What is the primary purpose of an operating system?",
-    options: [
-      "To provide entertainment",
-      "To manage hardware and software resources",
-      "To connect to the internet",
-      "To create documents",
-    ],
-    correct_answer: 1,
-    explanation:
-      "An operating system manages hardware and software resources, providing common services for computer programs.",
-  };
+  try {
+    const response = await apiClient.post(`/study-rooms/${roomId}/next`, {
+      current_question_id: currentQuestionId ?? "",
+    });
+    const data = response.data.data as { completed?: boolean; question?: StudyRoomQuestion };
+    if (data.completed) return null;
+    return data.question ?? null;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to advance question"));
+  }
 }
 
 /**
  * Get results for a completed room.
  */
 export async function getResults(roomId: string): Promise<StudyRoomResults> {
-  console.log("[StudyRoom] getResults called:", roomId);
-
-  return {
-    room_id: roomId,
-    room_title: "Data Structures & Algorithms",
-    leaderboard: [
-      { position: 1, user_id: "u1", name: "Alice", points: 1800 },
-      { position: 2, user_id: "u2", name: "Bob", points: 1500 },
-      { position: 3, user_id: "u3", name: "Charlie", points: 1200 },
-      { position: 4, user_id: "current-user", name: "You", points: 1100 },
-    ],
-    badges: [
-      { type: "first_place", label: "First Place", icon: "\uD83E\uDD47", user_id: "u1" },
-      { type: "perfect_score", label: "Perfect Score", icon: "\uD83D\uDD25", user_id: "u1" },
-      { type: "first_to_answer", label: "First to Answer", icon: "\u26A1", user_id: "u2" },
-      { type: "most_improved", label: "Most Improved", icon: "\uD83D\uDCDA", user_id: "u3" },
-      { type: "participation", label: "Participation", icon: "\uD83D\uDC80", user_id: "current-user" },
-    ],
-    wrong_answers: [
-      {
-        question_number: 3,
-        question_text: "Which data structure uses LIFO ordering?",
-        options: ["Queue", "Array", "Stack", "Linked List"],
-        selected_answer: 0,
-        correct_answer: 2,
-        explanation:
-          "A Stack uses Last-In-First-Out (LIFO) ordering, where the last element added is the first one removed.",
-      },
-      {
-        question_number: 7,
-        question_text: "What is the time complexity of binary search?",
-        options: ["O(n)", "O(log n)", "O(n log n)", "O(1)"],
-        selected_answer: 0,
-        correct_answer: 1,
-        explanation:
-          "Binary search has O(log n) time complexity as it halves the search space with each comparison.",
-      },
-    ],
-  };
+  try {
+    const response = await apiClient.get(`/study-rooms/${roomId}/results`);
+    return response.data.data as StudyRoomResults;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to fetch results"));
+  }
 }
 
 /**
@@ -161,11 +127,12 @@ export async function getResults(roomId: string): Promise<StudyRoomResults> {
 export async function getInsights(
   roomId: string
 ): Promise<{ insights: string }> {
-  console.log("[StudyRoom] getInsights called:", roomId);
-
-  return {
-    insights: "Generating insights...",
-  };
+  try {
+    const response = await apiClient.post(`/study-rooms/${roomId}/insights`);
+    return response.data.data as { insights: string };
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to generate insights"));
+  }
 }
 
 /**
@@ -174,8 +141,12 @@ export async function getInsights(
 export async function getActiveInvitations(
   workspaceId: string
 ): Promise<ActiveInvitation[]> {
-  console.log("[StudyRoom] getActiveInvitations called:", workspaceId);
-  return [];
+  try {
+    const response = await apiClient.get(`/study-rooms/invitations?workspace_id=${workspaceId}`);
+    return (response.data.data ?? []) as ActiveInvitation[];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -184,8 +155,12 @@ export async function getActiveInvitations(
 export async function getRecentRooms(
   workspaceId: string
 ): Promise<RecentRoom[]> {
-  console.log("[StudyRoom] getRecentRooms called:", workspaceId);
-  return [];
+  try {
+    const response = await apiClient.get(`/study-rooms/recent?workspace_id=${workspaceId}`);
+    return (response.data.data ?? []) as RecentRoom[];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -194,8 +169,12 @@ export async function getRecentRooms(
 export async function getHostedRooms(
   workspaceId: string
 ): Promise<HostedRoom[]> {
-  console.log("[StudyRoom] getHostedRooms called:", workspaceId);
-  return [];
+  try {
+    const response = await apiClient.get(`/study-rooms/hosted?workspace_id=${workspaceId}`);
+    return (response.data.data ?? []) as HostedRoom[];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -204,38 +183,53 @@ export async function getHostedRooms(
 export async function getLobbyParticipants(
   roomId: string
 ): Promise<Participant[]> {
-  console.log("[StudyRoom] getLobbyParticipants called:", roomId);
-
-  return [
-    {
-      id: "p1",
-      user_id: "current-user",
-      name: "You",
-      is_host: true,
-      status: "connected",
-      points: 0,
-      has_confirmed: false,
-    },
-  ];
+  try {
+    const response = await apiClient.get(`/study-rooms/${roomId}`);
+    const data = response.data.data as { participants?: Participant[] };
+    return data.participants ?? [];
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Fetch the current question for a live quiz.
+ * Fetch the current active question for a live quiz.
  */
 export async function getCurrentQuestion(
   roomId: string
 ): Promise<StudyRoomQuestion> {
-  console.log("[StudyRoom] getCurrentQuestion called:", roomId);
+  try {
+    const response = await apiClient.get(`/study-rooms/${roomId}/current-question`);
+    return response.data.data as StudyRoomQuestion;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to fetch current question"));
+  }
+}
 
-  return {
-    id: "q-1",
-    room_id: roomId,
-    question_number: 1,
-    question_text:
-      "Which sorting algorithm has the best average-case time complexity?",
-    options: ["Bubble Sort", "Selection Sort", "Merge Sort", "Insertion Sort"],
-    correct_answer: 2,
-    explanation:
-      "Merge Sort has O(n log n) average-case time complexity, which is optimal among comparison-based sorting algorithms.",
-  };
+/**
+ * Validate and retrieve an invite by token.
+ */
+export async function getInviteByToken(
+  token: string
+): Promise<{ room: StudyRoom; email: string }> {
+  try {
+    const response = await apiClient.get(`/study-rooms/invite/${token}`);
+    return response.data.data as { room: StudyRoom; email: string };
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Invalid or expired invite link"));
+  }
+}
+
+/**
+ * Accept an invite by token (joins the participant to the room).
+ */
+export async function acceptInvite(
+  token: string
+): Promise<{ room_id: string }> {
+  try {
+    const response = await apiClient.post(`/study-rooms/invite/${token}/accept`);
+    return response.data.data as { room_id: string };
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to accept invite"));
+  }
 }

@@ -8,7 +8,9 @@
       "Bash(find:*)",
       "mcp__supabase__list_tables",
       "mcp__supabase__list_extensions",
-      "mcp__supabase__execute_sql"
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "Bash(grep -l \"Loading\\\\|Skeleton\\\\|loading\\\\|skeleton\" \"/c/Users/Dinuli Nethmini/Desktop/3rd year/Computing Individual Project/Ezynotes/project/ezy-notez/frontend/src/components/workspace\"/*.tsx)"
     ]
   },
   "enableAllProjectMcpServers": true,

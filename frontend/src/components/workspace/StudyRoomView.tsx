@@ -6,6 +6,7 @@ import StudyRoomLanding from "./StudyRoomLanding";
 import StudyRoomLobby from "./StudyRoomLobby";
 import StudyRoomQuiz from "./StudyRoomQuiz";
 import StudyRoomResults from "./StudyRoomResults";
+import { apiClient } from "@/api/axios-config";
 
 interface StudyRoomViewProps {
   workspaceId: string;
@@ -17,27 +18,26 @@ export default function StudyRoomView({ workspaceId }: StudyRoomViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("landing");
   const [activeRoom, setActiveRoom] = useState<StudyRoom | null>(null);
 
-  const handleGoToLobby = useCallback((roomId: string) => {
-    // In production, fetch room details; for now create a mock
-    setActiveRoom({
-      id: roomId,
-      workspace_id: workspaceId,
-      title: "Study Session",
-      question_count: 20,
-      invite_method: "otp",
-      otp_code: "482916",
-      status: "waiting",
-      host_id: "current-user",
-      host_name: "You",
-      resource_ids: [],
-      created_at: new Date().toISOString(),
-    });
+  /** Navigate to the lobby with a real room object (from create or join). */
+  const handleGoToLobby = useCallback((room: StudyRoom) => {
+    setActiveRoom(room);
     setViewMode("lobby");
-  }, [workspaceId]);
+  }, []);
 
-  const handleJoinRoom = useCallback((roomId: string) => {
-    handleGoToLobby(roomId);
-  }, [handleGoToLobby]);
+  /**
+   * Called when user clicks "Join" on an invitation card.
+   * Fetches the room details from the backend and goes to the lobby.
+   */
+  const handleJoinRoom = useCallback(async (roomId: string) => {
+    try {
+      const response = await apiClient.get(`/study-rooms/${roomId}`);
+      const data = response.data.data as { room: StudyRoom };
+      setActiveRoom(data.room);
+      setViewMode("lobby");
+    } catch (err) {
+      console.error("[StudyRoomView] Failed to fetch room:", err);
+    }
+  }, []);
 
   const handleQuizStarted = useCallback(() => {
     setViewMode("quiz");

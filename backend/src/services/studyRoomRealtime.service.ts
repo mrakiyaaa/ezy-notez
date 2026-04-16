@@ -1,0 +1,155 @@
+import { supabaseAdmin } from "../config/supabase";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface QuestionBroadcast {
+  id: string;
+  question: string;
+  options: unknown;
+  order_index: number;
+}
+
+// ---------------------------------------------------------------------------
+// Internal fire-and-forget send helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Subscribe to the channel, send the event, then remove the channel.
+ * Never throws — errors are logged as warnings.
+ */
+const send = (
+  roomId: string,
+  event: string,
+  payload: Record<string, unknown>,
+): void => {
+  const ch = supabaseAdmin.channel(`study-room:${roomId}`);
+  ch.subscribe((status) => {
+    if (status === "SUBSCRIBED") {
+      ch
+        .send({ type: "broadcast", event, payload })
+        .catch((err: unknown) => {
+          console.warn(
+            `[studyRoomRealtime] send failed — room=${roomId} event=${event}:`,
+            err,
+          );
+        })
+        .finally(() => {
+          supabaseAdmin.removeChannel(ch).catch(() => undefined);
+        });
+    }
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Broadcast functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Broadcast when a user joins the lobby.
+ * Looks up the user's display name from profiles.
+ * Async because of the profile lookup; safe to call without await (fire-and-forget).
+ */
+export const broadcastParticipantJoined = async (
+  roomId: string,
+  userId: string,
+  isHost: boolean,
+): Promise<void> => {
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .single();
+
+  send(roomId, "participant:joined", {
+    userId,
+    displayName: profile?.full_name ?? "Unknown",
+    isHost,
+    joinedAt: new Date().toISOString(),
+  });
+};
+
+/**
+ * Broadcast when a participant disconnects.
+ */
+export const broadcastParticipantDisconnected = (
+  roomId: string,
+  userId: string,
+): void => {
+  send(roomId, "participant:disconnected", { userId });
+};
+
+/**
+ * Broadcast when the host starts the quiz.
+ * Fetches total question count from the DB.
+ * Async; safe to call without await.
+ */
+export const broadcastQuizStarted = async (
+  roomId: string,
+  firstQuestion: QuestionBroadcast,
+): Promise<void> => {
+  const { count } = await supabaseAdmin
+    .from("study_room_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("room_id", roomId);
+
+  send(roomId, "quiz:started", {
+    question: {
+      id: firstQuestion.id,
+      question: firstQuestion.question,
+      options: firstQuestion.options,
+      order_index: firstQuestion.order_index,
+    },
+    totalQuestions: count ?? 0,
+  });
+};
+
+/**
+ * Broadcast when a participant submits an answer.
+ */
+export const broadcastAnswerConfirmed = (
+  roomId: string,
+  questionId: string,
+  userId: string,
+  allConfirmed: boolean,
+): void => {
+  send(roomId, "answer:confirmed", { questionId, userId, allConfirmed });
+};
+
+/**
+ * Broadcast when the host advances to the next question.
+ * Fetches the outgoing (previous) question's correct_answer and explanation.
+ * Async; safe to call without await.
+ */
+export const broadcastNextQuestion = async (
+  roomId: string,
+  nextQuestion: QuestionBroadcast,
+  previousQuestionId: string,
+): Promise<void> => {
+  const { data: prevQ } = await supabaseAdmin
+    .from("study_room_questions")
+    .select("correct_answer, explanation")
+    .eq("id", previousQuestionId)
+    .single();
+
+  send(roomId, "question:next", {
+    question: {
+      id: nextQuestion.id,
+      question: nextQuestion.question,
+      options: nextQuestion.options,
+      order_index: nextQuestion.order_index,
+    },
+    previousAnswer: {
+      correct_answer: prevQ?.correct_answer ?? "",
+      explanation: prevQ?.explanation ?? "",
+    },
+  });
+};
+
+/**
+ * Broadcast when all questions have been answered and the room ends.
+ */
+export const broadcastRoomEnded = (roomId: string): void => {
+  send(roomId, "room:ended", { roomId });
+};

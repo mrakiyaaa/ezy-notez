@@ -1,6 +1,71 @@
 export type InviteMethod = "otp" | "email";
 export type RoomStatus = "waiting" | "in_progress" | "completed";
+export type InviteStatus = "pending" | "accepted";
 export type ParticipantStatus = "connected" | "disconnected";
+
+// ── Database row types (mirror the Supabase schema exactly) ──────────────────
+
+export interface StudyRoomRow {
+  id: string;
+  workspace_id: string;
+  host_id: string;
+  title: string;
+  description: string | null;
+  status: RoomStatus;
+  invite_method: InviteMethod;
+  otp_code: string | null;
+  otp_expires_at: string | null;
+  question_count: number;
+  created_at: string;
+}
+
+export interface StudyRoomParticipantRow {
+  id: string;
+  room_id: string;
+  user_id: string;
+  is_host: boolean;
+  joined_at: string;
+}
+
+export interface StudyRoomInviteRow {
+  id: string;
+  room_id: string;
+  email: string;
+  token: string;
+  status: InviteStatus;
+  created_at: string;
+}
+
+export interface StudyRoomQuestionRow {
+  id: string;
+  room_id: string;
+  question: string;
+  options: unknown;
+  correct_answer: string;
+  explanation: string;
+  order_index: number;
+  created_at: string;
+}
+
+export interface StudyRoomAnswerRow {
+  id: string;
+  room_id: string;
+  question_id: string;
+  user_id: string;
+  selected_answer: string;
+  is_correct: boolean;
+  points_earned: number;
+  answered_at: string;
+}
+
+export interface UsedQuestionRow {
+  id: string;
+  workspace_id: string;
+  question_hash: string;
+  created_at: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 export interface StudyRoom {
   id: string;

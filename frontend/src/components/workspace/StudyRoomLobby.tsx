@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Copy, Check, Crown, AlertTriangle, Play, Users } from "lucide-react";
 import type { Participant, StudyRoom } from "@/types/studyRoom";
 import { getLobbyParticipants, startRoom } from "@/services/studyRoom.service";
 import { supabase } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import ParticipantAvatar from "./study-room/ParticipantAvatar";
 import {
   Tooltip,
@@ -29,9 +30,19 @@ export default function StudyRoomLobby({
   const [otpCopied, setOtpCopied] = useState(false);
   const [disconnectBanner, setDisconnectBanner] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [channelError, setChannelError] = useState<string | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const isHost = room.host_id === "current-user";
+  const isHost = !!currentUserId && room.host_id === currentUserId;
   const hasEnoughParticipants = participants.length >= 2;
+
+  // Resolve current user ID once on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+  }, []);
 
   // Fetch initial participants
   useEffect(() => {
@@ -41,33 +52,84 @@ export default function StudyRoomLobby({
       .finally(() => setIsLoading(false));
   }, [room.id]);
 
-  // Supabase Realtime subscription
+  // Supabase Realtime subscription — stored in a ref to avoid re-render loops
   useEffect(() => {
     const channel = supabase.channel(`study-room:${room.id}`);
+    channelRef.current = channel;
 
     channel
       .on("broadcast", { event: "participant:joined" }, (payload) => {
-        console.log("[Lobby] participant:joined", payload);
-        const newParticipant = payload.payload as Participant;
-        setParticipants((prev) => {
-          if (prev.some((p) => p.id === newParticipant.id)) return prev;
-          return [...prev, newParticipant];
-        });
+        try {
+          const data = payload.payload as {
+            userId?: string;
+            displayName?: string;
+            isHost?: boolean;
+            joinedAt?: string;
+          };
+          if (!data?.userId) return;
+
+          const newParticipant: Participant = {
+            id: data.userId,
+            user_id: data.userId,
+            name: data.displayName ?? "Unknown",
+            is_host: data.isHost ?? false,
+            status: "connected",
+            points: 0,
+            has_confirmed: false,
+          };
+
+          setParticipants((prev) => {
+            if (prev.some((p) => p.user_id === data.userId)) return prev;
+            return [...prev, newParticipant];
+          });
+        } catch (err) {
+          console.error("[Lobby] participant:joined handler error:", err);
+        }
       })
       .on("broadcast", { event: "participant:disconnected" }, (payload) => {
-        console.log("[Lobby] participant:disconnected", payload);
-        const name = (payload.payload as { name?: string })?.name ?? "A participant";
-        setDisconnectBanner(`${name} has disconnected`);
-        setTimeout(() => setDisconnectBanner(null), 5000);
+        try {
+          const data = payload.payload as { userId?: string };
+          if (data?.userId) {
+            setParticipants((prev) =>
+              prev.filter((p) => p.user_id !== data.userId),
+            );
+          }
+          setDisconnectBanner("A participant has disconnected");
+          setTimeout(() => setDisconnectBanner(null), 5000);
+        } catch (err) {
+          console.error("[Lobby] participant:disconnected handler error:", err);
+        }
       })
       .on("broadcast", { event: "quiz:started" }, (payload) => {
-        console.log("[Lobby] quiz:started", payload);
-        onQuizStarted();
+        try {
+          const data = payload.payload as { question?: unknown };
+          if (data?.question) {
+            try {
+              sessionStorage.setItem(
+                `ezn_room_first_question_${room.id}`,
+                JSON.stringify(data.question),
+              );
+            } catch {
+              // sessionStorage may be unavailable in some contexts — not fatal
+            }
+          }
+          onQuizStarted();
+        } catch (err) {
+          console.error("[Lobby] quiz:started handler error:", err);
+          onQuizStarted(); // still navigate even if storage failed
+        }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          setChannelError(
+            "Failed to connect to room. Please refresh the page.",
+          );
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [room.id, onQuizStarted]);
 
@@ -139,6 +201,14 @@ export default function StudyRoomLobby({
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Channel error banner */}
+      {channelError && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm mb-4 sr-fade-in">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {channelError}
         </div>
       )}
 

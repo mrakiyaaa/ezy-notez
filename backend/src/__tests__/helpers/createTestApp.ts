@@ -16,6 +16,7 @@ import quizRoutes from "../../routes/quiz.routes";
 import resourceRoutes from "../../routes/resource.routes";
 import summaryRoutes from "../../routes/summary.routes";
 import workspaceRoutes from "../../routes/workspace.routes";
+import studyRoomRoutes from "../../routes/studyRoom.routes";
 
 export function createTestApp() {
   const app = express();
@@ -34,6 +35,7 @@ export function createTestApp() {
   app.use("/api/summaries", summaryRoutes);
   app.use("/api/flashcards", flashcardRoutes);
   app.use("/api/quiz", quizRoutes);
+  app.use("/api/study-rooms", studyRoomRoutes);
 
   return app;
 }
