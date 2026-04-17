@@ -9,6 +9,8 @@ import type {
   Participant,
   StudyRoomQuestion,
   StudyRoomResults,
+  StudyRoomStats,
+  PendingInvite,
 } from "@/types/studyRoom";
 
 function extractErrorMessage(error: unknown, fallback: string): string {
@@ -33,7 +35,7 @@ export async function createStudyRoom(
       question_count: payload.question_count,
       resource_ids: payload.resource_ids,
       invite_method: payload.invite_method,
-      emails: payload.invited_emails,
+      emails: payload.emails,
     });
     return response.data.data as StudyRoom;
   } catch (error) {
@@ -214,7 +216,8 @@ export async function getInviteByToken(
 ): Promise<{ room: StudyRoom; email: string }> {
   try {
     const response = await apiClient.get(`/study-rooms/invite/${token}`);
-    return response.data.data as { room: StudyRoom; email: string };
+    const data = response.data.data as { invite: { email: string }; room: StudyRoom };
+    return { room: data.room, email: data.invite.email };
   } catch (error) {
     throw new Error(extractErrorMessage(error, "Invalid or expired invite link"));
   }
@@ -231,5 +234,70 @@ export async function acceptInvite(
     return response.data.data as { room_id: string };
   } catch (error) {
     throw new Error(extractErrorMessage(error, "Failed to accept invite"));
+  }
+}
+
+/**
+ * Send email invitations to additional friends from the lobby.
+ */
+export async function sendLobbyInvites(
+  roomId: string,
+  emails: string[]
+): Promise<{ sent: number; skipped: number }> {
+  try {
+    const response = await apiClient.post(`/study-rooms/${roomId}/invite`, { emails });
+    return response.data.data as { sent: number; skipped: number };
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to send invitations"));
+  }
+}
+
+/**
+ * Fetch study room stats for the landing page stats bar.
+ */
+export async function getStudyRoomStats(
+  workspaceId: string
+): Promise<StudyRoomStats> {
+  try {
+    const response = await apiClient.get(`/study-rooms/stats?workspace_id=${workspaceId}`);
+    return response.data.data as StudyRoomStats;
+  } catch {
+    return { hostedCount: 0, playedCount: 0, totalPoints: 0 };
+  }
+}
+
+/**
+ * Fetch all pending study room email invitations for the current user.
+ * Used by the workspace hub page to surface invitation cards.
+ */
+export async function getPendingInvites(): Promise<PendingInvite[]> {
+  try {
+    const response = await apiClient.get("/study-rooms/invites/pending");
+    return (response.data.data ?? []) as PendingInvite[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Dismiss a pending invite — sets status to 'dismissed' on the backend.
+ */
+export async function dismissInvite(inviteId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/study-rooms/invites/${inviteId}`);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to dismiss invite"));
+  }
+}
+
+/**
+ * Delete a hosted study room. Host only — cascades remove participants,
+ * invites, questions, and answers.
+ */
+export async function deleteStudyRoom(roomId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/study-rooms/${roomId}`);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to delete room"));
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,44 +8,78 @@ import CreateWorkspaceModal from "@/components/workspace/CreateWorkspaceModal";
 import CollapsibleSidebar from "@/components/dashboard/CollapsibleSidebar";
 import WorkspaceGrid from "@/components/dashboard/WorkspaceGrid";
 import { getWorkspacesApi } from "@/api/workspace.api";
-import { workspaceService } from "@/services/workspace.service";
+import {
+  getPendingInvites,
+  acceptInvite,
+  dismissInvite,
+} from "@/services/studyRoom.service";
+import { getHubAnalytics } from "@/services/analytics.service";
 import type { Activity } from "@/types/activity";
-import type { Invite } from "@/types/invite";
+import type { PendingInvite } from "@/types/studyRoom";
 import type { Workspace } from "@/types/workspace";
 
 export default function WorkspacesPage() {
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
+  const [invitesLoading, setInvitesLoading] = useState(true);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [dailyBriefing, setDailyBriefing] = useState<string[]>([]);
+  const [briefingLoading, setBriefingLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [workspaceList, inviteList, activityList, briefing] =
-          await Promise.all([
-            getWorkspacesApi(),
-            workspaceService.getInvites(),
-            workspaceService.getActivities(),
-            workspaceService.getDailyBriefing(),
-          ]);
+    let mounted = true;
 
-        setWorkspaces(workspaceList);
-        setInvites(inviteList);
-        setActivities(activityList);
-        setDailyBriefing(briefing);
+    const loadWorkspaces = async () => {
+      try {
+        const workspaceList = await getWorkspacesApi();
+        if (mounted) setWorkspaces(workspaceList);
       } catch (error) {
         console.error("Failed to load workspaces:", error);
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
 
-    void loadData();
+    const loadInvites = async () => {
+      try {
+        const inviteList = await getPendingInvites();
+        if (mounted) setInvites(inviteList);
+      } catch (error) {
+        console.error("Failed to load pending invites:", error);
+      } finally {
+        if (mounted) setInvitesLoading(false);
+      }
+    };
+
+    const loadAnalytics = async () => {
+      try {
+        const { activities: activityList, briefing } = await getHubAnalytics();
+        if (mounted) {
+          setActivities(activityList);
+          setDailyBriefing(briefing);
+        }
+      } catch (error) {
+        console.error("Failed to load hub analytics:", error);
+      } finally {
+        if (mounted) {
+          setActivitiesLoading(false);
+          setBriefingLoading(false);
+        }
+      }
+    };
+
+    void loadWorkspaces();
+    void loadInvites();
+    void loadAnalytics();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const filteredWorkspaces = useMemo(() => {
@@ -67,7 +101,7 @@ export default function WorkspacesPage() {
     getWorkspacesApi()
       .then(setWorkspaces)
       .catch((error) => console.error("Failed to reload workspaces:", error));
-    
+
     // Navigate to the new workspace
     router.push(`/workspaces/${slug}`);
   };
@@ -79,6 +113,41 @@ export default function WorkspacesPage() {
   const handleWorkspaceDeleted = (id: string) => {
     setWorkspaces((prev) => prev.filter((w) => w.id !== id));
   };
+
+  // Accept invite → navigate into the workspace's study-room lobby.
+  // We rely on the workspaces list being loaded to resolve workspaceId → slug.
+  const handleJoinInvite = useCallback(
+    async (invite: PendingInvite) => {
+      try {
+        await acceptInvite(invite.token);
+        setInvites((prev) => prev.filter((p) => p.inviteId !== invite.inviteId));
+
+        const workspace = workspaces.find((w) => w.id === invite.workspaceId);
+        if (workspace) {
+          router.push(
+            `/workspaces/${workspace.slug}?tab=studyroom&room=${invite.roomId}`,
+          );
+        } else {
+          // Unlikely: invite references a workspace the user isn't in.
+          console.warn(
+            `[WorkspacesPage] No workspace found for id ${invite.workspaceId}`,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to accept invite:", error);
+      }
+    },
+    [router, workspaces],
+  );
+
+  const handleDismissInvite = useCallback(async (inviteId: string) => {
+    setInvites((prev) => prev.filter((p) => p.inviteId !== inviteId));
+    try {
+      await dismissInvite(inviteId);
+    } catch (error) {
+      console.error("Failed to dismiss invite:", error);
+    }
+  }, []);
 
   return (
     <div className="h-screen overflow-hidden bg-main px-4 md:px-6 text-text-primary">
@@ -157,8 +226,13 @@ export default function WorkspacesPage() {
 
         <CollapsibleSidebar
           invites={invites}
+          invitesLoading={invitesLoading}
           activities={activities}
+          activitiesLoading={activitiesLoading}
           dailyBriefing={dailyBriefing}
+          briefingLoading={briefingLoading}
+          onJoinInvite={handleJoinInvite}
+          onDismissInvite={handleDismissInvite}
         />
       </div>
 

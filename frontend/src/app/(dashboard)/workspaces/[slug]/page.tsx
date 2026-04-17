@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
@@ -56,10 +56,15 @@ const navSubtitles: Record<NavItem, string> = {
 export default function WorkspacePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
 
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [activeNav, setActiveNav] = useState<NavItem>("home");
+  const [activeNav, setActiveNav] = useState<NavItem>(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "studyroom") return "studyroom";
+    return "home";
+  });
   const [activeTab, setActiveTab] = useState<TabItem>("all");
   const [cachedAura, setCachedAura] = useState<string | null>(null);
 

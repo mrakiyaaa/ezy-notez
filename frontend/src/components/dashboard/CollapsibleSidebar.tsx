@@ -2,26 +2,36 @@
 
 import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import StudyInvites from "./StudyInvites";
+import StudyRoomInvitesPanel from "@/components/workspace/study-room/StudyRoomInvitesPanel";
 import UpcomingActivities from "./UpcomingActivities";
 import DailyBriefing from "./DailyBriefing";
-import type { Invite } from "@/types/invite";
+import type { PendingInvite } from "@/types/studyRoom";
 import type { Activity } from "@/types/activity";
 
 const STORAGE_KEY = "workspace-hub-sidebar-collapsed";
-const EXPANDED_WIDTH = 320;
+const EXPANDED_WIDTH = 380;
 const COLLAPSED_WIDTH = 36;
 
 interface CollapsibleSidebarProps {
-  invites: Invite[];
+  invites: PendingInvite[];
+  invitesLoading?: boolean;
   activities: Activity[];
+  activitiesLoading?: boolean;
   dailyBriefing: string[];
+  briefingLoading?: boolean;
+  onJoinInvite: (invite: PendingInvite) => Promise<void>;
+  onDismissInvite: (inviteId: string) => Promise<void>;
 }
 
 export default function CollapsibleSidebar({
   invites,
+  invitesLoading = false,
   activities,
+  activitiesLoading = false,
   dailyBriefing,
+  briefingLoading = false,
+  onJoinInvite,
+  onDismissInvite,
 }: CollapsibleSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -90,12 +100,7 @@ export default function CollapsibleSidebar({
         </div>
       )}
 
-      {/* ── Full panel content ────────────────────────────────────────────
-           Always in the DOM so it animates cleanly.
-           min-width prevents content reflow while width is transitioning.
-           Opacity fades out quickly on collapse, fades in after the width
-           is mostly expanded (150 ms delay) to avoid clipped-text flash.
-      ──────────────────────────────────────────────────────────────────── */}
+      {/* ── Full panel content ────────────────────────────────────────── */}
       <div
         className="space-y-6"
         style={{
@@ -107,9 +112,14 @@ export default function CollapsibleSidebar({
             : "opacity 200ms ease-in 150ms",
         }}
       >
-        <StudyInvites invites={invites} />
-        <UpcomingActivities activities={activities} />
-        <DailyBriefing highlights={dailyBriefing} />
+        <StudyRoomInvitesPanel
+          invites={invites}
+          isLoading={invitesLoading}
+          onJoin={onJoinInvite}
+          onDismiss={onDismissInvite}
+        />
+        <UpcomingActivities activities={activities} isLoading={activitiesLoading} />
+        <DailyBriefing highlights={dailyBriefing} isLoading={briefingLoading} />
       </div>
     </aside>
   );

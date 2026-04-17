@@ -27,6 +27,7 @@ export const callOpenRouter = async (
   systemPrompt: string,
   userPrompt: string,
   model: string,
+  maxTokens = 8192,
 ): Promise<string> => {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
@@ -46,7 +47,7 @@ export const callOpenRouter = async (
       choices: { message: { content: string } }[];
     }>(
       OPENROUTER_URL,
-      { model, messages },
+      { model, messages, max_tokens: maxTokens },
       {
         timeout: TIMEOUT_MS,
         headers: {

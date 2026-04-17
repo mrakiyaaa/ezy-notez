@@ -109,6 +109,26 @@ export default function CreateRoomModal({
       return;
     }
 
+    // Auto-add any email still in the input field before submitting
+    let emailsToSend = invitedEmails;
+    if (inviteMethod === "email" && emailInput.trim()) {
+      const trimmed = emailInput.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        setError("Please enter a valid email address");
+        return;
+      }
+      if (!invitedEmails.includes(trimmed)) {
+        emailsToSend = [...invitedEmails, trimmed];
+        setInvitedEmails(emailsToSend);
+        setEmailInput("");
+      }
+    }
+
+    if (inviteMethod === "email" && emailsToSend.length === 0) {
+      setError("Add at least one email address");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -120,7 +140,7 @@ export default function CreateRoomModal({
         question_count: questionCount,
         resource_ids: selectedResources,
         invite_method: inviteMethod,
-        invited_emails: inviteMethod === "email" ? invitedEmails : undefined,
+        emails: inviteMethod === "email" ? emailsToSend : undefined,
       };
 
       const room = await createStudyRoom(payload);

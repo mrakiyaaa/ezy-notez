@@ -22,7 +22,7 @@ export default function ParticipantAvatar({
   showConfirmed = false,
 }: ParticipantAvatarProps) {
   const s = sizeMap[size];
-  const initials = participant.name
+  const initials = (participant.name ?? "")
     .split(" ")
     .filter(Boolean)
     .map((p) => p[0]?.toUpperCase())

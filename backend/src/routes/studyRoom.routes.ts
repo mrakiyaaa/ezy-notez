@@ -6,6 +6,7 @@ import {
   joinByCodeHandler,
   getInviteHandler,
   acceptInviteHandler,
+  sendLobbyInvitesHandler,
   startRoomHandler,
   submitAnswerHandler,
   nextQuestionHandler,
@@ -15,7 +16,11 @@ import {
   getActiveInvitationsHandler,
   getRecentRoomsHandler,
   getHostedRoomsHandler,
+  getPendingInvitesHandler,
+  dismissInviteHandler,
+  getStatsHandler,
   getRoomHandler,
+  deleteRoomHandler,
 } from "../controllers/studyRoom.controller";
 
 const router = Router();
@@ -33,9 +38,14 @@ router.post("/invite/:token/accept", acceptInviteHandler);
 router.get("/invitations", getActiveInvitationsHandler);
 router.get("/recent", getRecentRoomsHandler);
 router.get("/hosted", getHostedRoomsHandler);
+router.get("/stats", getStatsHandler);
 
 // Join by OTP code (no roomId required — looks up room by code)
 router.post("/join-by-code", joinByCodeHandler);
+
+// Pending email invites for the current user (hub page)
+router.get("/invites/pending", getPendingInvitesHandler);
+router.delete("/invites/:inviteId", dismissInviteHandler);
 
 // Room creation
 router.post("/", createRoomHandler);
@@ -43,6 +53,7 @@ router.post("/", createRoomHandler);
 // ── Room-scoped routes ───────────────────────────────────────────────────────
 
 router.post("/:roomId/join-otp", joinWithOtpHandler);
+router.post("/:roomId/invite", sendLobbyInvitesHandler);
 router.post("/:roomId/start", startRoomHandler);
 router.post("/:roomId/answer", submitAnswerHandler);
 router.post("/:roomId/next", nextQuestionHandler);
@@ -52,5 +63,6 @@ router.get("/:roomId/current-question", getCurrentQuestionHandler);
 
 // Room detail — catch-all, must be last
 router.get("/:roomId", getRoomHandler);
+router.delete("/:roomId", deleteRoomHandler);
 
 export default router;

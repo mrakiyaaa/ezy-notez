@@ -1,6 +1,6 @@
 export type InviteMethod = "otp" | "email";
 export type RoomStatus = "waiting" | "in_progress" | "completed";
-export type InviteStatus = "pending" | "accepted";
+export type InviteStatus = "pending" | "accepted" | "dismissed";
 export type ParticipantStatus = "connected" | "disconnected";
 
 // ── Database row types (mirror the Supabase schema exactly) ──────────────────
@@ -169,6 +169,22 @@ export interface StudyRoomResults {
   wrong_answers: WrongAnswer[];
 }
 
+export interface PendingInvite {
+  inviteId: string;
+  token: string;
+  roomId: string;
+  roomTitle: string;
+  hostName: string;
+  workspaceId: string;
+  createdAt: string;
+}
+
+export interface StudyRoomStats {
+  hostedCount: number;
+  playedCount: number;
+  totalPoints: number;
+}
+
 export interface CreateStudyRoomPayload {
   workspace_id: string;
   title: string;
@@ -176,5 +192,5 @@ export interface CreateStudyRoomPayload {
   question_count: number;
   resource_ids: string[];
   invite_method: InviteMethod;
-  invited_emails?: string[];
+  emails?: string[];
 }

@@ -12,6 +12,7 @@ import {
   joinRoomByOtpCode,
   getInviteByToken,
   acceptInvite,
+  sendLobbyInvites,
   startRoom,
   submitAnswer,
   nextQuestion,
@@ -22,6 +23,10 @@ import {
   getActiveInvitations,
   getRecentRooms,
   getHostedRooms,
+  getPendingInvites,
+  dismissInvite,
+  getStudyRoomStats,
+  deleteRoom,
   NotFoundError,
   ValidationError,
   ForbiddenError,
@@ -210,6 +215,34 @@ export const acceptInviteHandler = async (
     sendSuccess(res, result);
   } catch (err) {
     console.error("[studyRoom:acceptInvite]", err);
+    sendError(res, resolveStatus(err), errorMessage(err));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// POST /api/study-rooms/:roomId/invite  (send extra invites from the lobby)
+// ---------------------------------------------------------------------------
+
+export const sendLobbyInvitesHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return sendError(res, 401, "Unauthorized");
+
+    const { roomId } = req.params;
+    const { emails } = req.body;
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return sendError(res, 400, "emails must be a non-empty array");
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const result = await sendLobbyInvites(userId, roomId, emails, frontendUrl);
+    sendSuccess(res, result);
+  } catch (err) {
+    console.error("[studyRoom:sendLobbyInvites]", err);
     sendError(res, resolveStatus(err), errorMessage(err));
   }
 };
@@ -428,6 +461,97 @@ export const getHostedRoomsHandler = async (
     sendSuccess(res, rooms);
   } catch (err) {
     console.error("[studyRoom:hosted]", err);
+    sendError(res, resolveStatus(err), errorMessage(err));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/study-rooms/invites/pending
+// ---------------------------------------------------------------------------
+
+export const getPendingInvitesHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return sendError(res, 401, "Unauthorized");
+
+    const userEmail = req.user?.email;
+    if (!userEmail) return sendError(res, 401, "User email not available");
+
+    const invites = await getPendingInvites(userEmail);
+    sendSuccess(res, invites);
+  } catch (err) {
+    console.error("[studyRoom:pendingInvites]", err);
+    sendError(res, resolveStatus(err), errorMessage(err));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// DELETE /api/study-rooms/invites/:inviteId
+// ---------------------------------------------------------------------------
+
+export const dismissInviteHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return sendError(res, 401, "Unauthorized");
+
+    const userEmail = req.user?.email;
+    if (!userEmail) return sendError(res, 401, "User email not available");
+
+    const { inviteId } = req.params;
+    await dismissInvite(inviteId, userEmail);
+    sendSuccess(res);
+  } catch (err) {
+    console.error("[studyRoom:dismissInvite]", err);
+    sendError(res, resolveStatus(err), errorMessage(err));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/study-rooms/stats
+// ---------------------------------------------------------------------------
+
+export const getStatsHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return sendError(res, 401, "Unauthorized");
+
+    const workspaceId = req.query.workspace_id as string;
+    if (!workspaceId) return sendError(res, 400, "workspace_id query param is required");
+
+    const stats = await getStudyRoomStats(userId, workspaceId);
+    sendSuccess(res, stats);
+  } catch (err) {
+    console.error("[studyRoom:stats]", err);
+    sendError(res, resolveStatus(err), errorMessage(err));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// DELETE /api/study-rooms/:roomId
+// ---------------------------------------------------------------------------
+
+export const deleteRoomHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return sendError(res, 401, "Unauthorized");
+
+    const { roomId } = req.params;
+    await deleteRoom(userId, roomId);
+    sendSuccess(res);
+  } catch (err) {
+    console.error("[studyRoom:delete]", err);
     sendError(res, resolveStatus(err), errorMessage(err));
   }
 };

@@ -135,6 +135,16 @@ export interface HostedRoomShape {
   status: RoomStatus;
 }
 
+export interface PendingInviteShape {
+  inviteId: string;
+  token: string;
+  roomId: string;
+  roomTitle: string;
+  hostName: string;
+  workspaceId: string;
+  createdAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -406,6 +416,64 @@ export const joinRoomByOtpCode = async (
   }
 
   return room;
+};
+
+// ---------------------------------------------------------------------------
+// sendLobbyInvites  (send extra email invites from the lobby after room creation)
+// ---------------------------------------------------------------------------
+
+export const sendLobbyInvites = async (
+  userId: string,
+  roomId: string,
+  emails: string[],
+  frontendUrl: string,
+): Promise<{ sent: number; skipped: number }> => {
+  const { data: room, error: roomErr } = await supabaseAdmin
+    .from("study_rooms")
+    .select("id, title, host_id, status")
+    .eq("id", roomId)
+    .single();
+
+  if (roomErr || !room) throw new NotFoundError("Room not found");
+  if (room.host_id !== userId) throw new ForbiddenError("Only the host can invite participants");
+  if (room.status !== "waiting") throw new ValidationError("Room is no longer accepting participants");
+
+  // Skip emails that already have a pending invite for this room
+  const { data: existing } = await supabaseAdmin
+    .from("study_room_invites")
+    .select("email")
+    .eq("room_id", roomId)
+    .in("email", emails);
+
+  const existingEmails = new Set((existing ?? []).map((r: { email: string }) => r.email));
+  const newEmails = emails.filter((e) => !existingEmails.has(e));
+
+  if (newEmails.length === 0) {
+    return { sent: 0, skipped: emails.length };
+  }
+
+  const inviteRows = newEmails.map((email) => ({
+    room_id: roomId,
+    email,
+    token: randomUUID(),
+    status: "pending" as const,
+  }));
+
+  const { data: inserted, error: insertErr } = await supabaseAdmin
+    .from("study_room_invites")
+    .insert(inviteRows)
+    .select("email, token");
+
+  if (insertErr) throw new Error(`Failed to create invites: ${insertErr.message}`);
+
+  for (const invite of (inserted ?? []) as { email: string; token: string }[]) {
+    const inviteUrl = `${frontendUrl}/study-room/invite/${invite.token}`;
+    sendStudyRoomInvite(invite.email, room.title, inviteUrl).catch((e) =>
+      console.warn("[studyRoom] Failed to send lobby invite email:", e),
+    );
+  }
+
+  return { sent: newEmails.length, skipped: emails.length - newEmails.length };
 };
 
 // ---------------------------------------------------------------------------
@@ -872,10 +940,18 @@ export const generateRoomInsights = async (
 // getRoomWithParticipants
 // ---------------------------------------------------------------------------
 
+export interface EnrichedParticipant extends ParticipantRow {
+  name: string;
+  avatar_url?: string;
+  status: "connected" | "disconnected";
+  points: number;
+  has_confirmed: boolean;
+}
+
 export const getRoomWithParticipants = async (
   userId: string,
   roomId: string,
-): Promise<{ room: StudyRoomRow; participants: ParticipantRow[] }> => {
+): Promise<{ room: StudyRoomRow; participants: EnrichedParticipant[] }> => {
   const { data: room, error: roomErr } = await supabaseAdmin
     .from("study_rooms")
     .select("*")
@@ -905,9 +981,39 @@ export const getRoomWithParticipants = async (
 
   if (pErr) throw new Error(`Failed to fetch participants: ${pErr.message}`);
 
+  const rows = (participants ?? []) as ParticipantRow[];
+
+  // Enrich with profile data (name + avatar)
+  const userIds = rows.map((p) => p.user_id);
+  const { data: profiles } = userIds.length
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds)
+    : { data: [] };
+
+  const profileMap = new Map(
+    (profiles ?? []).map((p: { id: string; full_name: string; avatar_url?: string }) => [
+      p.id,
+      { name: p.full_name ?? "Unknown", avatar_url: p.avatar_url },
+    ]),
+  );
+
+  const enriched: EnrichedParticipant[] = rows.map((p) => {
+    const profile = profileMap.get(p.user_id);
+    return {
+      ...p,
+      name: profile?.name ?? "Unknown",
+      avatar_url: profile?.avatar_url,
+      status: "connected" as const,
+      points: 0,
+      has_confirmed: false,
+    };
+  });
+
   return {
     room: r,
-    participants: (participants ?? []) as ParticipantRow[],
+    participants: enriched,
   };
 };
 
@@ -1064,6 +1170,175 @@ export const getHostedRooms = async (
     participant_count: participantCountMap.get(r.id) ?? 0,
     status: r.status,
   }));
+};
+
+// ---------------------------------------------------------------------------
+// getPendingInvites
+// All study_room_invites where email matches the current user and status=pending
+// ---------------------------------------------------------------------------
+
+export const getPendingInvites = async (
+  userEmail: string,
+): Promise<PendingInviteShape[]> => {
+  const { data: invites, error } = await supabaseAdmin
+    .from("study_room_invites")
+    .select("id, token, room_id, created_at, study_rooms(id, title, workspace_id, host_id)")
+    .eq("email", userEmail)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to fetch pending invites: ${error.message}`);
+  if (!invites || invites.length === 0) return [];
+
+  type InviteJoinRow = {
+    id: string;
+    token: string;
+    room_id: string;
+    created_at: string;
+    study_rooms: { id: string; title: string; workspace_id: string; host_id: string } | null;
+  };
+
+  const rows = invites as unknown as InviteJoinRow[];
+  const hostIds = [...new Set(rows.map((r) => r.study_rooms?.host_id).filter(Boolean) as string[])];
+
+  const { data: profiles } = await supabaseAdmin
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", hostIds);
+
+  const nameMap = new Map(
+    (profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p.full_name]),
+  );
+
+  return rows
+    .filter((r) => r.study_rooms !== null)
+    .map((r) => ({
+      inviteId: r.id,
+      token: r.token,
+      roomId: r.study_rooms!.id,
+      roomTitle: r.study_rooms!.title,
+      hostName: nameMap.get(r.study_rooms!.host_id) ?? "Unknown",
+      workspaceId: r.study_rooms!.workspace_id,
+      createdAt: r.created_at,
+    }));
+};
+
+// ---------------------------------------------------------------------------
+// dismissInvite
+// Sets status to 'dismissed' after verifying the invite belongs to the caller
+// ---------------------------------------------------------------------------
+
+export const dismissInvite = async (
+  inviteId: string,
+  userEmail: string,
+): Promise<void> => {
+  const { data: invite, error } = await supabaseAdmin
+    .from("study_room_invites")
+    .select("id, email")
+    .eq("id", inviteId)
+    .single();
+
+  if (error || !invite) throw new NotFoundError("Invite not found");
+  if (invite.email !== userEmail) throw new ForbiddenError("You cannot dismiss this invite");
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("study_room_invites")
+    .update({ status: "dismissed" })
+    .eq("id", inviteId);
+
+  if (updateErr) throw new Error(`Failed to dismiss invite: ${updateErr.message}`);
+};
+
+// ---------------------------------------------------------------------------
+// deleteRoom
+// Host-only hard delete of a study room. Cascades via FKs take care of
+// participants, invites, questions, and answers.
+// ---------------------------------------------------------------------------
+
+export const deleteRoom = async (
+  userId: string,
+  roomId: string,
+): Promise<void> => {
+  const { data: room, error } = await supabaseAdmin
+    .from("study_rooms")
+    .select("id, host_id")
+    .eq("id", roomId)
+    .single();
+
+  if (error || !room) throw new NotFoundError("Room not found");
+  if (room.host_id !== userId) {
+    throw new ForbiddenError("Only the host can delete this room");
+  }
+
+  const { error: delErr } = await supabaseAdmin
+    .from("study_rooms")
+    .delete()
+    .eq("id", roomId);
+
+  if (delErr) throw new Error(`Failed to delete room: ${delErr.message}`);
+};
+
+// ---------------------------------------------------------------------------
+// getStudyRoomStats
+// Aggregate stats for the stats bar on the landing page
+// ---------------------------------------------------------------------------
+
+export interface StudyRoomStatsShape {
+  hostedCount: number;
+  playedCount: number;
+  totalPoints: number;
+}
+
+export const getStudyRoomStats = async (
+  userId: string,
+  workspaceId: string,
+): Promise<StudyRoomStatsShape> => {
+  // Hosted rooms in this workspace
+  const { count: hostedCount } = await supabaseAdmin
+    .from("study_rooms")
+    .select("id", { count: "exact", head: true })
+    .eq("host_id", userId)
+    .eq("workspace_id", workspaceId);
+
+  // All room IDs in this workspace
+  const { data: wsRooms } = await supabaseAdmin
+    .from("study_rooms")
+    .select("id")
+    .eq("workspace_id", workspaceId);
+
+  const wsRoomIds = (wsRooms ?? []).map((r: { id: string }) => r.id);
+
+  let playedCount = 0;
+  let totalPoints = 0;
+
+  if (wsRoomIds.length > 0) {
+    // Distinct rooms user participated in (within this workspace)
+    const { data: participations } = await supabaseAdmin
+      .from("study_room_participants")
+      .select("room_id")
+      .eq("user_id", userId)
+      .in("room_id", wsRoomIds);
+
+    playedCount = participations?.length ?? 0;
+
+    // Total points earned across all answers in this workspace
+    const { data: answers } = await supabaseAdmin
+      .from("study_room_answers")
+      .select("points_earned")
+      .eq("user_id", userId)
+      .in("room_id", wsRoomIds);
+
+    totalPoints = (answers ?? []).reduce(
+      (sum: number, a: { points_earned: number }) => sum + a.points_earned,
+      0,
+    );
+  }
+
+  return {
+    hostedCount: hostedCount ?? 0,
+    playedCount,
+    totalPoints,
+  };
 };
 
 // ---------------------------------------------------------------------------

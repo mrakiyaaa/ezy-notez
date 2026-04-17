@@ -6,7 +6,7 @@ import { callOpenRouter } from "../utils/openRouterClient";
 // Constants
 // ---------------------------------------------------------------------------
 
-const MODEL = "google/gemini-flash-1.5";
+const MODEL = "google/gemini-3-flash-preview-20251217";
 
 // ---------------------------------------------------------------------------
 // Types

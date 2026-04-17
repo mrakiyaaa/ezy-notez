@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { StudyRoom } from "@/types/studyRoom";
 import StudyRoomLanding from "./StudyRoomLanding";
 import StudyRoomLobby from "./StudyRoomLobby";
@@ -15,6 +16,8 @@ interface StudyRoomViewProps {
 type ViewMode = "landing" | "lobby" | "quiz" | "results";
 
 export default function StudyRoomView({ workspaceId }: StudyRoomViewProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>("landing");
   const [activeRoom, setActiveRoom] = useState<StudyRoom | null>(null);
 
@@ -38,6 +41,23 @@ export default function StudyRoomView({ workspaceId }: StudyRoomViewProps) {
       console.error("[StudyRoomView] Failed to fetch room:", err);
     }
   }, []);
+
+  // Auto-enter the lobby when navigated here with ?room=<id> (e.g. after
+  // accepting an invite from the workspaces hub sidebar). handleJoinRoom
+  // resolves asynchronously, so the setState calls land after commit.
+  useEffect(() => {
+    const roomId = searchParams.get("room");
+    if (!roomId) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void handleJoinRoom(roomId);
+
+    // Strip the query params so we don't re-trigger on back-navigation.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("room");
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : window.location.pathname);
+  }, [searchParams, handleJoinRoom, router]);
 
   const handleQuizStarted = useCallback(() => {
     setViewMode("quiz");
