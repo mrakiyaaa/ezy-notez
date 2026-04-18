@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,11 +8,12 @@ import {
   MessageCircle,
   Brain,
   ClipboardList,
-  Search,
   ArrowLeft,
   AlignLeft,
   WalletCards,
 } from "lucide-react";
+import { getWorkspacesApi } from "@/api/workspace.api";
+import type { Workspace } from "@/types/workspace";
 import WorkspaceHome from "@/components/workspace/WorkspaceHome";
 import Chattie from "@/components/workspace/Chattie";
 import ResourcesView from "@/components/workspace/ResourcesView";
@@ -22,6 +23,7 @@ import QuizView from "@/components/workspace/QuizView";
 import QuizAttemptView from "@/components/workspace/QuizAttemptView";
 import QuizResultsView from "@/components/workspace/QuizResultsView";
 import StudyRoomView from "@/components/workspace/StudyRoomView";
+import TeddyCompanion from "@/components/workspace/quiz/TeddyCompanion";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import AuraIndicator from "@/components/ui/AuraIndicator";
 import { getWorkspaceBySlug } from "@/services/resource.service";
@@ -68,6 +70,12 @@ export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<TabItem>("all");
   const [cachedAura, setCachedAura] = useState<string | null>(null);
 
+  // Workspace switcher state
+  const [workspaceList, setWorkspaceList] = useState<Workspace[]>([]);
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const [isWorkspaceListLoading, setIsWorkspaceListLoading] = useState(false);
+  const switcherRef = useRef<HTMLDivElement | null>(null);
+
   // Quiz navigation state
   const [quizState, setQuizState] = useState<{
     mode: "list" | "attempt" | "results";
@@ -101,6 +109,55 @@ export default function WorkspacePage() {
     });
     return () => { mounted = false; };
   }, [slug]);
+
+  // Close switcher on outside click / Escape
+  useEffect(() => {
+    if (!isSwitcherOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setIsSwitcherOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsSwitcherOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isSwitcherOpen]);
+
+  const handleSelectWorkspace = useCallback(
+    (targetSlug: string) => {
+      setIsSwitcherOpen(false);
+      if (targetSlug === slug) return;
+      router.push(`/workspaces/${targetSlug}`);
+    },
+    [router, slug],
+  );
+
+  const loadWorkspaceList = useCallback(async () => {
+    if (workspaceList.length > 0 || isWorkspaceListLoading) return;
+    setIsWorkspaceListLoading(true);
+    try {
+      const list = await getWorkspacesApi();
+      setWorkspaceList(list);
+    } catch (err) {
+      console.error("[WorkspacePage] Failed to load workspaces:", err);
+    } finally {
+      setIsWorkspaceListLoading(false);
+    }
+  }, [workspaceList.length, isWorkspaceListLoading]);
+
+  const toggleSwitcher = useCallback(() => {
+    setIsSwitcherOpen((prev) => {
+      const next = !prev;
+      if (next) loadWorkspaceList();
+      return next;
+    });
+  }, [loadWorkspaceList]);
 
   const { profile, user } = useProfile();
   const displayName = profile?.full_name || "Student";
@@ -165,22 +222,94 @@ export default function WorkspacePage() {
       {/* Left Sidebar */}
       <aside className="w-64 flex flex-col border-r border-fade-border bg-main h-full shrink-0">
         {/* 2. Active workspace chip */}
-        <div className="px-4 mt-6 shrink-0">
+        <div className="px-4 mt-6 shrink-0 relative" ref={switcherRef}>
           <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
             Active Workspace
           </div>
-          <div className="flex items-center justify-between w-full px-3 py-2 bg-blue-accent/10 border border-blue-accent/30 rounded-lg cursor-pointer">
+          <button
+            type="button"
+            onClick={toggleSwitcher}
+            aria-haspopup="listbox"
+            aria-expanded={isSwitcherOpen}
+            className="flex items-center justify-between w-full px-3 py-2 bg-blue-accent/10 border border-blue-accent/30 rounded-lg cursor-pointer hover:bg-blue-accent/15 transition-colors"
+          >
             <div className="flex items-center gap-2 overflow-hidden">
-              <div 
-                className="w-2 h-2 rounded-full shrink-0" 
-                style={{ backgroundColor: auraHex }} 
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: auraHex }}
               />
               <span className="text-sm font-medium text-text-secondary truncate">
                 {workspace?.name ?? "Loading..."}
               </span>
             </div>
-            <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
-          </div>
+            <ChevronDown
+              className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${
+                isSwitcherOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {isSwitcherOpen && (
+            <div
+              role="listbox"
+              className="absolute left-4 right-4 mt-2 z-50 bg-bg-card border border-fade-border rounded-lg shadow-xl overflow-hidden"
+            >
+              <div className="max-h-72 overflow-y-auto py-1">
+                {isWorkspaceListLoading && workspaceList.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-text-muted">
+                    Loading workspaces…
+                  </div>
+                )}
+                {!isWorkspaceListLoading && workspaceList.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-text-muted">
+                    No workspaces found.
+                  </div>
+                )}
+                {workspaceList.map((w) => {
+                  const isActive = w.slug === slug;
+                  return (
+                    <button
+                      key={w.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onClick={() => handleSelectWorkspace(w.slug)}
+                      className={`flex items-center justify-between w-full px-3 py-2 text-left transition-colors ${
+                        isActive
+                          ? "bg-blue-accent/15 text-text-secondary"
+                          : "text-text-muted hover:bg-white/5 hover:text-text-primary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: w.aura || "#507DBC" }}
+                        />
+                        <span className="text-sm font-medium truncate">
+                          {w.name}
+                        </span>
+                      </div>
+                      {isActive && (
+                        <span className="text-[10px] uppercase tracking-wide text-blue-accent shrink-0 ml-2">
+                          Active
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  router.push("/workspaces");
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-blue-accent border-t border-fade-border hover:bg-white/5 transition-colors text-left"
+              >
+                View all workspaces
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 3. Nav section */}
@@ -198,14 +327,14 @@ export default function WorkspacePage() {
                   className={`relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-blue-accent/10 text-text-secondary"
-                      : "text-text-muted hover:bg-white/[0.04] hover:text-text-primary"
+                      : "text-text-muted hover:bg-white/4 hover:text-text-primary"
                   }`}
                 >
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[18px] bg-blue-accent rounded-r" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-4.5 bg-blue-accent rounded-r" />
                   )}
                   <Icon
-                    className={`w-[15px] h-[15px] ${
+                    className={`w-3.75 h-3.75 ${
                       isActive ? "opacity-100" : "opacity-60"
                     }`}
                   />
@@ -273,15 +402,12 @@ export default function WorkspacePage() {
             </div>
           </div>
 
-          {/* Right search */}
-          <div className="relative w-96 ml-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search Projects"
-              className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20"
-            />
-          </div>
+          {/* Quiz companion animation — right of header, quiz tab only */}
+          {activeNav === "quiz" && (
+            <div className="ml-auto shrink-0">
+              <TeddyCompanion size={96} height={56} />
+            </div>
+          )}
         </header>
 
         {/* View Content */}

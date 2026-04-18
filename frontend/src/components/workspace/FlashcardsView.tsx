@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { WalletCards, Plus, Sparkles, X } from "lucide-react";
+import { WalletCards, Plus, Search, Sparkles, X } from "lucide-react";
 import type { FlashcardSet as LocalFlashcardSet, Flashcard as LocalFlashcard } from "./flashcards/constants";
 import type { FlashcardSet, FlashcardSetWithCards } from "@/types/flashcard";
 import {
@@ -69,6 +69,7 @@ export default function FlashcardsView({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Track pending set IDs for polling
   const pendingSetIds = useRef<Set<string>>(new Set());
@@ -311,20 +312,43 @@ export default function FlashcardsView({
             </div>
           </div>
 
-          <button
-            onClick={() => setShowPanel((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-            style={{
-              backgroundColor: showPanel
-                ? "var(--color-blue-accent)"
-                : "rgba(80, 125, 188, 0.1)",
-              color: showPanel ? "#ffffff" : "var(--color-blue-accent)",
-              border: "1px solid rgba(80, 125, 188, 0.25)",
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            Generate
-          </button>
+          <div className="flex items-center gap-3">
+            {sets.length > 0 && (
+              <div className="relative w-64 sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search flashcard sets by title"
+                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-9 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setShowPanel((v) => !v)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+              style={{
+                backgroundColor: showPanel
+                  ? "var(--color-blue-accent)"
+                  : "rgba(80, 125, 188, 0.1)",
+                color: showPanel ? "#ffffff" : "var(--color-blue-accent)",
+                border: "1px solid rgba(80, 125, 188, 0.25)",
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Generate
+            </button>
+          </div>
         </div>
 
         {/* Generation panel (slide-in) */}
@@ -344,13 +368,26 @@ export default function FlashcardsView({
           <EmptyState
             onGenerate={() => setShowPanel(true)}
           />
-        ) : (
-          <FlashcardSetGrid
-            sets={sets}
-            onStudy={handleStudy}
-            onDelete={handleDelete}
-          />
-        )}
+        ) : (() => {
+          const normalizedQuery = searchQuery.trim().toLowerCase();
+          const filteredSets = normalizedQuery
+            ? sets.filter((s) => s.title.toLowerCase().includes(normalizedQuery))
+            : sets;
+          if (filteredSets.length === 0) {
+            return (
+              <div className="py-12 text-center text-text-muted text-sm">
+                No flashcard sets match &quot;{searchQuery}&quot;.
+              </div>
+            );
+          }
+          return (
+            <FlashcardSetGrid
+              sets={filteredSets}
+              onStudy={handleStudy}
+              onDelete={handleDelete}
+            />
+          );
+        })()}
       </div>
     </div>
   );

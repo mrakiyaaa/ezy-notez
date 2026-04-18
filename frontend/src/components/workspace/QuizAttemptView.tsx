@@ -3,7 +3,6 @@
 import { Loader2 } from "lucide-react";
 import { useQuizAttempt } from "@/hooks/useQuizAttempt";
 import AttemptTopBar from "./quiz/AttemptTopBar";
-import TeddyCompanion from "./quiz/TeddyCompanion";
 import QuestionCard from "./quiz/QuestionCard";
 import OptionButton from "./quiz/OptionButton";
 import AnswerFeedback from "./quiz/AnswerFeedback";
@@ -29,7 +28,6 @@ export default function QuizAttemptView({
     isSubmitting,
     showFeedback,
     lastAnswerCorrect,
-    bearEmotion,
     selectOption,
     submitCurrentAnswer,
     goToNextQuestion,
@@ -183,10 +181,6 @@ export default function QuizAttemptView({
         )}
       </div>
 
-      {/* Teddy companion — fixed floating at bottom-right of viewport */}
-      <div className="fixed bottom-6 right-6 z-40 pointer-events-none">
-        <TeddyCompanion emotion={bearEmotion} size={100} />
-      </div>
     </div>
   );
 }

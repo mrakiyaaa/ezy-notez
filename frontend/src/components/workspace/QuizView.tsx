@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { HelpCircle, Plus, Sparkles, X, Loader2 } from "lucide-react";
+import { HelpCircle, Plus, Search, Sparkles, X, Loader2 } from "lucide-react";
 import type { QuizWithAttempt } from "@/types/quiz";
 import { getQuizzes, deleteQuiz } from "@/services/quiz.service";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
@@ -29,6 +29,7 @@ export default function QuizView({
   const [isLoading, setIsLoading] = useState(true);
   const [showConfigForm, setShowConfigForm] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     isGenerating,
@@ -86,10 +87,15 @@ export default function QuizView({
     }
   };
 
-  const inProgressQuizzes = quizzes.filter((q) => q.attempt?.status === "in_progress");
-  const completedQuizzes = quizzes.filter((q) => q.attempt?.status === "completed");
-  const newQuizzes = quizzes.filter((q) => !q.attempt);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const visibleQuizzes = normalizedQuery
+    ? quizzes.filter((q) => q.title.toLowerCase().includes(normalizedQuery))
+    : quizzes;
+  const inProgressQuizzes = visibleQuizzes.filter((q) => q.attempt?.status === "in_progress");
+  const completedQuizzes = visibleQuizzes.filter((q) => q.attempt?.status === "completed");
+  const newQuizzes = visibleQuizzes.filter((q) => !q.attempt);
   const hasAnyQuizzes = quizzes.length > 0;
+  const hasVisibleQuizzes = visibleQuizzes.length > 0;
 
   return (
     <div className="relative flex flex-col h-full">
@@ -130,13 +136,36 @@ export default function QuizView({
             </div>
           </div>
 
-          <button
-            onClick={() => setShowConfigForm((v) => !v)}
-            className="bg-blue-accent text-white font-semibold text-sm rounded-lg px-5 py-2.5 flex items-center gap-2 hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            Generate Quiz
-          </button>
+          <div className="flex items-center gap-3">
+            {hasAnyQuizzes && (
+              <div className="relative w-64 sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search quizzes by title"
+                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-9 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setShowConfigForm((v) => !v)}
+              className="bg-blue-accent text-white font-semibold text-sm rounded-lg px-5 py-2.5 flex items-center gap-2 hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              Generate Quiz
+            </button>
+          </div>
         </div>
 
         {/* Config form panel */}
@@ -161,8 +190,15 @@ export default function QuizView({
           <EmptyState onGenerate={() => setShowConfigForm(true)} />
         )}
 
+        {/* No search results */}
+        {!isLoading && hasAnyQuizzes && !hasVisibleQuizzes && (
+          <div className="py-12 text-center text-text-muted text-sm">
+            No quizzes match &quot;{searchQuery}&quot;.
+          </div>
+        )}
+
         {/* Quiz sections */}
-        {!isLoading && hasAnyQuizzes && (
+        {!isLoading && hasVisibleQuizzes && (
           <div className="flex flex-col gap-8">
             {/* In-Progress Section */}
             {inProgressQuizzes.length > 0 && (

@@ -1,4 +1,7 @@
 {
   "jest.jestCommandLine": "npx jest",
-  "jest.rootPath": "backend"
+  "jest.rootPath": "backend",
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore"
 }

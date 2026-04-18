@@ -34,16 +34,6 @@ export type BearEmotion =
   | "celebrating"
   | "disappointed";
 
-// Fallback animation URLs from LottieFiles (public domain bears)
-export const BEAR_FALLBACK_ANIMATIONS: Record<BearEmotion, string> = {
-  idle: "https://assets3.lottiefiles.com/packages/lf20_jcikwtux.json",
-  thinking: "https://assets3.lottiefiles.com/packages/lf20_t9gkkhz4.json",
-  happy: "https://assets3.lottiefiles.com/packages/lf20_u4yrau.json",
-  sad: "https://assets3.lottiefiles.com/packages/lf20_qp1q7mct.json",
-  celebrating: "https://assets3.lottiefiles.com/packages/lf20_touohxv0.json",
-  disappointed: "https://assets3.lottiefiles.com/packages/lf20_qp1q7mct.json",
-};
-
 // ---------------------------------------------------------------------------
 // Question Type Options
 // ---------------------------------------------------------------------------
