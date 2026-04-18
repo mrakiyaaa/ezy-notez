@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   AlignLeft,
   WalletCards,
+  Settings,
 } from "lucide-react";
 import { getWorkspacesApi } from "@/api/workspace.api";
 import type { Workspace } from "@/types/workspace";
@@ -171,6 +172,7 @@ export default function WorkspacePage() {
       .join("");
   }, [displayName]);
 
+  // Close profile popover on outside click / Escape
   // Switch nav and reset quiz state when navigating away
   const handleNavChange = useCallback((nav: NavItem) => {
     setActiveNav(nav);
@@ -346,8 +348,21 @@ export default function WorkspacePage() {
         </div>
 
         {/* 4. Footer */}
-        <div className="p-4 border-t border-fade-border shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="p-4 border-t border-fade-border shrink-0 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.setItem("ezynotes:last-workspace-slug", slug);
+              } catch { /* */ }
+              router.push("/settings");
+            }}
+            className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:bg-white/4 hover:text-text-primary transition-colors"
+          >
+            <Settings className="w-3.75 h-3.75 opacity-60" />
+            <span>Settings</span>
+          </button>
+          <div className="flex items-center gap-3 px-1">
             <div className="w-9 h-9 rounded-full bg-blue-accent flex items-center justify-center shrink-0 overflow-hidden">
               {profile?.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
