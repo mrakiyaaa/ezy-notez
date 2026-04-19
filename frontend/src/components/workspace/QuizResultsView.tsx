@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Loader2, RotateCcw, Plus, ArrowLeft, Trophy, Target } from "lucide-react";
 import type { AttemptResults } from "@/types/quiz";
-import type { AuraProps } from "./quiz/constants";
 import { QUIZ_GREEN, QUIZ_RED, isPassing } from "./quiz/constants";
 import { getAttemptResults } from "@/services/quiz.service";
 import TeddyCompanion from "./quiz/TeddyCompanion";
@@ -11,7 +10,7 @@ import ScoreRing from "./quiz/ScoreRing";
 import QuestionBreakdownItem from "./quiz/QuestionBreakdownItem";
 import TopicBreakdownTags from "./quiz/TopicBreakdownTags";
 
-interface QuizResultsViewProps extends AuraProps {
+interface QuizResultsViewProps {
   quizId: string;
   attemptId: string;
   onRetake: (quizId: string) => void;
@@ -25,9 +24,6 @@ export default function QuizResultsView({
   onRetake,
   onGenerateNew,
   onBack,
-  auraHex,
-  auraRgb,
-  auraContrast,
 }: QuizResultsViewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +64,7 @@ export default function QuizResultsView({
     return (
       <div className="flex flex-col h-full items-center justify-center">
         <Loader2
-          className="w-8 h-8 animate-spin mb-4"
-          style={{ color: auraHex }}
+          className="w-8 h-8 animate-spin mb-4 text-text-muted"
         />
         <p className="text-text-muted text-sm">Loading results…</p>
       </div>
@@ -107,10 +102,7 @@ export default function QuizResultsView({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div
-        className="flex items-center gap-4 px-6 py-4 bg-bg-card/50 backdrop-blur-sm"
-        style={{
-          borderBottom: `1px solid rgba(${auraRgb}, 0.12)`,
-        }}
+        className="flex items-center gap-4 px-6 py-4 bg-bg-card/50 backdrop-blur-sm border-b border-fade-border"
       >
         <button
           onClick={onBack}
@@ -132,18 +124,7 @@ export default function QuizResultsView({
         {/* Hero score section */}
         <div
           className="relative py-12 px-6 flex flex-col items-center"
-          style={{
-            background: `linear-gradient(to bottom, rgba(${auraRgb}, 0.05) 0%, transparent 100%)`,
-          }}
         >
-          {/* Background decoration */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              backgroundImage: `radial-gradient(circle at center, rgba(${auraRgb}, 0.1) 0%, transparent 50%)`,
-            }}
-          />
-
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 max-w-3xl w-full">
             {/* Score ring — semantic pass/fail colors */}
             <ScoreRing score={score} total={total} size={180} />
@@ -187,7 +168,7 @@ export default function QuizResultsView({
             <h3 className="text-text-primary font-semibold mb-4 flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: auraHex }}
+                style={{ backgroundColor: "var(--color-blue-accent)" }}
               />
               Topic Performance
             </h3>
@@ -200,7 +181,7 @@ export default function QuizResultsView({
           <h3 className="text-text-primary font-semibold mb-4 flex items-center gap-2">
             <span
               className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: auraHex }}
+              style={{ backgroundColor: "var(--color-blue-accent)" }}
             />
             Question Breakdown
           </h3>
@@ -227,17 +208,8 @@ export default function QuizResultsView({
             onClick={() => onRetake(quizId)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
             style={{
-              backgroundColor: `rgba(${auraRgb}, 0.1)`,
-              color: auraHex,
-              border: `1px solid rgba(${auraRgb}, 0.25)`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = auraHex;
-              e.currentTarget.style.color = auraContrast;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = `rgba(${auraRgb}, 0.1)`;
-              e.currentTarget.style.color = auraHex;
+              backgroundColor: "var(--color-blue-accent)",
+              color: "#ffffff",
             }}
           >
             <RotateCcw className="w-4 h-4" />

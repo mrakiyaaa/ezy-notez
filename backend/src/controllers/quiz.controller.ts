@@ -19,14 +19,34 @@ import {
 const getUserId = (req: Request): string | null => req.user?.id ?? null;
 
 const sendError = (res: Response, status: number, message: string): void => {
-  res.status(status).json({ status: "error", message });
+  res.status(status).json({ success: false, message });
 };
 
 const sendSuccess = (res: Response, data?: unknown, statusCode = 200): void => {
   res.status(statusCode).json({
-    status: "success",
+    success: true,
     ...(data !== undefined && { data }),
   });
+};
+
+const _classifyMlErrorStatus = (message: string): number => {
+  const msg = message.toLowerCase();
+  if (
+    msg.includes("unreachable") ||
+    msg.includes("not running") ||
+    msg.includes("timed out") ||
+    msg.includes("health check")
+  ) {
+    return 503;
+  }
+  if (
+    msg.includes("ml service returned 422") ||
+    msg.includes("too short") ||
+    msg.includes("empty after")
+  ) {
+    return 422;
+  }
+  return 500;
 };
 
 const VALID_QUESTION_TYPES: QuestionType[] = ["mcq", "scenario", "mixed"];
@@ -71,7 +91,8 @@ export const generateQuizHandler = async (
     sendSuccess(res, quiz, 201);
   } catch (err) {
     console.error("[quiz:generate]", err);
-    sendError(res, 500, err instanceof Error ? err.message : "Failed to generate quiz");
+    const msg = err instanceof Error ? err.message : "Failed to generate quiz";
+    sendError(res, _classifyMlErrorStatus(msg), msg);
   }
 };
 
@@ -202,7 +223,7 @@ export const submitAnswerHandler = async (
   } catch (err) {
     console.error("[quiz:submitAnswer]", err);
     const msg = err instanceof Error ? err.message : "Failed to submit answer";
-    sendError(res, msg.includes("not found") ? 404 : 500, msg);
+    sendError(res, msg.toLowerCase().includes("not found") ? 404 : 500, msg);
   }
 };
 
@@ -221,7 +242,7 @@ export const completeAttemptHandler = async (
   } catch (err) {
     console.error("[quiz:complete]", err);
     const msg = err instanceof Error ? err.message : "Failed to complete attempt";
-    sendError(res, msg.includes("not found") ? 404 : 500, msg);
+    sendError(res, msg.toLowerCase().includes("not found") ? 404 : 500, msg);
   }
 };
 

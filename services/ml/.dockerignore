@@ -1,0 +1,41 @@
+# Python bytecode / caches
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Virtual envs
+venv
+.venv
+env
+
+# Tests
+tests
+**/test_*.py
+**/*_test.py
+pytest.ini
+.pytest_cache
+
+# Model caches bundled at build time should come from the Dockerfile's
+# pre-download step, not the host directory
+model-cache
+
+# IDE
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docs / notes
+*.md

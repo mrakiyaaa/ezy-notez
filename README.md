@@ -173,7 +173,7 @@ python -m venv venv
 venv\Scripts\activate          # Windows
 # source venv/bin/activate    # macOS/Linux
 
-pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 
 uvicorn main:app --port 8001 --reload

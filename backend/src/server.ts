@@ -11,6 +11,9 @@ import resourceRoutes from "./routes/resource.routes";
 import summaryRoutes from "./routes/summary.routes";
 import flashcardRoutes from "./routes/flashcard.routes";
 import quizRoutes from "./routes/quiz.routes";
+import chatieRoutes from "./routes/chatie.routes";
+import studyRoomRoutes from "./routes/studyRoom.routes";
+import analyticsRoutes from "./routes/analytics.routes";
 import { uploadRouter } from "./uploadthing";
 
 const app = express();
@@ -47,6 +50,9 @@ app.use("/api/resources", resourceRoutes);
 app.use("/api/summaries", summaryRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/chatie", chatieRoutes);
+app.use("/api/study-rooms", studyRoomRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // UploadThing route handler
 app.use(

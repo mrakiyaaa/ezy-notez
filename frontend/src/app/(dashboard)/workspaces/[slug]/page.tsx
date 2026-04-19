@@ -1,26 +1,20 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
   MessageCircle,
   Brain,
   ClipboardList,
-  Settings,
-  Search,
-  Layers,
   ArrowLeft,
   AlignLeft,
   WalletCards,
+  Settings,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { getWorkspacesApi } from "@/api/workspace.api";
+import type { Workspace } from "@/types/workspace";
 import WorkspaceHome from "@/components/workspace/WorkspaceHome";
 import Chattie from "@/components/workspace/Chattie";
 import ResourcesView from "@/components/workspace/ResourcesView";
@@ -29,10 +23,15 @@ import FlashcardsView from "@/components/workspace/FlashcardsView";
 import QuizView from "@/components/workspace/QuizView";
 import QuizAttemptView from "@/components/workspace/QuizAttemptView";
 import QuizResultsView from "@/components/workspace/QuizResultsView";
+import StudyRoomView from "@/components/workspace/StudyRoomView";
+import TeddyCompanion from "@/components/workspace/quiz/TeddyCompanion";
 import type { TabItem } from "@/components/workspace/ResourcesView";
-import { hexToRgb, getContrastColor } from "@/lib/utils";
+import AuraIndicator from "@/components/ui/AuraIndicator";
 import { getWorkspaceBySlug } from "@/services/resource.service";
 import type { WorkspaceInfo } from "@/types/resource";
+import { useProfile } from "@/hooks/useProfile";
+import { useMemo } from "react";
+import { ChevronDown } from "lucide-react";
 
 type NavItem = "home" | "resources" | "chattie" | "summarization" | "flashcards" | "studyroom" | "quiz";
 
@@ -60,12 +59,23 @@ const navSubtitles: Record<NavItem, string> = {
 export default function WorkspacePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
 
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [activeNav, setActiveNav] = useState<NavItem>("home");
+  const [activeNav, setActiveNav] = useState<NavItem>(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "studyroom") return "studyroom";
+    return "home";
+  });
   const [activeTab, setActiveTab] = useState<TabItem>("all");
   const [cachedAura, setCachedAura] = useState<string | null>(null);
+
+  // Workspace switcher state
+  const [workspaceList, setWorkspaceList] = useState<Workspace[]>([]);
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const [isWorkspaceListLoading, setIsWorkspaceListLoading] = useState(false);
+  const switcherRef = useRef<HTMLDivElement | null>(null);
 
   // Quiz navigation state
   const [quizState, setQuizState] = useState<{
@@ -101,6 +111,68 @@ export default function WorkspacePage() {
     return () => { mounted = false; };
   }, [slug]);
 
+  // Close switcher on outside click / Escape
+  useEffect(() => {
+    if (!isSwitcherOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setIsSwitcherOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsSwitcherOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isSwitcherOpen]);
+
+  const handleSelectWorkspace = useCallback(
+    (targetSlug: string) => {
+      setIsSwitcherOpen(false);
+      if (targetSlug === slug) return;
+      router.push(`/workspaces/${targetSlug}`);
+    },
+    [router, slug],
+  );
+
+  const loadWorkspaceList = useCallback(async () => {
+    if (workspaceList.length > 0 || isWorkspaceListLoading) return;
+    setIsWorkspaceListLoading(true);
+    try {
+      const list = await getWorkspacesApi();
+      setWorkspaceList(list);
+    } catch (err) {
+      console.error("[WorkspacePage] Failed to load workspaces:", err);
+    } finally {
+      setIsWorkspaceListLoading(false);
+    }
+  }, [workspaceList.length, isWorkspaceListLoading]);
+
+  const toggleSwitcher = useCallback(() => {
+    setIsSwitcherOpen((prev) => {
+      const next = !prev;
+      if (next) loadWorkspaceList();
+      return next;
+    });
+  }, [loadWorkspaceList]);
+
+  const { profile, user } = useProfile();
+  const displayName = profile?.full_name || "Student";
+  const displayEmail = profile?.email || user?.email || "";
+  const initials = useMemo(() => {
+    return displayName
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase())
+      .slice(0, 2)
+      .join("");
+  }, [displayName]);
+
+  // Close profile popover on outside click / Escape
   // Switch nav and reset quiz state when navigating away
   const handleNavChange = useCallback((nav: NavItem) => {
     setActiveNav(nav);
@@ -138,88 +210,190 @@ export default function WorkspacePage() {
     setQuizState({ mode: "list" });
   }, []);
 
-  // Derive CSS-ready aura values: use API data > cached > fallback
+  // Keep auraHex for the AuraIndicator dot only
   const auraHex = workspace?.aura || cachedAura || "#507DBC";
-  const auraRgb = hexToRgb(auraHex);
-  const auraContrast = getContrastColor(auraHex);
 
   return (
     <div
-      className="flex min-h-screen bg-main"
-      style={{
-        "--workspace-aura": auraHex,
-        "--workspace-aura-rgb": auraRgb,
-      } as React.CSSProperties}
+      // Bound the shell to (viewport - dashboard header) so the inner <main>
+      // becomes the scroll surface. This keeps the sidebar and workspace top
+      // header fixed while only the main content area scrolls.
+      // Offset matches the dashboard layout header (logo 60 + py-4 32 + border 1 = 93px).
+      className="flex h-[calc(100vh-93px)] bg-main overflow-hidden"
     >
       {/* Left Sidebar */}
-      <TooltipProvider delayDuration={0}>
-        <aside className="w-16 flex flex-col items-center border-r border-fade-border bg-main py-4">
-          {/* Top nav icons */}
-          <div className="flex flex-col items-center gap-2 flex-1">
-            {navItems.map(({ id, icon: Icon, label }) => (
-              <Tooltip key={id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleNavChange(id)}
-                    className={
-                      activeNav === id
-                        ? "bg-bg-card rounded-xl p-2"
-                        : "text-text-muted p-2 transition-colors"
-                    }
-                    style={
-                      activeNav === id
-                        ? { color: auraHex }
-                        : undefined
-                    }
-                    onMouseEnter={(e) => {
-                      if (activeNav !== id)
-                        e.currentTarget.style.color = auraHex;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeNav !== id)
-                        e.currentTarget.style.color = "";
-                    }}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>{label}</p>
-                </TooltipContent>
-              </Tooltip>
-            ))}
+      <aside className="w-64 flex flex-col border-r border-fade-border bg-main h-full shrink-0">
+        {/* 2. Active workspace chip */}
+        <div className="px-4 mt-6 shrink-0 relative" ref={switcherRef}>
+          <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
+            Active Workspace
           </div>
-
-          {/* Bottom icons */}
-          <div className="flex flex-col items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className="text-text-muted p-2 transition-colors"
-                  onMouseEnter={(e) => { e.currentTarget.style.color = auraHex; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = ""; }}
-                >
-                  <Settings className="w-5 h-5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Settings</p>
-              </TooltipContent>
-            </Tooltip>
-            <div
-              className="w-8 h-8 rounded-full"
-              style={{ backgroundColor: auraHex }}
+          <button
+            type="button"
+            onClick={toggleSwitcher}
+            aria-haspopup="listbox"
+            aria-expanded={isSwitcherOpen}
+            className="flex items-center justify-between w-full px-3 py-2 bg-blue-accent/10 border border-blue-accent/30 rounded-lg cursor-pointer hover:bg-blue-accent/15 transition-colors"
+          >
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: auraHex }}
+              />
+              <span className="text-sm font-medium text-text-secondary truncate">
+                {workspace?.name ?? "Loading..."}
+              </span>
+            </div>
+            <ChevronDown
+              className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${
+                isSwitcherOpen ? "rotate-180" : ""
+              }`}
             />
+          </button>
+
+          {isSwitcherOpen && (
+            <div
+              role="listbox"
+              className="absolute left-4 right-4 mt-2 z-50 bg-bg-card border border-fade-border rounded-lg shadow-xl overflow-hidden"
+            >
+              <div className="max-h-72 overflow-y-auto py-1">
+                {isWorkspaceListLoading && workspaceList.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-text-muted">
+                    Loading workspaces…
+                  </div>
+                )}
+                {!isWorkspaceListLoading && workspaceList.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-text-muted">
+                    No workspaces found.
+                  </div>
+                )}
+                {workspaceList.map((w) => {
+                  const isActive = w.slug === slug;
+                  return (
+                    <button
+                      key={w.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onClick={() => handleSelectWorkspace(w.slug)}
+                      className={`flex items-center justify-between w-full px-3 py-2 text-left transition-colors ${
+                        isActive
+                          ? "bg-blue-accent/15 text-text-secondary"
+                          : "text-text-muted hover:bg-white/5 hover:text-text-primary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: w.aura || "#507DBC" }}
+                        />
+                        <span className="text-sm font-medium truncate">
+                          {w.name}
+                        </span>
+                      </div>
+                      {isActive && (
+                        <span className="text-[10px] uppercase tracking-wide text-blue-accent shrink-0 ml-2">
+                          Active
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  router.push("/workspaces");
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-blue-accent border-t border-fade-border hover:bg-white/5 transition-colors text-left"
+              >
+                View all workspaces
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Nav section */}
+        <div className="px-4 mt-8 flex-1 overflow-y-auto">
+          <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
+            Navigation
           </div>
-        </aside>
-      </TooltipProvider>
+          <nav className="flex flex-col gap-1">
+            {navItems.map(({ id, icon: Icon, label }) => {
+              const isActive = activeNav === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleNavChange(id)}
+                  className={`relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-blue-accent/10 text-text-secondary"
+                      : "text-text-muted hover:bg-white/4 hover:text-text-primary"
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-4.5 bg-blue-accent rounded-r" />
+                  )}
+                  <Icon
+                    className={`w-3.75 h-3.75 ${
+                      isActive ? "opacity-100" : "opacity-60"
+                    }`}
+                  />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* 4. Footer */}
+        <div className="p-4 border-t border-fade-border shrink-0 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.setItem("ezynotes:last-workspace-slug", slug);
+              } catch { /* */ }
+              router.push("/settings");
+            }}
+            className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:bg-white/4 hover:text-text-primary transition-colors"
+          >
+            <Settings className="w-3.75 h-3.75 opacity-60" />
+            <span>Settings</span>
+          </button>
+          <div className="flex items-center gap-3 px-1">
+            <div className="w-9 h-9 rounded-full bg-blue-accent flex items-center justify-center shrink-0 overflow-hidden">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-semibold text-white">
+                  {initials || "U"}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-medium text-text-primary truncate">
+                {displayName}
+              </span>
+              <span className="text-xs text-text-muted truncate">
+                {displayEmail}
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <header
-          className="w-full bg-main px-6 py-4 flex items-center"
-          style={{ borderBottom: `1px solid rgba(${auraRgb}, 0.15)` }}
+          className="w-full bg-main px-6 py-4 flex items-center border-b border-fade-border"
         >
           {/* Left */}
           <div className="flex items-center gap-3">
@@ -231,38 +405,24 @@ export default function WorkspacePage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-text-primary font-semibold text-lg">
-                {workspace?.name ?? "Loading…"}
-              </h1>
-              <span
-                className="text-xs rounded-full px-2 py-0.5 mt-1 inline-block"
-                style={{
-                  backgroundColor: `rgba(${auraRgb}, 0.1)`,
-                  color: auraHex,
-                }}
-              >
+              <div className="flex items-center gap-2">
+                <h1 className="text-text-primary font-semibold text-lg">
+                  {workspace?.name ?? "Loading…"}
+                </h1>
+                <AuraIndicator hex={auraHex} />
+              </div>
+              <span className="text-xs text-text-muted mt-1 inline-block">
                 {navSubtitles[activeNav]}
               </span>
             </div>
           </div>
 
-          {/* Right search */}
-          <div className="relative w-96 ml-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search Projects"
-              className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none"
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = auraHex;
-                e.currentTarget.style.boxShadow = `0 0 12px rgba(${auraRgb}, 0.15)`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "";
-                e.currentTarget.style.boxShadow = "";
-              }}
-            />
-          </div>
+          {/* Quiz companion animation — right of header, quiz tab only */}
+          {activeNav === "quiz" && (
+            <div className="ml-auto shrink-0">
+              <TeddyCompanion size={96} height={56} />
+            </div>
+          )}
         </header>
 
         {/* View Content */}
@@ -271,16 +431,11 @@ export default function WorkspacePage() {
             <ResourcesView
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           )}
           {activeNav === "home" && workspace && (
             <WorkspaceHome
               workspaceName={workspace.name}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
               onNavigate={(nav) => setActiveNav(nav as NavItem)}
             />
           )}
@@ -288,27 +443,21 @@ export default function WorkspacePage() {
             <Chattie
               workspaceId={workspace.id}
               workspaceName={workspace.name}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
             />
           )}
           {activeNav === "summarization" && workspace && (
             <SummarizationView
               workspaceId={workspace.id}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           )}
           {activeNav === "flashcards" && workspace && (
             <FlashcardsView
               workspaceId={workspace.id}
-              auraHex={auraHex}
-              auraRgb={auraRgb}
-              auraContrast={auraContrast}
             />
           )}
-          {activeNav === "studyroom" && <StudyRoomView />}
+          {activeNav === "studyroom" && workspace && (
+            <StudyRoomView workspaceId={workspace.id} />
+          )}
           {activeNav === "quiz" && workspace && (
             <>
               {quizState.mode === "list" && (
@@ -316,9 +465,6 @@ export default function WorkspacePage() {
                   workspaceId={workspace.id}
                   onStartAttempt={handleQuizStartAttempt}
                   onViewResults={handleQuizViewResults}
-                  auraHex={auraHex}
-                  auraRgb={auraRgb}
-                  auraContrast={auraContrast}
                 />
               )}
               {quizState.mode === "attempt" && quizState.quizId && (
@@ -326,9 +472,6 @@ export default function WorkspacePage() {
                   quizId={quizState.quizId}
                   onExit={handleQuizExitAttempt}
                   onComplete={handleQuizComplete}
-                  auraHex={auraHex}
-                  auraRgb={auraRgb}
-                  auraContrast={auraContrast}
                 />
               )}
               {quizState.mode === "results" && quizState.quizId && quizState.attemptId && (
@@ -338,9 +481,6 @@ export default function WorkspacePage() {
                   onRetake={handleQuizRetake}
                   onGenerateNew={handleQuizGenerateNew}
                   onBack={handleQuizBack}
-                  auraHex={auraHex}
-                  auraRgb={auraRgb}
-                  auraContrast={auraContrast}
                 />
               )}
             </>
@@ -351,15 +491,3 @@ export default function WorkspacePage() {
   );
 }
 
-/* ─── Placeholder Views ─── */
-
-
-function StudyRoomView() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
-      <Layers className="w-12 h-12" />
-      <h2 className="text-text-primary text-xl font-semibold">Study Room</h2>
-      <p className="text-sm">Collaborative study tools coming soon.</p>
-    </div>
-  );
-}

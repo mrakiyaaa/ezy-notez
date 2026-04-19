@@ -1,10 +1,9 @@
 "use client";
 
 import { Check, X } from "lucide-react";
-import type { AuraProps } from "./constants";
 import { QUIZ_GREEN, QUIZ_GREEN_RGB, QUIZ_GREEN_CONTRAST, QUIZ_RED, QUIZ_RED_RGB, QUIZ_RED_CONTRAST } from "./constants";
 
-interface OptionButtonProps extends AuraProps {
+interface OptionButtonProps {
   label: string; // A, B, C, D
   text: string;
   isSelected: boolean;
@@ -24,8 +23,6 @@ export default function OptionButton({
   isDisabled = false,
   showResult = false,
   onSelect,
-  auraHex,
-  auraRgb,
 }: OptionButtonProps) {
   const getStyles = () => {
     // Post-submission: keep semantic green/red for correct/wrong
@@ -64,15 +61,15 @@ export default function OptionButton({
       };
     }
 
-    // Pre-submission selected: use aura color
+    // Pre-submission selected: use blue-accent
     if (isSelected) {
       return {
-        backgroundColor: `rgba(${auraRgb}, 0.08)`,
-        borderColor: `rgba(${auraRgb}, 0.5)`,
-        labelBg: `rgba(${auraRgb}, 0.2)`,
-        labelColor: auraHex,
+        backgroundColor: "rgba(255, 255, 255, 0.04)",
+        borderColor: "var(--color-blue-accent)",
+        labelBg: "rgba(255, 255, 255, 0.08)",
+        labelColor: "var(--color-blue-accent)",
         textColor: "var(--color-text-primary)",
-        boxShadow: `0 0 12px rgba(${auraRgb}, 0.15)`,
+        boxShadow: "none",
         icon: null,
       };
     }
@@ -101,18 +98,6 @@ export default function OptionButton({
         boxShadow: styles.boxShadow,
         cursor: isDisabled || showResult ? "default" : "pointer",
         opacity: isDisabled && !showResult ? 0.6 : 1,
-      }}
-      onMouseEnter={(e) => {
-        if (!isDisabled && !showResult && !isSelected) {
-          e.currentTarget.style.borderColor = `rgba(${auraRgb}, 0.3)`;
-          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.04)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isDisabled && !showResult && !isSelected) {
-          e.currentTarget.style.borderColor = "var(--color-fade-border)";
-          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
-        }
       }}
     >
       {/* Option label (A, B, C, D) */}

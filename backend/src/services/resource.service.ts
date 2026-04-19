@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../config/supabase";
 import { UTApi } from "uploadthing/server";
 import { spawn } from "child_process";
 import path from "path";
+import axios from "axios";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PDFParse } = require("pdf-parse") as { PDFParse: new (opts: { url: string }) => { getText(): Promise<{ text: string }> } };
 
@@ -66,6 +67,35 @@ const spawnPythonScript = (scriptRelPath: string, fileUrl: string): Promise<stri
   });
 };
 
+const PYTHON_ML_URL =
+  process.env.PYTHON_ML_URL || "http://localhost:8000";
+const CHATIE_ML_BASE_URL = `${PYTHON_ML_URL.replace(/\/+$/, "")}/chatie`;
+
+/**
+ * Fire-and-forget call to the Chatie ML service to embed a resource's
+ * extracted text for RAG retrieval. Fetches the resource row to get
+ * workspace_id and extracted_text, then posts to the embed endpoint.
+ */
+const triggerEmbedding = async (resourceId: string): Promise<void> => {
+  const { data: resource, error } = await supabaseAdmin
+    .from("resources")
+    .select("workspace_id, extracted_text")
+    .eq("id", resourceId)
+    .single();
+
+  if (error || !resource?.extracted_text) return;
+
+  await axios.post(
+    `${CHATIE_ML_BASE_URL}/embed-resource`,
+    {
+      resource_id: resourceId,
+      workspace_id: resource.workspace_id,
+      text: resource.extracted_text,
+    },
+    { timeout: 300_000 }
+  );
+};
+
 /**
  * Shared extraction lifecycle:
  *   1. Mark resource as 'indexing'
@@ -92,6 +122,11 @@ const runExtractionPipeline = async (
       .eq("id", id);
 
     if (error) throw new Error(`Supabase update failed: ${error.message}`);
+
+    // After a resource reaches ready status, trigger embedding for Chatie RAG
+    triggerEmbedding(id).catch((embedErr) => {
+      console.error(`[${label}] embedding trigger failed for resource=${id}:`, embedErr);
+    });
   } catch (err) {
     console.error(`[${label}] resource=${id}`, err);
 

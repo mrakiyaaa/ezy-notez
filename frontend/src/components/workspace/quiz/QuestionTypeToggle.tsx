@@ -1,10 +1,9 @@
 "use client";
 
 import type { QuestionType } from "@/types/quiz";
-import type { AuraProps } from "./constants";
 import { QUESTION_TYPE_OPTIONS } from "./constants";
 
-interface QuestionTypeToggleProps extends AuraProps {
+interface QuestionTypeToggleProps {
   selectedType: QuestionType;
   onTypeChange: (type: QuestionType) => void;
 }
@@ -12,47 +11,38 @@ interface QuestionTypeToggleProps extends AuraProps {
 export default function QuestionTypeToggle({
   selectedType,
   onTypeChange,
-  auraHex,
-  auraRgb,
 }: QuestionTypeToggleProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex rounded-lg border border-fade-border bg-white/[0.02] p-1">
-        {QUESTION_TYPE_OPTIONS.map((option) => {
-          const isSelected = selectedType === option.id;
-          return (
-            <button
-              key={option.id}
-              onClick={() => onTypeChange(option.id)}
-              className="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200"
-              style={{
-                backgroundColor: isSelected
-                  ? `rgba(${auraRgb}, 0.15)`
-                  : "transparent",
-                color: isSelected ? auraHex : "var(--color-text-secondary)",
-              }}
-              onMouseEnter={(e) => {
-                if (!isSelected) {
-                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.04)";
-                  e.currentTarget.style.color = "var(--color-text-primary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSelected) {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "var(--color-text-secondary)";
-                }
-              }}
+    <div className="flex border border-fade-border rounded-lg overflow-hidden">
+      {QUESTION_TYPE_OPTIONS.map((option, index) => {
+        const isSelected = selectedType === option.id;
+        return (
+          <button
+            key={option.id}
+            onClick={() => onTypeChange(option.id)}
+            className={[
+              "flex-1 py-3 text-center cursor-pointer transition-all duration-150",
+              isSelected
+                ? "bg-blue-accent/10 text-text-secondary"
+                : "bg-main text-text-muted font-semibold font-display text-sm hover:opacity-90",
+              index < QUESTION_TYPE_OPTIONS.length - 1 ? "border-r border-fade-border" : ""
+            ].join(" ")}
+          >
+            <span
+              className={[
+                "block font-semibold font-display text-sm",
+              ].join(" ")}
             >
               {option.label}
-            </button>
-          );
-        })}
-      </div>
-      {/* Description of selected type */}
-      <p className="text-text-muted text-xs text-center">
-        {QUESTION_TYPE_OPTIONS.find((opt) => opt.id === selectedType)?.description}
-      </p>
+            </span>
+            {isSelected && (
+              <span className="block text-[10px] text-text-muted mt-0.5">
+                {option.description}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

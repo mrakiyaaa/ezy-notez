@@ -1,8 +1,6 @@
 "use client";
 
-import type { AuraProps } from "./constants";
-
-interface QuestionCardProps extends AuraProps {
+interface QuestionCardProps {
   questionNumber: number;
   questionText: string;
   questionType: "mcq" | "scenario";
@@ -12,15 +10,12 @@ export default function QuestionCard({
   questionNumber,
   questionText,
   questionType,
-  auraHex,
-  auraRgb,
 }: QuestionCardProps) {
   return (
     <div
       className="rounded-xl border bg-bg-card/80 backdrop-blur-sm p-6 w-full max-w-2xl"
       style={{
-        borderColor: `rgba(${auraRgb}, 0.15)`,
-        boxShadow: `0 4px 24px rgba(0, 0, 0, 0.2), 0 0 40px rgba(${auraRgb}, 0.05)`,
+        boxShadow: "0 4px 24px rgba(0, 0, 0, 0.2)",
       }}
     >
       {/* Question header */}
@@ -29,8 +24,8 @@ export default function QuestionCard({
         <span
           className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
           style={{
-            backgroundColor: `rgba(${auraRgb}, 0.12)`,
-            color: auraHex,
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+            color: "var(--color-text-secondary)",
           }}
         >
           {questionNumber}

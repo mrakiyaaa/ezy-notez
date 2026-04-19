@@ -4,9 +4,14 @@
  * Supports both patterns used in the codebase:
  *   await supabaseAdmin.from("t").select().eq().order()        → awaitable chain
  *   await supabaseAdmin.from("t").insert().select().single()   → .single() Promise
+ *   await supabaseAdmin.from("t").select("id",{count:"exact"}).eq() → { count }
  */
-export function makeQueryChain(data: unknown = null, error: unknown = null) {
-  const result = { data, error };
+export function makeQueryChain(
+  data: unknown = null,
+  error: unknown = null,
+  count: number | null = null,
+) {
+  const result = { data, error, count };
 
   const chain: Record<string, unknown> = {
     select: jest.fn().mockReturnThis(),
@@ -22,6 +27,8 @@ export function makeQueryChain(data: unknown = null, error: unknown = null) {
     order: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue(result),
+    // maybeSingle: like single() but does not error on empty rows
+    maybeSingle: jest.fn().mockResolvedValue(result),
     // Allow `await chain` to resolve (Supabase PromiseLike behaviour)
     then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
       Promise.resolve(result).then(resolve, reject),

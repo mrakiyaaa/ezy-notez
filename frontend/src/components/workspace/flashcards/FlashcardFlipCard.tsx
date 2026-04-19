@@ -1,8 +1,8 @@
 "use client";
 
-import type { Flashcard, AuraProps } from "./constants";
+import type { Flashcard } from "./constants";
 
-interface FlashcardFlipCardProps extends AuraProps {
+interface FlashcardFlipCardProps {
   card: Flashcard;
   isFlipped: boolean;
   onFlip: () => void;
@@ -16,8 +16,6 @@ export default function FlashcardFlipCard({
   onFlip,
   cardNumber,
   totalCards,
-  auraHex,
-  auraRgb,
 }: FlashcardFlipCardProps) {
   return (
     <div
@@ -51,16 +49,14 @@ export default function FlashcardFlipCard({
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             backgroundColor: "var(--color-bg-card)",
-            borderColor: `rgba(${auraRgb}, 0.25)`,
-            boxShadow: `0 0 50px rgba(${auraRgb}, 0.10), inset 0 0 80px rgba(${auraRgb}, 0.03)`,
           }}
         >
           {/* Label badge */}
           <span
             className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full"
             style={{
-              backgroundColor: `rgba(${auraRgb}, 0.12)`,
-              color: auraHex,
+              backgroundColor: "rgba(255, 255, 255, 0.06)",
+              color: "var(--color-blue-accent)",
             }}
           >
             Question
@@ -78,14 +74,6 @@ export default function FlashcardFlipCard({
           <span className="absolute top-4 right-5 text-text-muted text-xs tabular-nums">
             {cardNumber} / {totalCards}
           </span>
-
-          {/* Bottom shimmer line */}
-          <div
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-px pointer-events-none"
-            style={{
-              background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.45), transparent)`,
-            }}
-          />
         </div>
 
         {/* ── Back face ── */}
@@ -95,17 +83,15 @@ export default function FlashcardFlipCard({
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
-            backgroundColor: `rgba(${auraRgb}, 0.05)`,
-            borderColor: `rgba(${auraRgb}, 0.4)`,
-            boxShadow: `0 0 60px rgba(${auraRgb}, 0.18), inset 0 0 100px rgba(${auraRgb}, 0.05)`,
+            backgroundColor: "var(--color-bg-card)",
           }}
         >
           {/* Label badge */}
           <span
             className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full"
             style={{
-              backgroundColor: `rgba(${auraRgb}, 0.2)`,
-              color: auraHex,
+              backgroundColor: "rgba(255, 255, 255, 0.06)",
+              color: "var(--color-blue-accent)",
             }}
           >
             Answer
@@ -123,14 +109,6 @@ export default function FlashcardFlipCard({
           <span className="absolute top-4 right-5 text-text-muted text-xs tabular-nums">
             {cardNumber} / {totalCards}
           </span>
-
-          {/* Bottom shimmer line (stronger on answer side) */}
-          <div
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-56 h-px pointer-events-none"
-            style={{
-              background: `linear-gradient(to right, transparent, rgba(${auraRgb}, 0.65), transparent)`,
-            }}
-          />
         </div>
       </div>
     </div>

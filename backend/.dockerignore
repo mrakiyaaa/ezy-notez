@@ -24,3 +24,8 @@ Thumbs.db
 
 # Testing
 coverage
+.nyc_output
+src/__tests__
+**/*.test.ts
+**/*.spec.ts
+jest.config.ts

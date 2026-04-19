@@ -90,21 +90,18 @@ const statusConfig: Record<
 interface ResourceItemProps {
   resource: Resource;
   onDelete: (id: string) => void;
-  auraRgb: string;
 }
 
 export default function ResourceItem({
   resource,
   onDelete,
-  auraRgb,
 }: ResourceItemProps) {
   const { bg, icon: Icon, color } = iconConfig[resource.type] ?? iconConfig.pdf;
   const status = statusConfig[resource.status] ?? statusConfig.processing;
 
   return (
     <div
-      className="bg-bg-card rounded-xl border px-4 py-3 flex items-center gap-4 group"
-      style={{ borderColor: `rgba(${auraRgb}, 0.2)` }}
+      className="bg-bg-card rounded-xl border border-fade-border px-4 py-3 flex items-center gap-4 group"
     >
       {/* File icon */}
       <div className={`${bg} rounded-lg p-2.5 shrink-0`}>

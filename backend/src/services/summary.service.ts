@@ -1,6 +1,5 @@
 import { supabaseAdmin } from "../config/supabase";
-import { spawn } from "child_process";
-import path from "path";
+import axios from "axios";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,95 +27,141 @@ interface ResourceTextRow {
   extracted_text: string | null;
 }
 
-const PYTHON_SCRIPT_PATH = "../../scripts/summarize_text.py";
-const DEFAULT_CHUNK_SIZE = "1024";
+// ---------------------------------------------------------------------------
+// OpenRouter configuration (reuses the same provider as quiz generation)
+// ---------------------------------------------------------------------------
+
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "meta-llama/llama-3.1-8b-instruct";
+const OPENROUTER_HTTP_REFERER = "https://ezynotez.com";
+const OPENROUTER_APP_TITLE = "EZY Notez";
+const OPENROUTER_TIMEOUT_MS = 60_000;
+
+// ---------------------------------------------------------------------------
+// Prompt builders
+// ---------------------------------------------------------------------------
+
+const FORMAT_INSTRUCTIONS: Record<SummaryFormat, string> = {
+  bullet:
+    "Produce a concise bullet-point list of the key points. " +
+    "Use markdown bullet syntax (- item). " +
+    "Start with the heading: ## Key Points",
+  short:
+    "Produce a short single-paragraph overview of the main ideas. " +
+    "Start with the heading: ## Summary",
+  detailed:
+    "Produce a detailed multi-paragraph summary covering all major topics. " +
+    "Start with the heading: ## Detailed Summary",
+};
+
+const buildSummarizationPrompt = (text: string, format: SummaryFormat): string =>
+  `You are an academic content summarizer. Summarize the following academic text clearly and concisely.\n\n` +
+  `Instructions: ${FORMAT_INSTRUCTIONS[format]}\n\n` +
+  `Return ONLY the formatted summary in markdown. Do not include introductory phrases such as ` +
+  `"Here is a summary" or "The following is".\n\n` +
+  `TEXT:\n${text}`;
+
+const buildCombinedSummaryPrompt = (
+  intermediateSummaries: string[],
+  format: SummaryFormat
+): string => {
+  const sections = intermediateSummaries
+    .map((s, i) => `--- Resource ${i + 1} ---\n${s.trim()}`)
+    .join("\n\n");
+
+  return (
+    `You are an academic content summarizer. Below are summaries of individual resources from an ` +
+    `academic workspace. Combine them into a single coherent summary.\n\n` +
+    `Instructions: ${FORMAT_INSTRUCTIONS[format]}\n\n` +
+    `Return ONLY the formatted combined summary in markdown. Do not include introductory phrases.\n\n` +
+    `INDIVIDUAL SUMMARIES:\n${sections}`
+  );
+};
+
+// ---------------------------------------------------------------------------
+// OpenRouter API call
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a single chat-completion request to OpenRouter and return the model's
+ * response text. Throws with the exact error message strings required by the
+ * error-handling contract so callers can store them verbatim in error_message.
+ */
+const callOpenRouterForSummary = async (prompt: string): Promise<string> => {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      "OpenRouter error: OPENROUTER_API_KEY is not configured on this server."
+    );
+  }
+
+  try {
+    const response = await axios.post<{
+      choices: { message: { content: string } }[];
+    }>(
+      OPENROUTER_API_URL,
+      {
+        model: OPENROUTER_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": OPENROUTER_HTTP_REFERER,
+          "X-Title": OPENROUTER_APP_TITLE,
+          "Content-Type": "application/json",
+        },
+        timeout: OPENROUTER_TIMEOUT_MS,
+      }
+    );
+
+    const content = response.data?.choices?.[0]?.message?.content;
+    if (!content || !content.trim()) {
+      throw new Error("OpenRouter error: Empty response received from the model.");
+    }
+
+    return content.trim();
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+        throw new Error(
+          "Summarization request timed out. Please try again."
+        );
+      }
+      if (err.response) {
+        const detail: string =
+          (err.response.data as { error?: { message?: string }; message?: string })
+            ?.error?.message ??
+          (err.response.data as { message?: string })?.message ??
+          err.response.statusText ??
+          String(err.response.status);
+        throw new Error(`OpenRouter error: ${detail}`);
+      }
+    }
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+};
 
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Spawn a Python script, pass data via stdin, and resolve with stdout.
- * Rejects if the process exits non-zero or fails to start.
- */
-const spawnPythonScriptWithStdin = (
-  scriptRelPath: string,
-  args: string[],
-  stdinData: string
-): Promise<string> => {
-  const scriptPath = path.resolve(__dirname, scriptRelPath);
-
-  return new Promise((resolve, reject) => {
-    const proc = spawn("python", [scriptPath, ...args]);
-
-    let stdout = "";
-    let stderr = "";
-
-    proc.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-    proc.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on("close", (exitCode) => {
-      if (exitCode === 0) {
-        resolve(stdout.trim());
-      } else {
-        reject(
-          new Error(
-            `Summarization script exited with code ${exitCode}: ${stderr.trim()}`
-          )
-        );
-      }
-    });
-
-    proc.on("error", (spawnError) => {
-      reject(
-        new Error(
-          `Failed to spawn summarization script: ${spawnError.message}`
-        )
-      );
-    });
-
-    proc.stdin.on("error", (writeError) => {
-      reject(
-        new Error(
-          `Failed to write input to summarization script: ${writeError.message}`
-        )
-      );
-    });
-
-    proc.stdin.write(stdinData);
-    proc.stdin.end();
-  });
-};
-
-/**
- * Filter resources that have non-empty extracted text.
- */
 const filterUsableResources = (
   resources: ResourceTextRow[]
 ): ResourceTextRow[] =>
   resources.filter(
-    (resource) =>
-      resource.extracted_text && resource.extracted_text.trim().length > 0
+    (r) => r.extracted_text && r.extracted_text.trim().length > 0
   );
 
-/**
- * Concatenate extracted text from multiple resources.
- */
-const combineExtractedText = (resources: ResourceTextRow[]): string =>
-  resources
-    .map((resource) => resource.extracted_text!.trim())
-    .join("\n\n");
+// ---------------------------------------------------------------------------
+// Summarization pipelines
+// ---------------------------------------------------------------------------
 
 /**
- * Run the summarization pipeline for a single summary row:
- *   1. Mark status as 'processing'
- *   2. Spawn the Python summarization script
- *   3. Sanitize and store the result, mark 'ready'
- *   4. On error, mark 'failed' with error_message
+ * Per-resource pipeline: summarize a single text via OpenRouter and persist
+ * the result. Used by the customize mode and as a step inside the general
+ * pipeline. Updates the DB row through processing → ready/failed.
  */
 const runSummarizationPipeline = async (
   summaryId: string,
@@ -129,14 +174,13 @@ const runSummarizationPipeline = async (
     .eq("id", summaryId);
 
   try {
-    const rawOutput = await spawnPythonScriptWithStdin(
-      PYTHON_SCRIPT_PATH,
-      [format, DEFAULT_CHUNK_SIZE],
-      inputText
-    );
+    if (!inputText || !inputText.trim()) {
+      throw new Error("No content found for this resource.");
+    }
 
-    // Strip null bytes (rejected by PostgreSQL text type)
-    const sanitizedContent = rawOutput.replace(/\0/g, "");
+    const prompt = buildSummarizationPrompt(inputText, format);
+    const content = await callOpenRouterForSummary(prompt);
+    const sanitizedContent = content.replace(/\0/g, "");
 
     const { error: updateError } = await supabaseAdmin
       .from("summaries")
@@ -159,14 +203,16 @@ const runSummarizationPipeline = async (
       pipelineError
     );
 
+    const errMsg =
+      pipelineError instanceof Error
+        ? pipelineError.message
+        : "Unknown summarization error";
+
     const { error: statusUpdateError } = await supabaseAdmin
       .from("summaries")
       .update({
         status: "failed",
-        error_message:
-          pipelineError instanceof Error
-            ? pipelineError.message
-            : "Unknown summarization error",
+        error_message: errMsg,
         updated_at: new Date().toISOString(),
       })
       .eq("id", summaryId);
@@ -174,6 +220,92 @@ const runSummarizationPipeline = async (
     if (statusUpdateError) {
       console.error(
         `[runSummarizationPipeline] Failed to mark summary=${summaryId} as failed:`,
+        statusUpdateError
+      );
+    }
+  }
+};
+
+/**
+ * General mode pipeline: summarize each resource independently first, then
+ * combine the intermediate summaries into one final cohesive summary via a
+ * second OpenRouter call. Never concatenates raw resource text.
+ */
+const runGeneralSummarizationPipeline = async (
+  summaryId: string,
+  resources: ResourceTextRow[],
+  format: SummaryFormat
+): Promise<void> => {
+  await supabaseAdmin
+    .from("summaries")
+    .update({ status: "processing", updated_at: new Date().toISOString() })
+    .eq("id", summaryId);
+
+  try {
+    // Step 1: summarize each resource independently
+    const intermediateSummaries: string[] = [];
+    for (const resource of resources) {
+      const text = (resource.extracted_text ?? "").trim();
+      if (!text) continue;
+
+      const prompt = buildSummarizationPrompt(text, format);
+      const summary = await callOpenRouterForSummary(prompt);
+      intermediateSummaries.push(summary.trim());
+    }
+
+    if (intermediateSummaries.length === 0) {
+      throw new Error("No content found for this resource.");
+    }
+
+    // Step 2: combine into a single final summary (or use the only one directly)
+    let finalContent: string;
+    if (intermediateSummaries.length === 1) {
+      finalContent = intermediateSummaries[0];
+    } else {
+      const combinedPrompt = buildCombinedSummaryPrompt(intermediateSummaries, format);
+      finalContent = await callOpenRouterForSummary(combinedPrompt);
+    }
+
+    const sanitizedContent = finalContent.replace(/\0/g, "");
+
+    const { error: updateError } = await supabaseAdmin
+      .from("summaries")
+      .update({
+        content: sanitizedContent,
+        status: "ready",
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", summaryId);
+
+    if (updateError) {
+      throw new Error(
+        `Failed to save summary result to database: ${updateError.message}`
+      );
+    }
+  } catch (pipelineError) {
+    console.error(
+      `[runGeneralSummarizationPipeline] Failed for summary=${summaryId}:`,
+      pipelineError
+    );
+
+    const errMsg =
+      pipelineError instanceof Error
+        ? pipelineError.message
+        : "Unknown summarization error";
+
+    const { error: statusUpdateError } = await supabaseAdmin
+      .from("summaries")
+      .update({
+        status: "failed",
+        error_message: errMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", summaryId);
+
+    if (statusUpdateError) {
+      console.error(
+        `[runGeneralSummarizationPipeline] Failed to mark summary=${summaryId} as failed:`,
         statusUpdateError
       );
     }
@@ -240,9 +372,9 @@ export const deleteSummary = async (id: string): Promise<void> => {
 
 /**
  * Generate a general (workspace-wide) summary.
- * Fetches all ready resources, concatenates their extracted text, inserts a
- * pending summary row, then fires the pipeline in the background.
- * Returns the pending summary row immediately.
+ * Each resource is summarized independently, then the intermediate summaries
+ * are combined into one final summary via a second OpenRouter call.
+ * Returns the pending summary row immediately; the pipeline runs in the background.
  */
 export const generateGeneralSummary = async (
   workspaceId: string,
@@ -270,8 +402,7 @@ export const generateGeneralSummary = async (
     throw new Error("No resources with extracted text found in this workspace");
   }
 
-  const sourceIds = usableResources.map((resource) => resource.id);
-  const combinedText = combineExtractedText(usableResources);
+  const sourceIds = usableResources.map((r) => r.id);
 
   const { data: insertedSummary, error: insertError } = await supabaseAdmin
     .from("summaries")
@@ -293,22 +424,24 @@ export const generateGeneralSummary = async (
     );
   }
 
-  runSummarizationPipeline(insertedSummary.id, combinedText, format).catch(
-    (pipelineError) => {
-      console.error(
-        "[generateGeneralSummary] Background pipeline failed:",
-        pipelineError
-      );
-    }
-  );
+  runGeneralSummarizationPipeline(
+    insertedSummary.id,
+    usableResources,
+    format
+  ).catch((pipelineError) => {
+    console.error(
+      "[generateGeneralSummary] Background pipeline failed:",
+      pipelineError
+    );
+  });
 
   return insertedSummary as SummaryRow;
 };
 
 /**
  * Generate per-resource summaries (customize mode).
- * For each resource ID, inserts a pending summary row and fires the pipeline.
- * Returns the array of pending summary rows immediately.
+ * Each resource is summarized independently and gets its own summary row.
+ * Returns the array of pending summary rows immediately; pipelines run in background.
  */
 export const generateResourceSummaries = async (
   workspaceId: string,
@@ -380,7 +513,7 @@ export const generateResourceSummaries = async (
 
 /**
  * Re-generate an existing summary. Resets status to pending and re-runs
- * the pipeline. Optionally accepts a new format.
+ * the appropriate pipeline. Optionally accepts a new format.
  */
 export const regenerateSummary = async (
   id: string,
@@ -390,45 +523,6 @@ export const regenerateSummary = async (
   if (!existing) throw new Error(`Summary ${id} not found`);
 
   const format = newFormat ?? existing.format;
-
-  let inputText: string;
-
-  if (existing.resource_id) {
-    const { data: resource, error: fetchError } = await supabaseAdmin
-      .from("resources")
-      .select("extracted_text")
-      .eq("id", existing.resource_id)
-      .single();
-
-    if (fetchError || !resource?.extracted_text) {
-      throw new Error(
-        `Source resource ${existing.resource_id} text is no longer available`
-      );
-    }
-    inputText = resource.extracted_text.trim();
-  } else {
-    const { data: sourceResources, error: fetchError } = await supabaseAdmin
-      .from("resources")
-      .select("id, extracted_text")
-      .in("id", existing.source_ids)
-      .not("extracted_text", "is", null);
-
-    if (fetchError) {
-      throw new Error(
-        `Failed to fetch source resources: ${fetchError.message}`
-      );
-    }
-
-    const usableResources = filterUsableResources(
-      (sourceResources ?? []) as ResourceTextRow[]
-    );
-
-    if (usableResources.length === 0) {
-      throw new Error("Source resources no longer have extracted text");
-    }
-
-    inputText = combineExtractedText(usableResources);
-  }
 
   const { data: updatedSummary, error: updateError } = await supabaseAdmin
     .from("summaries")
@@ -449,12 +543,59 @@ export const regenerateSummary = async (
     );
   }
 
-  runSummarizationPipeline(id, inputText, format).catch((pipelineError) => {
-    console.error(
-      `[regenerateSummary] Background pipeline failed for summary=${id}:`,
-      pipelineError
+  if (existing.resource_id) {
+    // Per-resource summary: fetch the single source resource
+    const { data: resource, error: fetchError } = await supabaseAdmin
+      .from("resources")
+      .select("extracted_text")
+      .eq("id", existing.resource_id)
+      .single();
+
+    if (fetchError || !resource?.extracted_text) {
+      throw new Error(
+        `Source resource ${existing.resource_id} text is no longer available`
+      );
+    }
+
+    runSummarizationPipeline(id, resource.extracted_text.trim(), format).catch(
+      (pipelineError) => {
+        console.error(
+          `[regenerateSummary] Background pipeline failed for summary=${id}:`,
+          pipelineError
+        );
+      }
     );
-  });
+  } else {
+    // General summary: re-fetch all source resources and run the general pipeline
+    const { data: sourceResources, error: fetchError } = await supabaseAdmin
+      .from("resources")
+      .select("id, extracted_text")
+      .in("id", existing.source_ids)
+      .not("extracted_text", "is", null);
+
+    if (fetchError) {
+      throw new Error(
+        `Failed to fetch source resources: ${fetchError.message}`
+      );
+    }
+
+    const usableResources = filterUsableResources(
+      (sourceResources ?? []) as ResourceTextRow[]
+    );
+
+    if (usableResources.length === 0) {
+      throw new Error("Source resources no longer have extracted text");
+    }
+
+    runGeneralSummarizationPipeline(id, usableResources, format).catch(
+      (pipelineError) => {
+        console.error(
+          `[regenerateSummary] Background general pipeline failed for summary=${id}:`,
+          pipelineError
+        );
+      }
+    );
+  }
 
   return updatedSummary as SummaryRow;
 };

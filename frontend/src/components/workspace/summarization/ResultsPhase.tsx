@@ -17,7 +17,6 @@ import {
   getFormatLabel,
   formatSummaryDate,
   getWordCount,
-  type AuraProps,
 } from "./constants";
 import SummaryContent from "./SummaryContent";
 
@@ -25,7 +24,7 @@ import SummaryContent from "./SummaryContent";
 // Props
 // ---------------------------------------------------------------------------
 
-interface ResultsPhaseProps extends AuraProps {
+interface ResultsPhaseProps {
   activeSummary: Summary;
   activeBatch: Summary[];
   activeTabId: string;
@@ -46,9 +45,6 @@ interface ResultsPhaseProps extends AuraProps {
 // ---------------------------------------------------------------------------
 
 export default function ResultsPhase({
-  auraHex,
-  auraRgb,
-  auraContrast,
   activeSummary,
   activeBatch,
   activeTabId,
@@ -111,11 +107,11 @@ export default function ResultsPhase({
         <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `rgba(${auraRgb}, 0.15)` }}
+            style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
           >
             <ListChecks
               className="w-3.5 h-3.5"
-              style={{ color: auraHex }}
+              style={{ color: "var(--color-blue-accent)" }}
             />
           </div>
           <h2 className="text-text-primary text-lg font-semibold truncate">
@@ -146,18 +142,14 @@ export default function ResultsPhase({
         <div className="flex-1 lg:basis-[65%] min-w-0">
           <div
             className="rounded-xl border border-fade-border bg-bg-card p-5 transition-all duration-200"
-            style={{
-              boxShadow: `0 0 20px rgba(${auraRgb}, 0.06)`,
-              borderColor: `rgba(${auraRgb}, 0.15)`,
-            }}
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
                 <span
                   className="rounded-full px-3 py-1 text-xs font-medium"
                   style={{
-                    backgroundColor: `rgba(${auraRgb}, 0.15)`,
-                    color: auraHex,
+                    backgroundColor: "rgba(80, 125, 188, 0.12)",
+                    color: "var(--color-blue-accent)",
                   }}
                 >
                   {formatLabel}
@@ -171,8 +163,7 @@ export default function ResultsPhase({
               <button
                 onClick={() => onRegenerate(activeSummary.id)}
                 disabled={regeneratingId === activeSummary.id}
-                className="flex items-center gap-1.5 text-xs font-medium hover:opacity-80 transition-all duration-200 disabled:opacity-50"
-                style={{ color: auraHex }}
+                className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-primary hover:opacity-80 transition-all duration-200 disabled:opacity-50"
               >
                 <RefreshCw
                   className={`w-3.5 h-3.5 ${
@@ -185,7 +176,7 @@ export default function ResultsPhase({
               </button>
             </div>
 
-            <SummaryContent summary={activeSummary} auraHex={auraHex} />
+            <SummaryContent summary={activeSummary} />
           </div>
         </div>
 
@@ -194,7 +185,6 @@ export default function ResultsPhase({
           {/* Sources Used card */}
           <div
             className="rounded-xl border border-fade-border bg-bg-card p-4 transition-all duration-200"
-            style={{ boxShadow: `0 0 12px rgba(${auraRgb}, 0.04)` }}
           >
             <button
               onClick={onToggleSources}
@@ -240,7 +230,6 @@ export default function ResultsPhase({
           {/* Summary Info card */}
           <div
             className="rounded-xl border border-fade-border bg-bg-card p-4 transition-all duration-200"
-            style={{ boxShadow: `0 0 12px rgba(${auraRgb}, 0.04)` }}
           >
             <div className="flex items-center gap-2 mb-3">
               <Info className="w-4 h-4 text-text-muted" />
@@ -304,7 +293,7 @@ export default function ResultsPhase({
                 }`}
                 style={
                   isActive
-                    ? { backgroundColor: auraHex, color: auraContrast }
+                    ? { backgroundColor: "var(--color-blue-accent)", color: "#ffffff" }
                     : undefined
                 }
               >
