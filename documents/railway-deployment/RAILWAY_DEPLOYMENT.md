@@ -200,9 +200,11 @@ python main.py                 # binds to 0.0.0.0:8000
    third-party credentials (UploadThing, Resend).
 6. Hit `GET /health` on both services after deploy to verify readiness.
 
-## 6. Legacy directories
+## 6. Legacy directories (removed)
 
-`services/quiz-ml/` and `services/chatie-ml/` are now superseded by
-`services/ml/`. They remain in-tree for reference and can be removed once
-the unified service has run in production for a release cycle. No Railway
-service should be pointed at those old directories.
+`services/quiz-ml/` and `services/chatie-ml/` have been removed. All quiz
+and chatie functionality is now served by the unified `services/ml/`
+container. Railway services and local dev scripts must target `services/ml/`.
+Historical implementation notes for the old separate services remain in
+`documents/quiz-ml-backend.md` and `documents/chatie-rag-implementation.md`
+as archival reference.

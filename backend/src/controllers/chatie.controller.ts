@@ -264,7 +264,7 @@ export const sendMessageHandler = async (
   } catch (error) {
     console.error("[sendMessageHandler]", error);
     if (isServiceUnavailable(error)) {
-      res.status(503).json({ status: "error", message: "Chatie ML service is offline. Run `npm run setup:chatie-ml` then `npm run dev:ml` to start it." });
+      res.status(503).json({ status: "error", message: "ML service is offline. Run `npm run setup:ml` then `npm run dev:ml` to start it." });
       return;
     }
     const message =
