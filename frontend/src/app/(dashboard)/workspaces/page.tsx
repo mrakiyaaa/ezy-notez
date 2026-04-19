@@ -8,6 +8,7 @@ import CreateWorkspaceModal from "@/components/workspace/CreateWorkspaceModal";
 import CollapsibleSidebar from "@/components/dashboard/CollapsibleSidebar";
 import WorkspaceGrid from "@/components/dashboard/WorkspaceGrid";
 import { getWorkspacesApi } from "@/api/workspace.api";
+import Grainient from "@/components/ui/Grainient";
 import {
   getPendingInvites,
   acceptInvite,
@@ -97,12 +98,9 @@ export default function WorkspacesPage() {
   }, [searchQuery, workspaces]);
 
   const handleWorkspaceCreated = (slug: string) => {
-    // Reload workspaces after creation
     getWorkspacesApi()
       .then(setWorkspaces)
       .catch((error) => console.error("Failed to reload workspaces:", error));
-
-    // Navigate to the new workspace
     router.push(`/workspaces/${slug}`);
   };
 
@@ -114,8 +112,6 @@ export default function WorkspacesPage() {
     setWorkspaces((prev) => prev.filter((w) => w.id !== id));
   };
 
-  // Accept invite → navigate into the workspace's study-room lobby.
-  // We rely on the workspaces list being loaded to resolve workspaceId → slug.
   const handleJoinInvite = useCallback(
     async (invite: PendingInvite) => {
       try {
@@ -128,7 +124,6 @@ export default function WorkspacesPage() {
             `/workspaces/${workspace.slug}?tab=studyroom&room=${invite.roomId}`,
           );
         } else {
-          // Unlikely: invite references a workspace the user isn't in.
           console.warn(
             `[WorkspacesPage] No workspace found for id ${invite.workspaceId}`,
           );
@@ -151,96 +146,114 @@ export default function WorkspacesPage() {
 
   return (
     <div className="h-screen overflow-hidden bg-main px-4 md:px-6 text-text-primary">
-      <div className="flex h-full gap-10">
-        <div className="flex-1 min-w-0 overflow-y-auto scrollbar-hidden py-10 flex flex-col gap-8">
-          <header className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.25em] text-white/50">
-                  Workspace Hub
-                </p>
-                <h1 className="mt-2 text-3xl font-semibold">
-                  Your AI-powered learning space
-                </h1>
-              </div>
-                <div className="relative w-96">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search workspaces"
-                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
-                />
-                </div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-linear-to-br bg-bg-card from-slate-900 via-bg-card to-bg-card-slate-950 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm text-white/70">Welcome to your spaces</p>
-                  <h2 className="mt-2 text-xl font-semibold">
-                    Create or join a workspace to get started.
-                  </h2>
-                  <p className="mt-1 text-sm text-white/50">
-                    Organize your study materials with collaborative workspaces.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <section className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                Your Workspaces {!isLoading && `(${filteredWorkspaces.length})`}
-              </h2>
-            </div>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <p className="text-white/50">Loading workspaces...</p>
-              </div>
-            ) : filteredWorkspaces.length > 0 ? (
-              <WorkspaceGrid
-                workspaces={filteredWorkspaces}
-                onOpenCreate={() => setIsModalOpen(true)}
-                onSelectWorkspace={handleWorkspaceOpen}
-                onDeleteWorkspace={handleWorkspaceDeleted}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 py-12">
-                <p className="text-center text-white/50">
-                  {searchQuery ? "No workspaces found" : "No workspaces yet"}
-                </p>
-                {!searchQuery && (
-                  <Button
-                    onClick={() => setIsModalOpen(true)}
-                    className="mt-4 bg-blue-accent hover:bg-blue-accent/90"
-                  >
-                    Create your first workspace
-                  </Button>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <CollapsibleSidebar
-          invites={invites}
-          invitesLoading={invitesLoading}
-          activities={activities}
-          activitiesLoading={activitiesLoading}
-          dailyBriefing={dailyBriefing}
-          briefingLoading={briefingLoading}
-          onJoinInvite={handleJoinInvite}
-          onDismissInvite={handleDismissInvite}
+      <div className="fixed inset-0 z-0">
+        <Grainient
+          color1="#111721"
+          color2="#1a2537"
+          color3="#324765"
+          timeSpeed={0.3}
+          colorBalance={0.05}
+          warpStrength={0.8}
+          warpFrequency={4.0}
+          warpSpeed={0.9}
+          warpAmplitude={60.0}
+          contrast={1.4}
+          grainAmount={0}
+          zoom={0.95}
         />
       </div>
+      <div className="relative z-10 h-full">
+        <div className="flex h-full gap-10">
+          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-hidden py-10 flex flex-col gap-8">
+            <header className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-white/50">
+                    Workspace Hub
+                  </p>
+                  <h1 className="mt-2 text-3xl font-semibold">
+                    Your AI-powered learning space
+                  </h1>
+                </div>
+                <div className="relative w-96">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search workspaces"
+                    className="w-full bg-[rgba(255,255,255,0.04)] backdrop-blur-md border border-[rgba(255,255,255,0.08)] rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
+                  />
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] backdrop-blur-md p-6 shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm text-white/70">Welcome to your spaces</p>
+                    <h2 className="mt-2 text-xl font-semibold">
+                      Create or join a workspace to get started.
+                    </h2>
+                    <p className="mt-1 text-sm text-white/50">
+                      Organize your study materials with collaborative workspaces.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </header>
 
-      <CreateWorkspaceModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleWorkspaceCreated}
-      />
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  Your Workspaces {!isLoading && `(${filteredWorkspaces.length})`}
+                </h2>
+              </div>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-white/50">Loading workspaces...</p>
+                </div>
+              ) : filteredWorkspaces.length > 0 ? (
+                <WorkspaceGrid
+                  workspaces={filteredWorkspaces}
+                  onOpenCreate={() => setIsModalOpen(true)}
+                  onSelectWorkspace={handleWorkspaceOpen}
+                  onDeleteWorkspace={handleWorkspaceDeleted}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 py-12">
+                  <p className="text-center text-white/50">
+                    {searchQuery ? "No workspaces found" : "No workspaces yet"}
+                  </p>
+                  {!searchQuery && (
+                    <Button
+                      onClick={() => setIsModalOpen(true)}
+                      className="mt-4 bg-blue-accent hover:bg-blue-accent/90"
+                    >
+                      Create your first workspace
+                    </Button>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <CollapsibleSidebar
+            invites={invites}
+            invitesLoading={invitesLoading}
+            activities={activities}
+            activitiesLoading={activitiesLoading}
+            dailyBriefing={dailyBriefing}
+            briefingLoading={briefingLoading}
+            onJoinInvite={handleJoinInvite}
+            onDismissInvite={handleDismissInvite}
+          />
+        </div>
+
+        <CreateWorkspaceModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={handleWorkspaceCreated}
+        />
+      </div>
     </div>
   );
 }

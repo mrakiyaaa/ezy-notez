@@ -29,6 +29,7 @@ import StudyRoomView from "@/components/workspace/StudyRoomView";
 import TeddyCompanion from "@/components/workspace/quiz/TeddyCompanion";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import AuraIndicator from "@/components/ui/AuraIndicator";
+import Grainient from "@/components/ui/Grainient";
 import { getWorkspaceBySlug } from "@/services/resource.service";
 import type { WorkspaceInfo } from "@/types/resource";
 import { useProfile } from "@/hooks/useProfile";
@@ -223,6 +224,23 @@ export default function WorkspacePage() {
       // Offset matches the dashboard layout header (logo 60 + py-4 32 + border 1 = 93px).
       className="flex h-[calc(100vh-93px)] bg-main overflow-hidden"
     >
+      <div className="fixed inset-0 z-0">
+        <Grainient
+          color1="#111721"
+          color2="#1a2537"
+          color3="#324765"
+          timeSpeed={0.3}
+          colorBalance={0.05}
+          warpStrength={0.8}
+          warpFrequency={4.0}
+          warpSpeed={0.9}
+          warpAmplitude={60.0}
+          contrast={1.4}
+          grainAmount={0}
+          zoom={0.95}
+        />
+      </div>
+      <div className="relative z-10 flex h-full w-full">
       {/* Left Sidebar */}
       <aside className="w-64 flex flex-col border-r border-fade-border bg-main h-full shrink-0">
         {/* 2. Active workspace chip */}
@@ -507,6 +525,7 @@ export default function WorkspacePage() {
             </motion.div>
           </AnimatePresence>
         </main>
+      </div>
       </div>
     </div>
   );

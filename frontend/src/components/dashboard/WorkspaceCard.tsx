@@ -66,7 +66,7 @@ export default function WorkspaceCard({
         tabIndex={0}
         onClick={handleOpen}
         onKeyDown={(e) => e.key === "Enter" && handleOpen()}
-        className="group relative flex h-full min-h-55 flex-col w-full rounded-2xl border border-fade-border bg-linear-to-br from-slate-900/60 to-slate-900 p-5 text-left shadow-[0_18px_60px_rgba(15,23,42,0.45)] transition hover:-translate-y-1 cursor-pointer"
+        className="group relative flex h-full min-h-55 flex-col w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] backdrop-blur-md p-5 text-left shadow-[0_4px_24px_rgba(0,0,0,0.25)] transition hover:-translate-y-1 cursor-pointer"
       >
         {/* Delete icon — visible on card hover */}
         <button
