@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   User,
   Briefcase,
@@ -79,7 +80,11 @@ export default function SettingsLayout({
                 }`}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-4.5 bg-blue-accent rounded-r" />
+                  <motion.div
+                    layoutId="settings-nav-active-indicator"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-4.5 bg-blue-accent rounded-r shadow-[0_0_12px_rgba(59,130,246,0.7)]"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
                 )}
                 <Icon
                   className={`w-3.75 h-3.75 ${isActive ? "opacity-100" : "opacity-60"}`}
