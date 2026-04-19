@@ -92,7 +92,7 @@ export default function WorkspaceHome({
             className="group text-left"
           >
             <div
-              className="relative bg-bg-card rounded-xl p-5 overflow-hidden border border-fade-border transition-all duration-300 h-full flex flex-col justify-between hover:border-white/20 hover:bg-white/[0.03]"
+              className="relative bg-[rgba(255,255,255,0.04)] backdrop-blur-md rounded-xl p-5 overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-300 h-full flex flex-col justify-between hover:border-white/20 hover:bg-white/3"
             >
               <div className="relative z-10">
                 <div

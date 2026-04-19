@@ -182,11 +182,11 @@ export default function WorkspacesPage() {
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search workspaces"
-                    className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
+                    className="w-full bg-[rgba(255,255,255,0.04)] backdrop-blur-md border border-[rgba(255,255,255,0.08)] rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
                   />
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-linear-to-br bg-bg-card from-slate-900 via-bg-card to-bg-card-slate-950 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
+              <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] backdrop-blur-md p-6 shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="text-sm text-white/70">Welcome to your spaces</p>
