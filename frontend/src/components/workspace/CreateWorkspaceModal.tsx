@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { createWorkspaceApi } from "@/api/workspace.api";
 import { CreateWorkspaceInput } from "@/types/workspace";
+import { scaleUp } from "@/lib/animations";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
@@ -92,14 +94,26 @@ export default function CreateWorkspaceModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-bg-card p-6 shadow-lg">
-        <h2 className="mb-4 text-2xl font-bold text-text-primary">
-          Create Workspace
-        </h2>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.div
+            className="w-full max-w-md rounded-lg bg-bg-card p-6 shadow-lg"
+            variants={scaleUp}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <h2 className="mb-4 text-2xl font-bold text-text-primary">
+              Create Workspace
+            </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Workspace Name */}
@@ -219,7 +233,9 @@ export default function CreateWorkspaceModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

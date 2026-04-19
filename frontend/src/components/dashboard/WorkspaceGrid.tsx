@@ -1,6 +1,10 @@
+"use client";
+
+import { motion } from "framer-motion";
 import type { Workspace } from "@/types/workspace";
 import CreateWorkspaceCard from "@/components/dashboard/CreateWorkspaceCard";
 import WorkspaceCard from "@/components/dashboard/WorkspaceCard";
+import { staggerContainer, staggerItem } from "@/lib/animations";
 
 interface WorkspaceGridProps {
   workspaces: Workspace[];
@@ -16,16 +20,24 @@ export default function WorkspaceGrid({
   onDeleteWorkspace,
 }: WorkspaceGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-      <CreateWorkspaceCard onOpen={onOpenCreate} />
+    <motion.div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div variants={staggerItem} className="h-full">
+        <CreateWorkspaceCard onOpen={onOpenCreate} />
+      </motion.div>
       {workspaces.map((workspace) => (
-        <WorkspaceCard
-          key={workspace.id}
-          workspace={workspace}
-          onOpen={onSelectWorkspace}
-          onDelete={onDeleteWorkspace}
-        />
+        <motion.div key={workspace.id} variants={staggerItem} className="h-full">
+          <WorkspaceCard
+            workspace={workspace}
+            onOpen={onSelectWorkspace}
+            onDelete={onDeleteWorkspace}
+          />
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }

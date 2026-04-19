@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard,
   BookOpen,
@@ -13,6 +14,7 @@ import {
   WalletCards,
   Settings,
 } from "lucide-react";
+import { fadeSlideIn } from "@/lib/animations";
 import { getWorkspacesApi } from "@/api/workspace.api";
 import type { Workspace } from "@/types/workspace";
 import WorkspaceHome from "@/components/workspace/WorkspaceHome";
@@ -333,7 +335,11 @@ export default function WorkspacePage() {
                   }`}
                 >
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-4.5 bg-blue-accent rounded-r" />
+                    <motion.div
+                      layoutId="workspace-nav-active-indicator"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-4.5 bg-blue-accent rounded-r shadow-[0_0_12px_rgba(59,130,246,0.7)]"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
                   )}
                   <Icon
                     className={`w-3.75 h-3.75 ${
@@ -427,64 +433,79 @@ export default function WorkspacePage() {
 
         {/* View Content */}
         <main className={`flex-1 ${activeNav === "chattie" ? "overflow-hidden" : "overflow-y-auto"}`}>
-          {activeNav === "resources" && (
-            <ResourcesView
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-            />
-          )}
-          {activeNav === "home" && workspace && (
-            <WorkspaceHome
-              workspaceName={workspace.name}
-              onNavigate={(nav) => setActiveNav(nav as NavItem)}
-            />
-          )}
-          {activeNav === "chattie" && workspace && (
-            <Chattie
-              workspaceId={workspace.id}
-              workspaceName={workspace.name}
-            />
-          )}
-          {activeNav === "summarization" && workspace && (
-            <SummarizationView
-              workspaceId={workspace.id}
-            />
-          )}
-          {activeNav === "flashcards" && workspace && (
-            <FlashcardsView
-              workspaceId={workspace.id}
-            />
-          )}
-          {activeNav === "studyroom" && workspace && (
-            <StudyRoomView workspaceId={workspace.id} />
-          )}
-          {activeNav === "quiz" && workspace && (
-            <>
-              {quizState.mode === "list" && (
-                <QuizView
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={
+                activeNav === "quiz"
+                  ? `quiz-${quizState.mode}`
+                  : activeNav
+              }
+              variants={fadeSlideIn}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="h-full"
+            >
+              {activeNav === "resources" && (
+                <ResourcesView
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                />
+              )}
+              {activeNav === "home" && workspace && (
+                <WorkspaceHome
+                  workspaceName={workspace.name}
+                  onNavigate={(nav) => setActiveNav(nav as NavItem)}
+                />
+              )}
+              {activeNav === "chattie" && workspace && (
+                <Chattie
                   workspaceId={workspace.id}
-                  onStartAttempt={handleQuizStartAttempt}
-                  onViewResults={handleQuizViewResults}
+                  workspaceName={workspace.name}
                 />
               )}
-              {quizState.mode === "attempt" && quizState.quizId && (
-                <QuizAttemptView
-                  quizId={quizState.quizId}
-                  onExit={handleQuizExitAttempt}
-                  onComplete={handleQuizComplete}
+              {activeNav === "summarization" && workspace && (
+                <SummarizationView
+                  workspaceId={workspace.id}
                 />
               )}
-              {quizState.mode === "results" && quizState.quizId && quizState.attemptId && (
-                <QuizResultsView
-                  quizId={quizState.quizId}
-                  attemptId={quizState.attemptId}
-                  onRetake={handleQuizRetake}
-                  onGenerateNew={handleQuizGenerateNew}
-                  onBack={handleQuizBack}
+              {activeNav === "flashcards" && workspace && (
+                <FlashcardsView
+                  workspaceId={workspace.id}
                 />
               )}
-            </>
-          )}
+              {activeNav === "studyroom" && workspace && (
+                <StudyRoomView workspaceId={workspace.id} />
+              )}
+              {activeNav === "quiz" && workspace && (
+                <>
+                  {quizState.mode === "list" && (
+                    <QuizView
+                      workspaceId={workspace.id}
+                      onStartAttempt={handleQuizStartAttempt}
+                      onViewResults={handleQuizViewResults}
+                    />
+                  )}
+                  {quizState.mode === "attempt" && quizState.quizId && (
+                    <QuizAttemptView
+                      quizId={quizState.quizId}
+                      onExit={handleQuizExitAttempt}
+                      onComplete={handleQuizComplete}
+                    />
+                  )}
+                  {quizState.mode === "results" && quizState.quizId && quizState.attemptId && (
+                    <QuizResultsView
+                      quizId={quizState.quizId}
+                      attemptId={quizState.attemptId}
+                      onRetake={handleQuizRetake}
+                      onGenerateNew={handleQuizGenerateNew}
+                      onBack={handleQuizBack}
+                    />
+                  )}
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

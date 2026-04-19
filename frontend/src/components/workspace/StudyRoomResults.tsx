@@ -1,9 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Trophy, ArrowLeft, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import type { StudyRoomResults as ResultsType, LeaderboardEntry, Badge, WrongAnswer } from "@/types/studyRoom";
 import { getResults, getInsights } from "@/services/studyRoom.service";
+import {
+  popIn,
+  resultStaggerContainer,
+  resultStaggerItem,
+} from "@/lib/animations";
 
 interface StudyRoomResultsProps {
   roomId: string;
@@ -26,10 +32,11 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
     .join("");
 
   return (
-    <div
+    <motion.div
+      variants={resultStaggerItem}
       className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all duration-200 ${
         medal
-          ? "sr-fade-in"
+          ? ""
           : "border-fade-border bg-white/[0.02]"
       }`}
       style={
@@ -37,13 +44,15 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
           ? {
               backgroundColor: medal.bg,
               borderColor: medal.border,
-              animationDelay: `${index * 100}ms`,
             }
-          : { animationDelay: `${index * 100}ms` }
+          : undefined
       }
     >
       {/* Position */}
-      <span
+      <motion.span
+        variants={popIn}
+        initial="initial"
+        animate="animate"
         className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
         style={
           medal
@@ -52,7 +61,7 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
         }
       >
         {entry.position}
-      </span>
+      </motion.span>
 
       {/* Avatar */}
       <div className="w-9 h-9 rounded-full bg-blue-accent/20 border border-blue-accent/30 flex items-center justify-center shrink-0">
@@ -82,18 +91,23 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
       >
         {entry.points} pts
       </span>
-    </div>
+    </motion.div>
   );
 }
 
 function BadgeCard({ badge }: { badge: Badge }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-fade-border bg-white/[0.02]">
-      <span className="text-2xl">{badge.icon}</span>
+    <motion.div
+      variants={resultStaggerItem}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-fade-border bg-white/[0.02]"
+    >
+      <motion.span variants={popIn} initial="initial" animate="animate" className="text-2xl">
+        {badge.icon}
+      </motion.span>
       <span className="text-text-secondary text-sm font-medium">
         {badge.label}
       </span>
-    </div>
+    </motion.div>
   );
 }
 
@@ -101,7 +115,10 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
   const optionLabels = ["A", "B", "C", "D"];
 
   return (
-    <div className="rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-5 sr-fade-in">
+    <motion.div
+      variants={resultStaggerItem}
+      className="rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-5"
+    >
       {/* Question */}
       <div className="flex items-center gap-2 mb-3">
         <span className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-xs font-bold text-text-muted">
@@ -156,7 +173,7 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
           {item.explanation}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -203,11 +220,16 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide mb-4">
           Leaderboard
         </h3>
-        <div className="space-y-2">
+        <motion.div
+          className="space-y-2"
+          variants={resultStaggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {results.leaderboard.map((entry, i) => (
             <LeaderboardRow key={entry.user_id} entry={entry} index={i} />
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* Badges */}
@@ -215,11 +237,16 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide mb-4">
           Badges Earned
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-3 gap-3"
+          variants={resultStaggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {results.badges.map((badge, i) => (
             <BadgeCard key={`${badge.type}-${i}`} badge={badge} />
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* AI Insights */}
@@ -259,7 +286,12 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         </button>
 
         {showRevision && (
-          <div className="mt-4 space-y-4">
+          <motion.div
+            className="mt-4 space-y-4"
+            variants={resultStaggerContainer}
+            initial="initial"
+            animate="animate"
+          >
             {results.wrong_answers.length > 0 ? (
               results.wrong_answers.map((wa, i) => (
                 <WrongAnswerCard key={i} item={wa} />
@@ -271,7 +303,7 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
                 </p>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
       </section>
 
