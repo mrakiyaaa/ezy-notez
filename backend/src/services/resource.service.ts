@@ -67,8 +67,9 @@ const spawnPythonScript = (scriptRelPath: string, fileUrl: string): Promise<stri
   });
 };
 
-const CHATIE_ML_SERVICE_URL =
-  process.env.CHATIE_ML_SERVICE_URL || "http://localhost:8002";
+const PYTHON_ML_URL =
+  process.env.PYTHON_ML_URL || "http://localhost:8000";
+const CHATIE_ML_BASE_URL = `${PYTHON_ML_URL.replace(/\/+$/, "")}/chatie`;
 
 /**
  * Fire-and-forget call to the Chatie ML service to embed a resource's
@@ -85,7 +86,7 @@ const triggerEmbedding = async (resourceId: string): Promise<void> => {
   if (error || !resource?.extracted_text) return;
 
   await axios.post(
-    `${CHATIE_ML_SERVICE_URL}/embed-resource`,
+    `${CHATIE_ML_BASE_URL}/embed-resource`,
     {
       resource_id: resourceId,
       workspace_id: resource.workspace_id,

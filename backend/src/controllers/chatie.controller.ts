@@ -4,8 +4,9 @@ import { supabaseAdmin } from "../config/supabase";
 
 // Use 127.0.0.1 explicitly — on Windows, "localhost" resolves to ::1 (IPv6)
 // which is refused when the service listens only on 127.0.0.1 (IPv4).
-const CHATIE_ML_SERVICE_URL =
-  process.env.CHATIE_ML_SERVICE_URL || "http://127.0.0.1:8002";
+const PYTHON_ML_URL =
+  process.env.PYTHON_ML_URL || "http://127.0.0.1:8000";
+const CHATIE_ML_BASE_URL = `${PYTHON_ML_URL.replace(/\/+$/, "")}/chatie`;
 
 const isServiceUnavailable = (err: unknown): boolean => {
   if (err instanceof Error) {
@@ -52,7 +53,7 @@ export const embedResourceHandler = async (
     }
 
     const response = await axios.post(
-      `${CHATIE_ML_SERVICE_URL}/embed-resource`,
+      `${CHATIE_ML_BASE_URL}/embed-resource`,
       { resource_id, workspace_id, text },
       { timeout: ML_TIMEOUT_MS }
     );
@@ -248,7 +249,7 @@ export const sendMessageHandler = async (
     }
 
     const response = await axios.post(
-      `${CHATIE_ML_SERVICE_URL}/chat`,
+      `${CHATIE_ML_BASE_URL}/chat`,
       {
         workspace_id,
         user_id: userId,
@@ -294,7 +295,7 @@ export const getChatHistoryHandler = async (
     }
 
     const response = await axios.get(
-      `${CHATIE_ML_SERVICE_URL}/chat-history/${workspaceId}/${userId}/${sessionId}`,
+      `${CHATIE_ML_BASE_URL}/chat-history/${workspaceId}/${userId}/${sessionId}`,
       { timeout: 30_000 }
     );
 
@@ -333,7 +334,7 @@ export const deleteChatHistoryHandler = async (
     }
 
     await axios.delete(
-      `${CHATIE_ML_SERVICE_URL}/chat-history/${workspaceId}/${userId}/${sessionId}`,
+      `${CHATIE_ML_BASE_URL}/chat-history/${workspaceId}/${userId}/${sessionId}`,
       { timeout: 30_000 }
     );
 

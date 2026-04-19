@@ -86,8 +86,9 @@ interface FastAPIQuestion {
 // Constants
 // ---------------------------------------------------------------------------
 
-const QUIZ_ML_SERVICE_URL =
-  process.env.QUIZ_ML_SERVICE_URL || "http://localhost:8001";
+const PYTHON_ML_URL =
+  process.env.PYTHON_ML_URL || "http://localhost:8000";
+const QUIZ_ML_BASE_URL = `${PYTHON_ML_URL.replace(/\/+$/, "")}/quiz`;
 
 const ML_TIMEOUT_MS = 120_000;
 
@@ -154,7 +155,7 @@ const fetchResourceText = async (
 
 const checkMLServiceHealth = async (): Promise<void> => {
   try {
-    await axios.get(`${QUIZ_ML_SERVICE_URL}/health`, { timeout: 5_000 });
+    await axios.get(`${QUIZ_ML_BASE_URL}/health`, { timeout: 5_000 });
   } catch (err) {
     if (axios.isAxiosError(err)) {
       if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
@@ -164,7 +165,7 @@ const checkMLServiceHealth = async (): Promise<void> => {
         throw new Error(`Quiz ML service returned ${err.response.status} on health check.`);
       }
     }
-    throw new Error(`Quiz ML service is unreachable at ${QUIZ_ML_SERVICE_URL}. Start it with: npm run dev:ml`);
+    throw new Error(`Quiz ML service is unreachable at ${QUIZ_ML_BASE_URL}. Start it with: npm run dev:ml`);
   }
 };
 
@@ -176,7 +177,7 @@ const callMLService = async (
   await checkMLServiceHealth();
   try {
     const response = await axios.post<{ questions: FastAPIQuestion[] }>(
-      `${QUIZ_ML_SERVICE_URL}/generate-quiz`,
+      `${QUIZ_ML_BASE_URL}/generate-quiz`,
       { text, question_type: questionType, question_count: questionCount },
       { timeout: ML_TIMEOUT_MS },
     );
@@ -200,7 +201,7 @@ const callMLService = async (
         console.error(`[quiz] ML service error:`, msg);
         throw new Error(msg);
       }
-      const msg = `Cannot reach ML service at ${QUIZ_ML_SERVICE_URL} — ${err.message}`;
+      const msg = `Cannot reach ML service at ${QUIZ_ML_BASE_URL} — ${err.message}`;
       console.error(`[quiz] ML service unreachable:`, msg);
       throw new Error(msg);
     }
