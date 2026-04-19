@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the automated test suite for the EZY Notez backend. Tests cover the Express.js API server and the FastAPI quiz-ML microservice. No frontend code is tested here.
+This document describes the automated test suite for the EZY Notez backend. Tests cover the Express.js API server. No frontend or ML-service code is tested here — HTTP calls to the unified ML service (`services/ml/`) are mocked at the axios layer.
 
 ---
 
@@ -12,10 +12,7 @@ This document describes the automated test suite for the EZY Notez backend. Test
 |---|---|
 | Express unit tests | Jest + ts-jest |
 | Express integration tests | Jest + Supertest |
-| FastAPI unit tests | pytest |
-| FastAPI integration tests | pytest + FastAPI TestClient |
 | TypeScript compilation | ts-jest (inline tsconfig, no emit) |
-| Python test deps | `services/quiz-ml/requirements-test.txt` |
 
 ---
 
@@ -43,14 +40,6 @@ backend/
             ├── summary.integration.test.ts
             ├── flashcards.integration.test.ts
             └── quiz.integration.test.ts
-
-services/quiz-ml/
-├── requirements-test.txt
-└── tests/
-    ├── __init__.py
-    ├── conftest.py                    # Shared fixtures: stub models, TestClient
-    ├── test_pipeline_unit.py          # Per-stage pipeline unit tests
-    └── test_api_integration.py        # Full HTTP integration tests
 ```
 
 ---
@@ -78,24 +67,6 @@ npm run test:integration
 npm run test:coverage
 ```
 
-### FastAPI (pytest)
-
-```bash
-cd services/quiz-ml
-
-# Install test dependencies
-pip install -r requirements-test.txt
-
-# Run all tests
-pytest tests/ -v
-
-# Unit tests only
-pytest tests/test_pipeline_unit.py -v
-
-# Integration tests only
-pytest tests/test_api_integration.py -v
-```
-
 ---
 
 ## Mock Strategy
@@ -113,15 +84,6 @@ All external I/O is mocked. **No real network calls are made in any test.**
 | `pdf-parse` | `jest.mock('pdf-parse')` — PDFParse.getText returns deterministic text |
 | `authenticateUser` | Mock replaces middleware, injects `req.user = { id: 'test-user-id' }` |
 
-### FastAPI Tests
-
-| Dependency | Mock approach |
-|---|---|
-| T5 tokenizer + model | `_DummyTokenizer` + `_DummyT5Model` injected via `monkeypatch` |
-| KeyBERT | `_DummyKeyBERT` returns deterministic keyphrases |
-| NLTK `sent_tokenize` | Monkeypatched to split on `. ` |
-| WordNet synsets | Monkeypatched to return `[]` (forces KeyBERT fallback for distractors) |
-
 ---
 
 ## Test Scope
@@ -133,11 +95,10 @@ All external I/O is mocked. **No real network calls are made in any test.**
 - Summary service: generate general/custom summaries, get/delete, regenerate with new format
 - Flashcard service: generate (card count clamping, background pipeline), CRUD, status update
 - Quiz service: generate, list with attempt data, get with/without correct answers, attempt lifecycle (create, submit answer, complete), topic breakdown calculation
-- FastAPI pipeline stages: preprocessing, answer extraction, question generation, distractor building, topic tagging, quality filtering + deduplication
-- FastAPI API layer: /health schema, /generate-quiz happy path, validation errors (422), 503 when models not loaded
 
 ### What is NOT tested (future work)
 
+- Unified ML service (`services/ml/`) — no pytest suite; covered indirectly via axios-mocked Express tests
 - Study Rooms routes — `describe.skip` placeholder in `flashcards.integration.test.ts`
 - Chatie routes — `describe.skip` placeholder in `flashcards.integration.test.ts`
 - Auth controller (OTP flow requires Supabase auth endpoint)
@@ -154,12 +115,6 @@ All external I/O is mocked. **No real network calls are made in any test.**
 2. Add an integration test file: `src/__tests__/integration/<feature>.integration.test.ts`
 3. Follow the existing mock pattern: `jest.mock('../../config/supabase', ...)` at the top of each file, configure `mockFrom` per test with `makeQueryChain()`.
 
-### New FastAPI endpoint
-
-1. Add a `class Test<FeatureName>` in `test_api_integration.py`
-2. Add per-stage unit tests in `test_pipeline_unit.py`
-3. If the feature uses a new model, add a stub class to `conftest.py` and patch it in `stub_model_cache`.
-
 ---
 
 ## Environment Variables
@@ -172,6 +127,6 @@ Key variables:
 |---|---|
 | `SUPABASE_URL` | `https://test-project.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | `test-service-role-key-xxx` |
-| `QUIZ_ML_SERVICE_URL` | `http://localhost:8001` (mocked by axios mock) |
+| `PYTHON_ML_URL` | `http://localhost:8000` (mocked by axios mock) |
 | `UPLOADTHING_TOKEN` | `test-uploadthing-token-xxx` |
 | `PORT` | `3099` (avoids collision with dev server on 3001) |

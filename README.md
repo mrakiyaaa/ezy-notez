@@ -75,12 +75,12 @@ Built with **Next.js**, **Express.js**, **FastAPI**, **TypeScript**, and **Supab
 |---|---|
 | Frontend | Next.js 16, TypeScript 5, Tailwind CSS 4, Zustand, Shadcn/ui |
 | Backend | Express.js 5, TypeScript 5.7, ts-node-dev |
-| ML Microservice | FastAPI (Python 3.11), T5, KeyBERT, NLTK, Whisper |
+| ML Microservice | FastAPI (Python 3.11), OpenRouter (quiz), Gemini + pgvector (chatie), NLTK, Whisper |
 | Database | Supabase (PostgreSQL) with Row Level Security |
 | Auth | Supabase Auth (JWT) |
 | File Storage | UploadThing |
 | Containerization | Docker (multi-stage dev + prod builds) |
-| Testing | Jest + Supertest (Express), pytest + FastAPI TestClient |
+| Testing | Jest + Supertest (Express) |
 
 ---
 
@@ -99,8 +99,9 @@ Express Backend — port 3001
     │   ├─ whisper_transcribe.py — Whisper tiny
     │   └─ generate_flashcards.py — NLTK extractive NLP
     │
-    └─ FastAPI ML Service — port 8001
-        └─ T5 + KeyBERT — quiz question generation
+    └─ FastAPI Unified ML Service — port 8000
+        ├─ /quiz   — question generation (OpenRouter LLM)
+        └─ /chatie — RAG chat (Gemini embeddings + Supabase pgvector)
 ```
 
 ---
@@ -148,7 +149,7 @@ Services:
 |---|---|
 | Frontend | http://localhost:3000 |
 | Backend | http://localhost:3001 |
-| Quiz ML | http://localhost:8001 |
+| ML (Quiz + Chatie) | http://localhost:8000 |
 
 ### 3b. Local Development
 
@@ -166,18 +167,17 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-**Quiz ML Microservice:**
+**Unified ML Microservice (Quiz + Chatie):**
 ```bash
-cd services/quiz-ml
+cd services/ml
 python -m venv venv
 venv\Scripts\activate          # Windows
 # source venv/bin/activate    # macOS/Linux
 
-pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 
-uvicorn main:app --port 8001 --reload
-# First run downloads ~1.2 GB of models — subsequent starts are fast
+uvicorn main:app --port 8000 --reload
+# Requires OPENROUTER_API_KEY (quiz) and GEMINI_API_KEY + Supabase creds (chatie)
 ```
 
 **Python scripts (summarization + flashcards + audio):**
@@ -201,8 +201,8 @@ SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 SUPABASE_DB_URL=postgresql://user:password@db.supabase.co:5432/postgres
 
-# ML Microservice
-QUIZ_ML_SERVICE_URL=http://localhost:8001
+# Unified ML Microservice (Quiz + Chatie)
+PYTHON_ML_URL=http://localhost:8000
 
 # File Storage
 UPLOADTHING_TOKEN=your_uploadthing_token
@@ -211,8 +211,11 @@ UPLOADTHING_TOKEN=your_uploadthing_token
 ### FastAPI ML Service
 
 ```env
-PORT=8001
-HUGGINGFACE_CACHE_DIR=./model-cache
+PORT=8000
+OPENROUTER_API_KEY=your_openrouter_key
+GEMINI_API_KEY=your_gemini_key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 ---
@@ -257,12 +260,11 @@ ezy-notez/
 │   └── Dockerfile
 │
 ├── services/
-│   └── quiz-ml/                      # FastAPI ML microservice
-│       ├── main.py                   # FastAPI app + lifespan model loading
-│       ├── pipeline.py               # 6-stage NLP pipeline
-│       ├── model_cache.py            # Singleton T5 + KeyBERT loader
-│       ├── models.py                 # Pydantic schemas
-│       ├── tests/                    # pytest unit + integration tests
+│   └── ml/                           # Unified FastAPI ML microservice
+│       ├── main.py                   # FastAPI app — mounts /quiz and /chatie routers
+│       ├── quiz/                     # OpenRouter-powered question generation
+│       ├── chatie/                   # RAG chat (Gemini embeddings + pgvector)
+│       ├── requirements.txt
 │       └── Dockerfile
 │
 ├── supabase/                         # Database migrations (SQL)
@@ -332,11 +334,16 @@ All endpoints require `Authorization: Bearer {token}` unless noted.
 | GET | `/api/quiz/:quizId/attempt/:attemptId/results` | Full results with topic breakdown |
 | DELETE | `/api/quiz/:quizId` | Delete quiz |
 
-### Quiz ML Microservice (port 8001)
+### Unified ML Microservice (port 8000)
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Health check + model status |
-| POST | `/generate-quiz` | Run NLP pipeline, return questions |
+| GET  | `/health` | Service health check |
+| GET  | `/quiz/health` | Quiz subservice health |
+| POST | `/quiz/generate-quiz` | Generate questions (OpenRouter LLM) |
+| POST | `/chatie/embed-resource` | Embed a resource for RAG retrieval |
+| POST | `/chatie/chat` | RAG chat turn (Gemini) |
+| GET  | `/chatie/chat-history/:workspaceId/:userId/:sessionId` | Fetch chat history |
+| DELETE | `/chatie/chat-history/:workspaceId/:userId/:sessionId` | Clear chat history |
 
 ---
 
@@ -363,19 +370,9 @@ npm run test:coverage     # With coverage report
 
 **Mock strategy:** All external I/O is mocked — no real Supabase, UploadThing, or ML calls are made.
 
-### FastAPI (pytest)
+### FastAPI (ML service)
 
-```bash
-cd services/quiz-ml
-pip install -r requirements-test.txt
-pytest tests/ -v                          # All tests
-pytest tests/test_pipeline_unit.py -v    # Pipeline stage unit tests
-pytest tests/test_api_integration.py -v  # HTTP integration tests
-```
-
-**What is tested:**
-- All 6 pipeline stages (preprocessing → answer extraction → question generation → distractors → topic tags → quality filter)
-- `/health` schema, `/generate-quiz` happy path, validation errors (422), 503 when models not loaded
+The unified ML service (`services/ml/`) does not currently ship a pytest suite. Its HTTP surface is exercised indirectly by the Express integration tests, which mock axios calls at the service boundary.
 
 ---
 
@@ -398,7 +395,7 @@ docker compose -f docker-compose.dev.yml exec frontend sh
 docker compose -f docker-compose.dev.yml down
 ```
 
-Features: live HMR (frontend), ts-node-dev auto-restart (backend), model cache volume (quiz-ml).
+Features: live HMR (frontend), ts-node-dev auto-restart (backend), model cache volume (ml).
 
 ### Production
 
@@ -435,9 +432,9 @@ docker build -t ezy-notez-backend:latest .
 cd frontend && npm run build
 docker build -t ezy-notez-frontend:latest .
 
-# Quiz ML
-cd services/quiz-ml
-docker build -t ezy-notez-quiz-ml:latest .
+# Unified ML (Quiz + Chatie)
+cd services/ml
+docker build -t ezy-notez-ml:latest .
 ```
 
 ### Audio Transcription on Railway / Render
@@ -481,9 +478,9 @@ docker compose -f docker-compose.dev.yml restart backend
 docker volume prune --force   # last resort — clears model cache too
 ```
 
-### Quiz ML — slow first start
+### ML service — startup
 
-The first startup downloads ~1.2 GB of models (T5 + MiniLM). Subsequent starts load from the `quiz-ml-cache` Docker volume. For demos, start the service 2 minutes early and pre-generate one quiz.
+The unified ML service (`services/ml/`) calls OpenRouter and Gemini directly — no local model weights are downloaded on startup. Ensure `OPENROUTER_API_KEY` and `GEMINI_API_KEY` are configured. The `ml-cache` Docker volume remains in `docker-compose.dev.yml` for any future cacheable artefacts.
 
 ### Summarization — slow first run
 
