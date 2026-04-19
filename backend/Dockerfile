@@ -47,12 +47,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy compiled JS, runtime node_modules, and package manifest
 COPY --from=builder /app/dist         ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-EXPOSE 3001
+# Railway sets PORT dynamically — don't hardcode
+EXPOSE ${PORT:-3001}
 
-# npm start → node dist/index.js
 CMD ["npm", "start"]
