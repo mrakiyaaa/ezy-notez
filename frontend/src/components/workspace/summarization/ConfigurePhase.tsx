@@ -4,6 +4,8 @@ import {
   Loader2,
   FileText
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { Resource } from "@/types/resource";
 import type { Summary, SummaryFormat } from "@/types/summary";
 import {
@@ -81,19 +83,11 @@ export default function ConfigurePhase({
   return (
     <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto w-full">
       {/* Page Header */}
-      <div className="flex items-center gap-4 mb-2">
-        <div className="w-12 h-12 rounded-xl bg-blue-accent/10 border border-blue-accent/30 flex items-center justify-center shrink-0">
-          <Zap className="w-6 h-6 text-blue-accent" />
-        </div>
-        <div>
-          <h1 className="text-text-primary font-semibold text-xl">
-            AI Summarization
-          </h1>
-          <p className="text-text-muted text-sm">
-            Generate smart summaries from your workspace resources
-          </p>
-        </div>
-      </div>
+      <PageHeader 
+        icon={<FileText size={22} color="#507DBC" strokeWidth={1.8} fill="none" />}
+        title="Summarization"
+        description="Generate concise summaries from your uploaded resources"
+      />
 
       {/* Card 1 - Mode */}
       <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-5">
@@ -236,14 +230,12 @@ export default function ConfigurePhase({
 
         <div className="border-t border-fade-border pt-5 flex flex-col items-end gap-3">
           {error && <p className="text-red-400 text-xs text-right">{error}</p>}
-          <button
+          <PrimaryButton
             onClick={onGenerate}
             disabled={isGenerateDisabled}
-            className="bg-blue-accent text-white font-semibold rounded-lg px-6 py-3 flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            <Zap className="w-4 h-4" />
-            Generate Summary
-          </button>
+            icon={Zap}
+            label="Generate Summary"
+          />
         </div>
       </div>
     </div>

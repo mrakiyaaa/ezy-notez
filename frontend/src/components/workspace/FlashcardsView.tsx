@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { WalletCards, Plus, Search, Sparkles, X } from "lucide-react";
+import { WalletCards, Plus, Search, Sparkles, X, SquareStack } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { FlashcardSet as LocalFlashcardSet, Flashcard as LocalFlashcard } from "./flashcards/constants";
 import type { FlashcardSet, FlashcardSetWithCards } from "@/types/flashcard";
 import {
@@ -295,22 +297,11 @@ export default function FlashcardsView({
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
         {/* Page header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "rgba(255, 255, 255, 0.06)" }}
-            >
-              <WalletCards className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
-            </div>
-            <div>
-              <h2 className="text-text-primary text-lg font-semibold">
-                Flashcards
-              </h2>
-              <p className="text-text-muted text-sm">
-                AI-generated study cards from your resources
-              </p>
-            </div>
-          </div>
+          <PageHeader 
+            icon={<SquareStack size={22} color="#507DBC" strokeWidth={1.8} fill="none" />}
+            title="Flashcards"
+            description="AI-generated study cards from your resources"
+          />
 
           <div className="flex items-center gap-3">
             {sets.length > 0 && (
@@ -334,20 +325,11 @@ export default function FlashcardsView({
                 )}
               </div>
             )}
-            <button
+            <PrimaryButton
               onClick={() => setShowPanel((v) => !v)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-              style={{
-                backgroundColor: showPanel
-                  ? "var(--color-blue-accent)"
-                  : "rgba(80, 125, 188, 0.1)",
-                color: showPanel ? "#ffffff" : "var(--color-blue-accent)",
-                border: "1px solid rgba(80, 125, 188, 0.25)",
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Generate
-            </button>
+              icon={Plus}
+              label="Generate"
+            />
           </div>
         </div>
 
@@ -505,17 +487,11 @@ function EmptyState({
       </div>
 
       {/* CTA button */}
-      <button
+      <PrimaryButton
         onClick={onGenerate}
-        className="relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
-        style={{
-          backgroundColor: "var(--color-blue-accent)",
-          color: "#ffffff",
-        }}
-      >
-        <Sparkles className="w-4 h-4" />
-        Generate Your First Set
-      </button>
+        icon={Sparkles}
+        label="Generate Your First Set"
+      />
     </div>
   );
 }

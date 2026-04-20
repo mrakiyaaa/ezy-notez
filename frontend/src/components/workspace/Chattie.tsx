@@ -15,6 +15,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { getWorkspaceResources } from "@/services/resource.service";
 import {
   getSessions,
@@ -87,58 +88,6 @@ function formatSessionDate(dateStr: string): string {
 
 function randomKeyword(): string {
   return LOADING_KEYWORDS[Math.floor(Math.random() * LOADING_KEYWORDS.length)];
-}
-
-// ---------------------------------------------------------------------------
-// Chattie Avatar (SVG face + float + wave)
-// ---------------------------------------------------------------------------
-
-function ChattieAvatar({ size = 72 }: { size?: number }) {
-  return (
-    <div className="relative animate-[float_3s_ease-in-out_infinite]">
-      {/* Aura rings */}
-      <div
-        className="absolute rounded-full border border-blue-accent/10"
-        style={{ inset: -6 }}
-      />
-      <div
-        className="absolute rounded-full border border-blue-accent/5"
-        style={{ inset: -14 }}
-      />
-
-      {/* Main circle */}
-      <div
-        className="rounded-full bg-blue-accent/10 border-2 border-blue-accent/30 flex items-center justify-center"
-        style={{ width: size, height: size }}
-      >
-        <svg
-          viewBox="0 0 40 40"
-          className="text-blue-accent"
-          style={{ width: size * 0.6, height: size * 0.6 }}
-        >
-          {/* Left eye */}
-          <circle cx="13" cy="15" r="2.5" fill="currentColor" />
-          {/* Right eye */}
-          <circle cx="27" cy="15" r="2.5" fill="currentColor" />
-          {/* Smile */}
-          <path
-            d="M13 25 Q20 32 27 25"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            fill="none"
-            strokeLinecap="round"
-          />
-        </svg>
-      </div>
-
-      {/* Waving hand */}
-      <span
-        className="absolute -bottom-1 -right-1 text-lg animate-[wave_1.5s_ease-in-out_infinite] origin-bottom-right"
-      >
-        👋
-      </span>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -597,7 +546,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
   // ---------------------------------------------------------------------------
 
   const renderSidebar = () => (
-    <div className="w-[260px] shrink-0 border-l flex flex-col bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
+    <div className="w-[280px] h-screen self-stretch shrink-0 border-l flex flex-col bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-fade-border shrink-0">
         <span className="text-text-primary text-sm font-semibold font-display">
@@ -702,23 +651,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
 
   return (
     <>
-      {/* Keyframe animations */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes wave {
-          0%, 60%, 100% { transform: rotate(0deg); }
-          10% { transform: rotate(14deg); }
-          20% { transform: rotate(-8deg); }
-          30% { transform: rotate(14deg); }
-          40% { transform: rotate(-4deg); }
-          50% { transform: rotate(10deg); }
-        }
-      `}</style>
-
-      <div className="flex h-full overflow-hidden">
+<div className="flex h-full overflow-hidden">
         {/* ── Main chat area ── */}
         <div className="flex-1 flex flex-col bg-main min-w-0">
           {/* Topbar (only when messages exist) */}
@@ -784,8 +717,13 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
             {!hasMessages ? (
               /* ── Empty state ── */
               <div className="flex flex-col items-center justify-center min-h-full text-center px-6 pb-6">
-                <div className="mb-8">
-                  <ChattieAvatar />
+                <div className="mb-2">
+                  <DotLottieReact
+                    src="https://lottie.host/4084a296-a647-4a74-8bc7-6488c4ce3fac/0n4FJjvL9j.lottie"
+                    loop
+                    autoplay
+                    style={{ width: 180, height: 180 }}
+                  />
                 </div>
 
                 <h2 className="text-text-primary text-2xl font-bold font-display mb-2">

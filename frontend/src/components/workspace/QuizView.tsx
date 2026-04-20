@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { HelpCircle, Plus, Search, Sparkles, X, Loader2 } from "lucide-react";
+import { HelpCircle, Plus, Search, Sparkles, X, Loader2, CircleHelp } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { QuizWithAttempt } from "@/types/quiz";
 import { getQuizzes, deleteQuiz } from "@/services/quiz.service";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
@@ -124,17 +126,11 @@ export default function QuizView({
       <div className="flex-1 overflow-y-auto p-7 flex flex-col gap-6">
         {/* Page header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 shrink-0 bg-blue-accent/10 border border-blue-accent/30 rounded-xl flex items-center justify-center">
-              <HelpCircle className="w-5 h-5 text-blue-accent" />
-            </div>
-            <div>
-              <h2 className="text-text-primary font-bold text-xl">Quiz Generator</h2>
-              <p className="text-text-muted text-sm font-light">
-                AI-generated quizzes to test your knowledge
-              </p>
-            </div>
-          </div>
+          <PageHeader 
+            icon={<CircleHelp size={22} color="#507DBC" strokeWidth={1.8} fill="none" />}
+            title="Quiz Generator"
+            description="AI-generated quizzes to test your knowledge"
+          />
 
           <div className="flex items-center gap-3">
             {hasAnyQuizzes && (
@@ -158,13 +154,11 @@ export default function QuizView({
                 )}
               </div>
             )}
-            <button
+            <PrimaryButton
               onClick={() => setShowConfigForm((v) => !v)}
-              className="bg-blue-accent text-white font-semibold text-sm rounded-lg px-5 py-2.5 flex items-center gap-2 hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4" />
-              Generate Quiz
-            </button>
+              icon={Plus}
+              label="Generate Quiz"
+            />
           </div>
         </div>
 
@@ -288,13 +282,11 @@ function EmptyState({ onGenerate }: { onGenerate: () => void }) {
           Generate AI-powered quizzes from your workspace resources to test your knowledge.
         </p>
       </div>
-      <button
+      <PrimaryButton
         onClick={onGenerate}
-        className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-blue-accent text-white hover:opacity-90 transition-opacity"
-      >
-        <Sparkles className="w-4 h-4" />
-        Generate Your First Quiz
-      </button>
+        icon={Sparkles}
+        label="Generate Your First Quiz"
+      />
     </div>
   );
 }

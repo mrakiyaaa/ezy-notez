@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Clock, Crown, KeyRound, X, Users, Mail, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type {
   ActiveInvitation,
   RecentRoom,
@@ -261,12 +263,11 @@ export default function StudyRoomLanding({
         <div className="flex flex-col gap-8 min-w-0">
           {/* Header row */}
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-text-primary text-xl font-semibold">Study Room</h2>
-              <p className="text-text-muted text-sm mt-1">
-                Collaborate with friends in real-time quiz battles
-              </p>
-            </div>
+            <PageHeader 
+              icon={<Users size={22} color="#507DBC" strokeWidth={1.8} fill="none" />}
+              title="Study Room"
+              description="Collaborate with friends in real-time quiz battles"
+            />
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => { setShowJoinDialog(true); setJoinError(null); setOtpInput(""); }}
@@ -275,13 +276,11 @@ export default function StudyRoomLanding({
                 <KeyRound className="w-4 h-4" />
                 Join by Code
               </button>
-              <button
+              <PrimaryButton
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-accent text-white text-sm font-medium whitespace-nowrap transition-all duration-200 hover:bg-blue-accent/80"
-              >
-                <Plus className="w-4 h-4" />
-                Create Room
-              </button>
+                icon={Plus}
+                label="Create Room"
+              />
             </div>
           </div>
 
