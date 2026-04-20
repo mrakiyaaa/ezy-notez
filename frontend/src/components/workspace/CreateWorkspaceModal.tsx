@@ -105,7 +105,7 @@ export default function CreateWorkspaceModal({
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="w-full max-w-md rounded-lg bg-bg-card p-6 shadow-lg"
+            className="w-full max-w-md rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-6 shadow-lg"
             variants={scaleUp}
             initial="initial"
             animate="animate"
@@ -220,7 +220,7 @@ export default function CreateWorkspaceModal({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 border border-fade-border bg-white/10 backdrop-blur-md hover:bg-white/20"
+              className="flex-1 border-white/[0.08] bg-white/10 backdrop-blur-md hover:bg-white/20"
             >
               Cancel
             </Button>

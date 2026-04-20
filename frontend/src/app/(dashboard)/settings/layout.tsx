@@ -50,7 +50,7 @@ export default function SettingsLayout({
   return (
     <div className="flex h-[calc(100vh-93px)] bg-main overflow-hidden">
       {/* Left sub-nav */}
-      <aside className="w-64 flex flex-col border-r border-fade-border bg-main h-full shrink-0">
+      <aside className="w-64 flex flex-col border-r border-white/[0.08] bg-white/[0.04] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.25)] h-full shrink-0">
         <div className="px-4 mt-6 shrink-0">
           <button
             type="button"

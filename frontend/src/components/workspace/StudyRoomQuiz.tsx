@@ -326,14 +326,14 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
       {/* Main Quiz Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 overflow-y-auto">
         {/* Question Card */}
-        <div className="w-full max-w-2xl rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-6 mb-8"
+        <div className="w-full max-w-2xl rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-8"
           style={{ boxShadow: "0 4px 24px rgba(0, 0, 0, 0.2)" }}
         >
           <div className="flex items-center gap-3 mb-4">
             <span className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-sm font-bold text-text-secondary">
               {q.question_number}
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide bg-white/[0.05] text-text-muted border border-fade-border">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide bg-white/[0.05] text-text-muted border-white/[0.08]">
               Multiple Choice
             </span>
           </div>

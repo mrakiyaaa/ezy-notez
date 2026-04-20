@@ -241,7 +241,7 @@ export default function StudyRoomLobby({
 
       {/* OTP Code Display */}
       {room.invite_method === "otp" && room.otp_code && (
-        <div className="rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-6 mb-6 text-center">
+        <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-6 text-center">
           <p className="text-text-secondary text-sm mb-4">
             Share this code with friends to join
           </p>
@@ -258,7 +258,7 @@ export default function StudyRoomLobby({
             </div>
             <button
               onClick={copyOtp}
-              className="p-3 rounded-lg bg-white/[0.06] border border-fade-border text-text-muted hover:text-text-primary hover:bg-white/[0.1] transition-colors"
+              className="p-3 rounded-lg bg-white/[0.06] border-white/[0.08] text-text-muted hover:text-text-primary hover:bg-white/[0.1] transition-colors"
               title="Copy OTP"
             >
               {otpCopied ? (
@@ -288,7 +288,7 @@ export default function StudyRoomLobby({
       )}
 
       {/* Participants */}
-      <div className="rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-6 mb-6">
+      <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide">
             Participants
@@ -319,7 +319,7 @@ export default function StudyRoomLobby({
             {participants.map((p, i) => (
               <div
                 key={p.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-fade-border sr-slide-in"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] border-white/[0.08] sr-slide-in"
                 style={{ animationDelay: `${i * 80}ms` }}
               >
                 <ParticipantAvatar participant={p} size="md" />
@@ -395,7 +395,7 @@ export default function StudyRoomLobby({
       {/* Invite Friends Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl bg-bg-card border border-fade-border shadow-2xl">
+          <div className="w-full max-w-md rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-fade-border">
               <div className="flex items-center gap-2.5">
@@ -435,12 +435,12 @@ export default function StudyRoomLobby({
                       onChange={(e) => { setInviteEmailInput(e.target.value); setInviteError(null); }}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInviteEmail())}
                       placeholder="friend@email.com"
-                      className="flex-1 rounded-lg border border-fade-border bg-white/3 px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors"
+                      className="flex-1 rounded-lg border-white/[0.08] bg-white/3 px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={addInviteEmail}
-                      className="px-3 py-2 rounded-lg bg-white/6 border border-fade-border text-text-secondary hover:bg-white/10 transition-colors"
+                      className="px-3 py-2 rounded-lg bg-white/6 border-white/[0.08] text-text-secondary hover:bg-white/10 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -452,7 +452,7 @@ export default function StudyRoomLobby({
                       {inviteEmails.map((email) => (
                         <div
                           key={email}
-                          className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/3 border border-fade-border"
+                          className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/3 border-white/[0.08]"
                         >
                           <span className="text-sm text-text-secondary truncate">{email}</span>
                           <button

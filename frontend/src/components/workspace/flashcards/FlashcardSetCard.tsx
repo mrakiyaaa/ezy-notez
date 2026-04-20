@@ -21,7 +21,7 @@ export default function FlashcardSetCard({
 
   return (
     <div
-      className="group rounded-xl border border-fade-border bg-bg-card p-5 flex flex-col gap-4 transition-all duration-200 hover:-translate-y-0.5"
+      className="group rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-5 flex flex-col gap-4 transition-all duration-200 hover:-translate-y-0.5"
     >
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">

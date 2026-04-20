@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Clock, Crown, KeyRound, X, Users, Mail, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type {
   ActiveInvitation,
   RecentRoom,
@@ -74,7 +76,7 @@ function InitialsCircle({ name, index }: { name: string; index: number }) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-fade-border bg-bg-card p-4 animate-pulse">
+    <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 animate-pulse">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="h-4 w-2/3 rounded bg-white/5" />
         <div className="h-4 w-16 rounded-full bg-white/5" />
@@ -89,7 +91,7 @@ function SkeletonCard() {
 
 function SkeletonStatBar() {
   return (
-    <div className="rounded-lg border border-fade-border bg-bg-card px-4 py-3 animate-pulse">
+    <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] px-4 py-3 animate-pulse">
       <div className="flex items-center gap-4">
         <div className="h-4 w-12 rounded bg-white/5" />
         <div className="h-4 w-12 rounded bg-white/5" />
@@ -101,7 +103,7 @@ function SkeletonStatBar() {
 
 function SkeletonInvitePanel() {
   return (
-    <div className="rounded-lg border border-fade-border bg-bg-card p-4 animate-pulse">
+    <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 animate-pulse">
       <div className="h-4 w-24 rounded bg-white/5 mb-4" />
       <div className="h-16 w-full rounded bg-white/5" />
     </div>
@@ -261,27 +263,24 @@ export default function StudyRoomLanding({
         <div className="flex flex-col gap-8 min-w-0">
           {/* Header row */}
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-text-primary text-xl font-semibold">Study Room</h2>
-              <p className="text-text-muted text-sm mt-1">
-                Collaborate with friends in real-time quiz battles
-              </p>
-            </div>
+            <PageHeader 
+              icon={<Users size={22} color="#507DBC" strokeWidth={1.8} fill="none" />}
+              title="Study Room"
+              description="Collaborate with friends in real-time quiz battles"
+            />
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => { setShowJoinDialog(true); setJoinError(null); setOtpInput(""); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-fade-border bg-bg-card text-text-secondary text-sm font-medium whitespace-nowrap transition-all duration-200 hover:bg-white/6"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] text-text-secondary text-sm font-medium whitespace-nowrap transition-all duration-200 hover:bg-white/6"
               >
                 <KeyRound className="w-4 h-4" />
                 Join by Code
               </button>
-              <button
+              <PrimaryButton
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-accent text-white text-sm font-medium whitespace-nowrap transition-all duration-200 hover:bg-blue-accent/80"
-              >
-                <Plus className="w-4 h-4" />
-                Create Room
-              </button>
+                icon={Plus}
+                label="Create Room"
+              />
             </div>
           </div>
 
@@ -300,7 +299,7 @@ export default function StudyRoomLanding({
                 {recentRooms.map((room) => (
                   <div
                     key={room.id}
-                    className="rounded-lg border border-fade-border bg-bg-card p-4 transition-all duration-200 hover:border-blue-accent/30"
+                    className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 transition-all duration-200 hover:border-blue-accent/30"
                   >
                     {/* Title + badge */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -340,7 +339,7 @@ export default function StudyRoomLanding({
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-fade-border bg-bg-card/40 py-10 text-center">
+              <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/40 py-10 text-center">
                 <p className="text-text-muted text-sm">No rooms yet</p>
               </div>
             )}
@@ -361,7 +360,7 @@ export default function StudyRoomLanding({
                 {hostedRooms.map((room) => (
                   <div
                     key={room.id}
-                    className="rounded-lg border border-fade-border bg-bg-card p-4 transition-all duration-200 hover:border-blue-accent/30"
+                    className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 transition-all duration-200 hover:border-blue-accent/30"
                   >
                     {/* Title + badge */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -404,7 +403,7 @@ export default function StudyRoomLanding({
                             setRoomToDelete(room);
                             setDeleteError(null);
                           }}
-                          className="w-7 h-7 rounded-md border border-fade-border text-text-muted hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                          className="w-7 h-7 rounded-md border-white/[0.08] text-text-muted hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 flex items-center justify-center transition-colors"
                           aria-label="Delete room"
                           title="Delete room"
                         >
@@ -416,7 +415,7 @@ export default function StudyRoomLanding({
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-fade-border bg-bg-card/40 py-10 text-center">
+              <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/40 py-10 text-center">
                 <p className="text-text-muted text-sm">No hosted rooms yet</p>
               </div>
             )}
@@ -429,7 +428,7 @@ export default function StudyRoomLanding({
           {isLoading ? (
             <SkeletonStatBar />
           ) : (
-            <div className="rounded-lg border border-fade-border bg-bg-card px-4 py-3">
+            <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] px-4 py-3">
               <div className="flex items-center">
                 {/* Hosted */}
                 <div className="flex items-center gap-1.5">
@@ -460,7 +459,7 @@ export default function StudyRoomLanding({
           {isLoading ? (
             <SkeletonInvitePanel />
           ) : (
-            <div className="rounded-lg border border-fade-border bg-bg-card p-4">
+            <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4">
               {/* Header */}
               <div className="flex items-center gap-2 mb-4">
                 <h3 className="text-text-primary text-sm font-semibold">Invitations</h3>
@@ -476,7 +475,7 @@ export default function StudyRoomLanding({
                   {filteredInvites.map((invite) => (
                     <div
                       key={invite.inviteId}
-                      className="rounded-md border border-fade-border p-3"
+                      className="rounded-md border-white/[0.08] p-3"
                     >
                       {/* Top: avatar + info */}
                       <div className="flex items-start gap-2.5 mb-3">
@@ -512,7 +511,7 @@ export default function StudyRoomLanding({
                         </button>
                         <button
                           onClick={() => handleDismissInvite(invite.inviteId)}
-                          className="flex-1 py-1.5 rounded-md border border-fade-border text-text-muted text-[11px] font-medium hover:text-text-secondary hover:bg-white/4 transition-colors"
+                          className="flex-1 py-1.5 rounded-md border-white/[0.08] text-text-muted text-[11px] font-medium hover:text-text-secondary hover:bg-white/4 transition-colors"
                         >
                           Dismiss
                         </button>
@@ -543,7 +542,7 @@ export default function StudyRoomLanding({
       {/* Delete Confirmation Dialog */}
       {roomToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl bg-bg-card border border-fade-border shadow-2xl p-6">
+          <div className="w-full max-w-sm rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-text-primary font-semibold text-lg">Delete room?</h2>
               <button
@@ -569,7 +568,7 @@ export default function StudyRoomLanding({
               <button
                 onClick={() => { setRoomToDelete(null); setDeleteError(null); }}
                 disabled={deleteLoading}
-                className="flex-1 py-2 rounded-lg border border-fade-border text-text-secondary text-sm font-medium hover:bg-white/4 transition-colors disabled:opacity-40"
+                className="flex-1 py-2 rounded-lg border-white/[0.08] text-text-secondary text-sm font-medium hover:bg-white/4 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -595,7 +594,7 @@ export default function StudyRoomLanding({
       {/* Join by Code Dialog */}
       {showJoinDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl bg-bg-card border border-fade-border shadow-2xl p-6">
+          <div className="w-full max-w-sm rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-text-primary font-semibold text-lg">Join by Code</h2>
               <button
@@ -618,7 +617,7 @@ export default function StudyRoomLanding({
               onChange={(e) => { setOtpInput(e.target.value.replace(/\D/g, "")); setJoinError(null); }}
               onKeyDown={(e) => e.key === "Enter" && handleJoinByCode()}
               placeholder="000000"
-              className="w-full rounded-lg border border-fade-border bg-white/3 px-3 py-3 text-text-primary text-center text-2xl font-bold tracking-[0.5em] placeholder:text-text-muted/40 placeholder:text-base placeholder:tracking-normal focus:outline-none focus:border-blue-accent/50 transition-colors mb-3"
+              className="w-full rounded-lg border-white/[0.08] bg-white/3 px-3 py-3 text-text-primary text-center text-2xl font-bold tracking-[0.5em] placeholder:text-text-muted/40 placeholder:text-base placeholder:tracking-normal focus:outline-none focus:border-blue-accent/50 transition-colors mb-3"
             />
 
             {joinError && (

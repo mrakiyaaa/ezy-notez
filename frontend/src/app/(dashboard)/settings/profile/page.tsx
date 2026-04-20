@@ -59,7 +59,7 @@ export default function SettingsProfilePage() {
         </p>
       </div>
 
-      <div className="bg-bg-card border border-fade-border rounded-xl p-6 flex flex-col gap-6">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-6 flex flex-col gap-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-blue-accent flex items-center justify-center overflow-hidden shrink-0">
             {profile?.avatar_url ? (
@@ -91,7 +91,7 @@ export default function SettingsProfilePage() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Your full name"
-            className="w-full bg-white/5 border border-fade-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-white/20"
+            className="w-full bg-white/5 border-white/[0.08] rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-white/20"
           />
         </div>
 
@@ -102,7 +102,7 @@ export default function SettingsProfilePage() {
           <input
             value={email}
             readOnly
-            className="w-full bg-white/5 border border-fade-border rounded-lg px-3 py-2 text-sm text-text-muted cursor-not-allowed"
+            className="w-full bg-white/5 border-white/[0.08] rounded-lg px-3 py-2 text-sm text-text-muted cursor-not-allowed"
           />
         </div>
 

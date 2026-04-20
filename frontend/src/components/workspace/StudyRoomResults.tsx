@@ -99,7 +99,7 @@ function BadgeCard({ badge }: { badge: Badge }) {
   return (
     <motion.div
       variants={resultStaggerItem}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-fade-border bg-white/[0.02]"
+      className="flex items-center gap-3 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.02]"
     >
       <motion.span variants={popIn} initial="initial" animate="animate" className="text-2xl">
         {badge.icon}
@@ -117,7 +117,7 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
   return (
     <motion.div
       variants={resultStaggerItem}
-      className="rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-5"
+      className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-5"
     >
       {/* Question */}
       <div className="flex items-center gap-2 mb-3">
@@ -268,7 +268,7 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
       <section className="mb-8">
         <button
           onClick={() => setShowRevision((prev) => !prev)}
-          className="flex items-center gap-2 px-4 py-3 rounded-xl border border-fade-border bg-bg-card/60 w-full text-left hover:bg-white/[0.03] transition-colors"
+          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 w-full text-left hover:bg-white/[0.03] transition-colors"
         >
           <span className="flex-1 text-text-secondary text-sm font-medium">
             Review Wrong Answers
@@ -310,7 +310,7 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
       {/* Back Button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 px-5 py-3 rounded-lg border border-fade-border bg-white/[0.04] text-text-secondary text-sm font-medium hover:bg-white/[0.08] transition-colors mx-auto"
+        className="flex items-center gap-2 px-5 py-3 rounded-lg border-white/[0.08] bg-white/[0.04] text-text-secondary text-sm font-medium hover:bg-white/[0.08] transition-colors mx-auto"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Study Room

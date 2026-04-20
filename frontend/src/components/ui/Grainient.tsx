@@ -157,12 +157,30 @@ const Grainient = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const renderer = new Renderer({
-      webgl: 2,
-      alpha: true,
-      antialias: false,
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
-    });
+    const testCanvas = document.createElement('canvas');
+    const webglSupported = !!(
+      testCanvas.getContext('webgl2') ||
+      testCanvas.getContext('webgl') ||
+      testCanvas.getContext('experimental-webgl')
+    );
+    if (!webglSupported) return;
+
+    // Suppress OGL's internal console.error during Renderer construction
+    const originalError = console.error;
+    console.error = () => {};
+    let renderer: InstanceType<typeof Renderer>;
+    try {
+      renderer = new Renderer({
+        webgl: 2,
+        alpha: true,
+        antialias: false,
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
+      });
+    } catch {
+      console.error = originalError;
+      return;
+    }
+    console.error = originalError;
 
     const gl = renderer.gl;
     const canvas = gl.canvas as HTMLCanvasElement;

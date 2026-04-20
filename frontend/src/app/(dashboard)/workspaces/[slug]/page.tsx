@@ -242,7 +242,7 @@ export default function WorkspacePage() {
       </div>
       <div className="relative z-10 flex h-full w-full">
       {/* Left Sidebar */}
-      <aside className="w-64 flex flex-col border-r border-fade-border bg-main h-full shrink-0">
+      <aside className="w-64 flex flex-col border-r border-white/[0.08] bg-white/[0.04] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.25)] h-full shrink-0">
         {/* 2. Active workspace chip */}
         <div className="px-4 mt-6 shrink-0 relative" ref={switcherRef}>
           <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
@@ -274,7 +274,7 @@ export default function WorkspacePage() {
           {isSwitcherOpen && (
             <div
               role="listbox"
-              className="absolute left-4 right-4 mt-2 z-50 bg-bg-card border border-fade-border rounded-lg shadow-xl overflow-hidden"
+              className="absolute left-4 right-4 mt-2 z-50 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-lg shadow-xl overflow-hidden"
             >
               <div className="max-h-72 overflow-y-auto py-1">
                 {isWorkspaceListLoading && workspaceList.length === 0 && (

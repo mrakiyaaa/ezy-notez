@@ -78,7 +78,7 @@ export default function SettingsPreferencesPage() {
         </p>
       </div>
 
-      <div className="bg-bg-card border border-fade-border rounded-xl divide-y divide-fade-border">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl divide-y divide-fade-border">
         {rows.map(({ key, label, hint }) => {
           const value = prefs[key];
           return (

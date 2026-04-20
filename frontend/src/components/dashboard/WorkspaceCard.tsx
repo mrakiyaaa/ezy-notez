@@ -107,7 +107,7 @@ export default function WorkspaceCard({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-full max-w-sm rounded-xl bg-bg-card border border-white/10 p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] border border-white/10 p-6 shadow-2xl">
             <h3 className="text-base font-semibold text-text-primary">Delete workspace?</h3>
             <p className="mt-2 text-sm text-white/60">
               <span className="font-medium text-white/80">{workspace.name}</span> will be permanently deleted. This action cannot be undone.

@@ -412,7 +412,7 @@ export default function SummarizationView({
       </div>
 
       {/* Right - Previous Summaries Panel (configure phase only) */}
-      <div className={`w-96 shrink-0 bg-bg-card border-l border-fade-border flex-col h-full ${phase === "configure" ? "hidden lg:flex" : "hidden"}`}>
+      <div className={`w-96 shrink-0 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] border-l border-fade-border flex-col h-full ${phase === "configure" ? "hidden lg:flex" : "hidden"}`}>
         <div className="p-4 border-b border-fade-border shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-text-muted" />
@@ -439,7 +439,7 @@ export default function SummarizationView({
                 <div
                   key={batch[0].id}
                   onClick={() => handleViewBatch(batch)}
-                  className="group relative bg-main border border-fade-border rounded-xl p-5 cursor-pointer hover:border-blue-accent/20 transition-colors overflow-hidden flex flex-col gap-3 min-h-36"
+                  className="group relative bg-main border-white/[0.08] rounded-xl p-5 cursor-pointer hover:border-blue-accent/20 transition-colors overflow-hidden flex flex-col gap-3 min-h-36"
                 >
                   {/* Left accent bar */}
                   <div

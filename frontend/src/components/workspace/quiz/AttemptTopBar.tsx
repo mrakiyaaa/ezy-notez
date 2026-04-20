@@ -21,7 +21,7 @@ export default function AttemptTopBar({
 
   return (
     <div
-      className="flex items-center gap-4 px-6 py-4 bg-bg-card/50 backdrop-blur-sm border-b border-fade-border"
+      className="flex items-center gap-4 px-6 py-4 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/50 backdrop-blur-sm border-b border-fade-border"
     >
       {/* Exit button */}
       <button
