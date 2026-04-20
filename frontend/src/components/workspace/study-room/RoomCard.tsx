@@ -58,7 +58,7 @@ export default function RoomCard({
   });
 
   return (
-    <div className="group relative rounded-xl border border-fade-border bg-bg-card/60 backdrop-blur-sm p-5 transition-all duration-200 hover:border-blue-accent/40 hover:shadow-[0_0_20px_rgba(80,125,188,0.15)]">
+    <div className="group relative rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-5 transition-all duration-200 hover:border-blue-accent/40 hover:shadow-[0_0_20px_rgba(80,125,188,0.15)]">
       <div className="flex items-start justify-between gap-3">
         <h4 className="text-text-primary font-medium text-sm truncate flex-1">
           {title}

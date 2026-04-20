@@ -59,7 +59,7 @@ export default function FlashcardGenerationPanel({
 
   return (
     <div
-      className="rounded-xl border bg-bg-card p-5 flex flex-col gap-5 animate-in fade-in slide-in-from-top-2 duration-200"
+      className="rounded-xl border bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-5 flex flex-col gap-5 animate-in fade-in slide-in-from-top-2 duration-200"
     >
       {/* Panel header */}
       <div className="flex items-center justify-between">
@@ -96,21 +96,21 @@ export default function FlashcardGenerationPanel({
           </label>
 
           {isLoadingResources ? (
-            <div className="flex items-center justify-center py-6 rounded-xl border border-fade-border">
+            <div className="flex items-center justify-center py-6 rounded-xl border-white/[0.08]">
               <Loader2
                 className="w-5 h-5 animate-spin"
                 style={{ color: "var(--color-text-muted)" }}
               />
             </div>
           ) : resources.length === 0 ? (
-            <div className="rounded-xl border border-fade-border px-4 py-5 text-center">
+            <div className="rounded-xl border-white/[0.08] px-4 py-5 text-center">
               <p className="text-text-muted text-xs">No ready resources found.</p>
               <p className="text-text-muted text-[11px] mt-0.5">
                 Upload and process resources first.
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-fade-border overflow-hidden max-h-44 overflow-y-auto">
+            <div className="rounded-xl border-white/[0.08] overflow-hidden max-h-44 overflow-y-auto">
               {resources.map((r) => {
                 const isSelected = selectedIds.has(r.id);
                 return (
@@ -166,7 +166,7 @@ export default function FlashcardGenerationPanel({
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Neural networks, sorting algorithms…"
-              className="w-full bg-bg-card border border-fade-border rounded-lg px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-all"
+              className="w-full bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-lg px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-all"
             />
           </div>
 

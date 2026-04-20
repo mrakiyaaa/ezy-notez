@@ -164,7 +164,7 @@ export default function CreateRoomModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-bg-card border border-fade-border shadow-2xl">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-fade-border">
           <h2 className="text-text-primary font-semibold text-lg">
@@ -192,7 +192,7 @@ export default function CreateRoomModal({
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); setError(null); }}
                   placeholder="e.g., Data Structures Review"
-                  className="w-full rounded-lg border border-fade-border bg-white/[0.03] px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors"
+                  className="w-full rounded-lg border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors"
                 />
               </div>
 
@@ -206,7 +206,7 @@ export default function CreateRoomModal({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Brief description of the study session..."
                   rows={2}
-                  className="w-full rounded-lg border border-fade-border bg-white/[0.03] px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors resize-none"
+                  className="w-full rounded-lg border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors resize-none"
                 />
               </div>
 
@@ -220,7 +220,7 @@ export default function CreateRoomModal({
                   min={20}
                   value={questionCount}
                   onChange={(e) => setQuestionCount(Math.max(20, Number(e.target.value)))}
-                  className="w-32 rounded-lg border border-fade-border bg-white/[0.03] px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-blue-accent/50 transition-colors"
+                  className="w-32 rounded-lg border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-blue-accent/50 transition-colors"
                 />
               </div>
 
@@ -239,7 +239,7 @@ export default function CreateRoomModal({
                     No ready resources in this workspace. Upload resources first.
                   </p>
                 ) : (
-                  <div className="max-h-40 overflow-y-auto rounded-lg border border-fade-border bg-white/[0.02] divide-y divide-fade-border">
+                  <div className="max-h-40 overflow-y-auto rounded-lg border-white/[0.08] bg-white/[0.02] divide-y divide-fade-border">
                     {resources.map((res) => {
                       const isSelected = selectedResources.includes(res.id);
                       return (
@@ -283,7 +283,7 @@ export default function CreateRoomModal({
                 <label className="block text-sm font-medium text-text-secondary mb-2">
                   Invite Method
                 </label>
-                <div className="flex rounded-lg bg-white/[0.03] border border-fade-border p-1">
+                <div className="flex rounded-lg bg-white/[0.03] border-white/[0.08] p-1">
                   <button
                     type="button"
                     onClick={() => setInviteMethod("otp")}
@@ -325,12 +325,12 @@ export default function CreateRoomModal({
                         onChange={(e) => { setEmailInput(e.target.value); setError(null); }}
                         onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail())}
                         placeholder="friend@email.com"
-                        className="flex-1 rounded-lg border border-fade-border bg-white/[0.03] px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors"
+                        className="flex-1 rounded-lg border-white/[0.08] bg-white/[0.03] px-3 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent/50 transition-colors"
                       />
                       <button
                         type="button"
                         onClick={addEmail}
-                        className="px-3 py-2 rounded-lg bg-white/[0.06] border border-fade-border text-text-secondary hover:bg-white/[0.1] transition-colors"
+                        className="px-3 py-2 rounded-lg bg-white/[0.06] border-white/[0.08] text-text-secondary hover:bg-white/[0.1] transition-colors"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
@@ -340,7 +340,7 @@ export default function CreateRoomModal({
                         {invitedEmails.map((email) => (
                           <div
                             key={email}
-                            className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-white/[0.03] border border-fade-border"
+                            className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-white/[0.03] border-white/[0.08]"
                           >
                             <span className="text-sm text-text-secondary truncate">
                               {email}
@@ -407,7 +407,7 @@ export default function CreateRoomModal({
                       {createdRoom.otp_code.split("").map((digit, i) => (
                         <span
                           key={i}
-                          className="w-11 h-14 rounded-lg bg-white/[0.05] border border-fade-border flex items-center justify-center text-text-primary text-2xl font-bold sr-pulse-glow"
+                          className="w-11 h-14 rounded-lg bg-white/[0.05] border-white/[0.08] flex items-center justify-center text-text-primary text-2xl font-bold sr-pulse-glow"
                         >
                           {digit}
                         </span>
@@ -415,7 +415,7 @@ export default function CreateRoomModal({
                     </div>
                     <button
                       onClick={copyOtp}
-                      className="p-2.5 rounded-lg bg-white/[0.06] border border-fade-border text-text-muted hover:text-text-primary hover:bg-white/[0.1] transition-colors"
+                      className="p-2.5 rounded-lg bg-white/[0.06] border-white/[0.08] text-text-muted hover:text-text-primary hover:bg-white/[0.1] transition-colors"
                       title="Copy OTP"
                     >
                       {otpCopied ? (
@@ -430,7 +430,7 @@ export default function CreateRoomModal({
 
               {/* Email confirmation */}
               {createdRoom?.invite_method === "email" && (
-                <div className="w-full mb-6 rounded-lg bg-white/[0.03] border border-fade-border p-4">
+                <div className="w-full mb-6 rounded-lg bg-white/[0.03] border-white/[0.08] p-4">
                   <p className="text-text-secondary text-sm">
                     Invitation emails have been sent to your friends. They will receive a link to join the room.
                   </p>

@@ -41,7 +41,7 @@ export default function QuizConfigForm({
   };
 
   return (
-    <div className="bg-bg-card border border-fade-border rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
       {/* Panel header */}
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
@@ -55,7 +55,7 @@ export default function QuizConfigForm({
         </div>
         <button
           onClick={onClose}
-          className="w-6 h-6 border border-fade-border rounded-md flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 self-start transition-all duration-150"
+          className="w-6 h-6 border-white/[0.08] rounded-md flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 self-start transition-all duration-150"
           aria-label="Close panel"
         >
           <X className="w-3 h-3" />

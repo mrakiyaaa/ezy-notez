@@ -342,7 +342,7 @@ export default function ResourcesView({
 
       {/* Upload Card */}
       <div
-        className="mx-6 mt-6 border-2 border-dashed border-fade-border bg-bg-card rounded-xl p-12 text-center"
+        className="mx-6 mt-6 border-2 border-dashed border-white/[0.08] bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-12 text-center"
       >
         <div
           className="p-4 rounded-full mx-auto mb-4 w-fit"

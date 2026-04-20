@@ -498,7 +498,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
     <div className="relative w-full max-w-2xl mx-auto" ref={resourceDropdownRef}>
       {/* Resource dropdown (opens upward) */}
       {resourcePanelOpen && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-bg-card border border-fade-border rounded-xl shadow-lg z-20 overflow-hidden">
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl shadow-lg z-20 overflow-hidden">
           <div className="px-4 py-2.5 flex items-center justify-between border-b border-fade-border">
             <span className="text-text-primary text-xs font-semibold">
               Select resources
@@ -543,7 +543,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
       )}
 
       {/* Input pill */}
-      <div className="bg-bg-card border border-fade-border rounded-3xl px-4 py-2 flex items-end gap-2 focus-within:border-blue-accent/30 transition-colors shadow-sm">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-3xl px-4 py-2 flex items-end gap-2 focus-within:border-blue-accent/30 transition-colors shadow-sm">
         <textarea
           ref={textareaRef}
           value={input}
@@ -597,7 +597,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
   // ---------------------------------------------------------------------------
 
   const renderSidebar = () => (
-    <div className="w-[260px] shrink-0 border-l border-fade-border flex flex-col bg-bg-card/30">
+    <div className="w-[260px] shrink-0 border-l flex flex-col bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-fade-border shrink-0">
         <span className="text-text-primary text-sm font-semibold font-display">
@@ -605,7 +605,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
         </span>
         <button
           onClick={handleNewChat}
-          className="w-7 h-7 flex items-center justify-center rounded-lg border border-fade-border text-text-muted hover:bg-blue-accent/10 hover:border-blue-accent/30 hover:text-blue-accent transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-lg border-white/[0.08] text-text-muted hover:bg-blue-accent/10 hover:border-blue-accent/30 hover:text-blue-accent transition-colors"
           title="New Chat"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -652,7 +652,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
                       </button>
                       <button
                         onClick={() => setDeletingSessionId(null)}
-                        className="flex-1 text-[11px] text-text-muted border border-fade-border rounded-md px-2 py-1 hover:bg-white/5 transition-colors"
+                        className="flex-1 text-[11px] text-text-muted border-white/[0.08] rounded-md px-2 py-1 hover:bg-white/5 transition-colors"
                       >
                         Cancel
                       </button>
@@ -747,7 +747,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
                     </button>
                     <button
                       onClick={() => setConfirmClear(false)}
-                      className="text-[11px] text-text-muted px-2 py-1 rounded-md border border-fade-border hover:bg-white/5 transition-colors"
+                      className="text-[11px] text-text-muted px-2 py-1 rounded-md border-white/[0.08] hover:bg-white/5 transition-colors"
                     >
                       Cancel
                     </button>
@@ -755,7 +755,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
                 ) : (
                   <button
                     onClick={() => setConfirmClear(true)}
-                    className="w-7 h-7 flex items-center justify-center rounded-md border border-fade-border text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center rounded-md border-white/[0.08] text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-colors"
                     title="Clear chat history"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -807,7 +807,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
                         setInput(chip);
                         textareaRef.current?.focus();
                       }}
-                      className="border border-fade-border bg-bg-card text-text-secondary text-xs rounded-full px-5 py-2.5 cursor-pointer transition-all duration-200 hover:border-blue-accent/30 hover:bg-blue-accent/10 hover:text-text-primary"
+                      className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] text-text-secondary text-xs rounded-full px-5 py-2.5 cursor-pointer transition-all duration-200 hover:border-blue-accent/30 hover:bg-blue-accent/10 hover:text-text-primary"
                     >
                       {chip}
                     </button>
@@ -839,7 +839,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
                         </svg>
                       </div>
                       <div className="flex flex-col gap-1 items-start max-w-[85%]">
-                        <div className="bg-bg-card border border-fade-border rounded-2xl rounded-tl-sm px-4 py-3">
+                        <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-2xl rounded-tl-sm px-4 py-3">
                           <div className="text-text-secondary text-sm leading-relaxed">
                             <ReactMarkdown
                               components={{
@@ -929,7 +929,7 @@ export default function Chattie({ workspaceId, workspaceName }: ChattieProps) {
                         />
                       </svg>
                     </div>
-                    <div className="flex items-center bg-bg-card border border-fade-border rounded-2xl rounded-tl-sm px-4 py-3.5 w-fit gap-2.5">
+                    <div className="flex items-center bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-2xl rounded-tl-sm px-4 py-3.5 w-fit gap-2.5">
                       <div className="flex items-center gap-1.5">
                         <div
                           className="w-1.5 h-1.5 rounded-full bg-blue-accent opacity-60 animate-bounce"

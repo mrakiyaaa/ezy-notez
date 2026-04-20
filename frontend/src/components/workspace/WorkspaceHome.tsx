@@ -49,7 +49,7 @@ export default function WorkspaceHome({
     <div className="p-6">
       {/* Welcome Banner */}
       <div
-        className="relative border border-fade-border rounded-xl p-6 flex items-center justify-between overflow-hidden bg-bg-card"
+        className="relative border-white/[0.08] rounded-xl p-6 flex items-center justify-between overflow-hidden bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
       >
         <div>
           <h1 className="text-text-primary font-bold text-2xl">
@@ -62,7 +62,7 @@ export default function WorkspaceHome({
 
         {/* Decorated icon container */}
         <div
-          className="rounded-xl p-3 border border-fade-border shrink-0"
+          className="rounded-xl p-3 border-white/[0.08] shrink-0"
           style={{ backgroundColor: "rgba(80, 125, 188, 0.1)" }}
         >
           <Sparkles className="w-8 h-8" style={{ color: "var(--color-blue-accent)" }} />
@@ -96,7 +96,7 @@ export default function WorkspaceHome({
             >
               <div className="relative z-10">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 border border-fade-border"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 border-white/[0.08]"
                   style={{ backgroundColor: "rgba(80, 125, 188, 0.08)" }}
                 >
                   <tool.icon className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
@@ -119,7 +119,7 @@ export default function WorkspaceHome({
 
       {/* Quick Tip Banner */}
       <div
-        className="border border-fade-border border-l-4 rounded-xl p-5 mt-6 flex items-center justify-between"
+        className="border-white/[0.08] border-l-4 rounded-xl p-5 mt-6 flex items-center justify-between"
         style={{
           backgroundColor: "rgba(80, 125, 188, 0.05)",
           borderLeftColor: "var(--color-blue-accent)",

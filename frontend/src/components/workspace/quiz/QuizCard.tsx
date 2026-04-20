@@ -62,7 +62,7 @@ export default function QuizCard({
     : "bg-blue-accent";
 
   return (
-    <div className="w-96 shrink-0 bg-bg-card border border-fade-border rounded-xl p-4.5 flex flex-col gap-3 relative overflow-hidden hover:border-blue-accent/20 transition-colors">
+    <div className="w-96 shrink-0 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-4.5 flex flex-col gap-3 relative overflow-hidden hover:border-blue-accent/20 transition-colors">
       {/* Left accent bar */}
       <div className={`absolute left-0 top-0 bottom-0 w-0.75 rounded-r ${accentBar}`} />
 
@@ -157,7 +157,7 @@ export default function QuizCard({
         {onDelete && (
           <button
             onClick={handleDelete}
-            className="w-8 h-8 shrink-0 bg-main border border-fade-border rounded-md flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all duration-150"
+            className="w-8 h-8 shrink-0 bg-main border-white/[0.08] rounded-md flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all duration-150"
             aria-label="Delete quiz"
           >
             <Trash2 className="w-3.5 h-3.5" />

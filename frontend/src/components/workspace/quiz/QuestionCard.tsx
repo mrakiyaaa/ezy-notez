@@ -13,7 +13,7 @@ export default function QuestionCard({
 }: QuestionCardProps) {
   return (
     <div
-      className="rounded-xl border bg-bg-card/80 backdrop-blur-sm p-6 w-full max-w-2xl"
+      className="rounded-xl border bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/80 backdrop-blur-sm p-6 w-full max-w-2xl"
       style={{
         boxShadow: "0 4px 24px rgba(0, 0, 0, 0.2)",
       }}

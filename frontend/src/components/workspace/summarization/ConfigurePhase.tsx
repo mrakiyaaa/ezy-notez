@@ -96,11 +96,11 @@ export default function ConfigurePhase({
       </div>
 
       {/* Card 1 - Mode */}
-      <div className="bg-bg-card border border-fade-border rounded-xl p-5">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-5">
         <label className="text-text-muted text-xs font-bold uppercase tracking-wide block mb-3">
           Mode
         </label>
-        <div className="bg-main border border-fade-border rounded-lg p-1 w-fit flex items-center">
+        <div className="bg-main border-white/[0.08] rounded-lg p-1 w-fit flex items-center">
           {MODE_OPTIONS.map(({ id, label }) => (
             <button
               key={id}
@@ -125,7 +125,7 @@ export default function ConfigurePhase({
 
       {/* Card 2 - Select Resources (customize only) */}
       {mode === "customize" && (
-        <div className="bg-bg-card border border-fade-border rounded-xl p-5">
+        <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <label className="text-text-muted text-xs font-bold uppercase tracking-wide">
               Select Resources
@@ -171,7 +171,7 @@ export default function ConfigurePhase({
                     className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
                       isSelected
                         ? "border-blue-accent/50 bg-blue-accent/6"
-                        : "border-fade-border bg-main hover:border-fade-border/60 hover:bg-bg-card"
+                        : "border-white/[0.08] bg-white/[0.04] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.25)] hover:border-fade-border/60 hover:bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
                     }`}
                   >
                     {isSelected && (
@@ -214,7 +214,7 @@ export default function ConfigurePhase({
       )}
 
       {/* Card 3 - Summary Format + Generate */}
-      <div className="bg-bg-card border border-fade-border rounded-xl p-5">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-5">
         <label className="text-text-muted text-xs font-bold uppercase tracking-wide block mb-3">
           Summary Format
         </label>

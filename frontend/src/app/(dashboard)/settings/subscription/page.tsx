@@ -53,7 +53,7 @@ export default function SettingsSubscriptionPage() {
         </p>
       </div>
 
-      <div className="bg-bg-card border border-fade-border rounded-xl p-6 flex items-center justify-between gap-4">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-6 flex items-center justify-between gap-4">
         <div>
           <div className="text-[11px] uppercase tracking-wide text-text-muted">
             Current plan
@@ -81,7 +81,7 @@ export default function SettingsSubscriptionPage() {
             className={`flex flex-col gap-4 p-5 rounded-xl border ${
               plan.current
                 ? "border-blue-accent/50 bg-blue-accent/5"
-                : "border-fade-border bg-bg-card"
+                : "border-fade-border bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
             }`}
           >
             <div className="flex items-start justify-between">

@@ -321,7 +321,7 @@ export default function FlashcardsView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search flashcard sets by title"
-                  className="w-full bg-bg-card border border-fade-border rounded-lg pl-10 pr-9 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20"
+                  className="w-full bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-lg pl-10 pr-9 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-white/20"
                 />
                 {searchQuery && (
                   <button
@@ -412,7 +412,7 @@ function GenerationShimmer() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-fade-border bg-bg-card p-5 flex flex-col gap-3.5"
+            className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-5 flex flex-col gap-3.5"
             style={{ opacity: 1 - i * 0.18 }}
           >
             {/* Title line */}

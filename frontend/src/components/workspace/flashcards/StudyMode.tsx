@@ -144,20 +144,20 @@ export default function StudyMode({
 
         {/* Score cards */}
         <div className="flex gap-4 flex-wrap justify-center">
-          <div className="rounded-xl border border-fade-border bg-bg-card px-7 py-4 text-center min-w-[88px]">
+          <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] px-7 py-4 text-center min-w-[88px]">
             <p className="text-2xl font-bold tabular-nums text-text-primary">
               {knownIds.size}
             </p>
             <p className="text-text-muted text-xs mt-1">Known</p>
           </div>
-          <div className="rounded-xl border border-fade-border bg-bg-card px-7 py-4 text-center min-w-[88px]">
+          <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] px-7 py-4 text-center min-w-[88px]">
             <p className="text-2xl font-bold tabular-nums text-amber-400">
               {reviewIds.size}
             </p>
             <p className="text-text-muted text-xs mt-1">To Review</p>
           </div>
           {skipped > 0 && (
-            <div className="rounded-xl border border-fade-border bg-bg-card px-7 py-4 text-center min-w-[88px]">
+            <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] px-7 py-4 text-center min-w-[88px]">
               <p className="text-2xl font-bold tabular-nums text-text-muted">
                 {skipped}
               </p>
@@ -170,7 +170,7 @@ export default function StudyMode({
         <div className="flex gap-3">
           <button
             onClick={handleRestart}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-fade-border text-text-secondary text-sm hover:text-text-primary hover:bg-white/5 transition-all duration-200"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg border-white/[0.08] text-text-secondary text-sm hover:text-text-primary hover:bg-white/5 transition-all duration-200"
           >
             <RotateCcw className="w-4 h-4" />
             Restart
@@ -243,7 +243,7 @@ export default function StudyMode({
           <button
             onClick={goPrev}
             disabled={currentIndex === 0}
-            className="w-10 h-10 rounded-full border border-fade-border flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-white/5 transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-10 h-10 rounded-full border-white/[0.08] flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-white/5 transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Previous card"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -265,7 +265,7 @@ export default function StudyMode({
           {/* Flip */}
           <button
             onClick={handleFlip}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-fade-border text-text-secondary text-sm hover:text-text-primary hover:bg-white/5 transition-all duration-150"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border-white/[0.08] text-text-secondary text-sm hover:text-text-primary hover:bg-white/5 transition-all duration-150"
           >
             <RotateCcw className="w-4 h-4" />
             Flip
@@ -289,7 +289,7 @@ export default function StudyMode({
           <button
             onClick={goNext}
             disabled={currentIndex === total - 1}
-            className="w-10 h-10 rounded-full border border-fade-border flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-white/5 transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-10 h-10 rounded-full border-white/[0.08] flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-white/5 transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next card"
           >
             <ArrowRight className="w-4 h-4" />

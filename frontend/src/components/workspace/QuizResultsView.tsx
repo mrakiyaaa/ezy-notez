@@ -102,7 +102,7 @@ export default function QuizResultsView({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div
-        className="flex items-center gap-4 px-6 py-4 bg-bg-card/50 backdrop-blur-sm border-b border-fade-border"
+        className="flex items-center gap-4 px-6 py-4 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/50 backdrop-blur-sm border-b border-fade-border"
       >
         <button
           onClick={onBack}
@@ -203,7 +203,7 @@ export default function QuizResultsView({
         </section>
 
         {/* Actions section */}
-        <section className="px-6 py-8 flex flex-wrap gap-3 justify-center border-t border-fade-border bg-bg-card/30">
+        <section className="px-6 py-8 flex flex-wrap gap-3 justify-center border-t border-fade-border bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
           <button
             onClick={() => onRetake(quizId)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
@@ -218,7 +218,7 @@ export default function QuizResultsView({
 
           <button
             onClick={onGenerateNew}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border border-fade-border text-text-secondary hover:text-text-primary hover:bg-white/5"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-white/[0.08] text-text-secondary hover:text-text-primary hover:bg-white/5"
           >
             <Plus className="w-4 h-4" />
             Generate New Quiz
@@ -226,7 +226,7 @@ export default function QuizResultsView({
 
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border border-fade-border text-text-secondary hover:text-text-primary hover:bg-white/5"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-white/[0.08] text-text-secondary hover:text-text-primary hover:bg-white/5"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Quizzes

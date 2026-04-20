@@ -78,7 +78,7 @@ export default function SettingsWorkspacePage() {
         </div>
       )}
 
-      <div className="bg-bg-card border border-fade-border rounded-xl overflow-hidden">
+      <div className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-text-muted" />

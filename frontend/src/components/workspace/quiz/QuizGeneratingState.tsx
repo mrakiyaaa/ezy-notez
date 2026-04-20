@@ -37,7 +37,7 @@ export default function QuizGeneratingState({ onCancel }: QuizGeneratingStatePro
       `}</style>
 
       <div
-        className="relative rounded-2xl border bg-bg-card p-4 flex items-center gap-4 w-72"
+        className="relative rounded-2xl border bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 flex items-center gap-4 w-72"
         style={{
           borderColor: "var(--color-fade-border)",
         }}
