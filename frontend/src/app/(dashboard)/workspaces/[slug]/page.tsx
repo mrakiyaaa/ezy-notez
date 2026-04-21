@@ -344,7 +344,7 @@ export default function WorkspacePage() {
           {isSwitcherOpen && (
             <div
               role="listbox"
-              className="absolute left-4 right-4 mt-2 z-50 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-lg shadow-xl overflow-hidden"
+              className="absolute left-4 right-4 mt-2 z-50 bg-bg-card backdrop-blur-md border border-white/8 shadow-xl rounded-lg overflow-hidden"
             >
               <div className="max-h-72 overflow-y-auto py-1">
                 {isWorkspaceListLoading && workspaceList.length === 0 && (
