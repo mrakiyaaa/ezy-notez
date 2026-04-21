@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,7 +30,6 @@ import QuizResultsView from "@/components/workspace/QuizResultsView";
 import StudyRoomView from "@/components/workspace/StudyRoomView";
 import TeddyCompanion from "@/components/workspace/quiz/TeddyCompanion";
 import type { TabItem } from "@/components/workspace/ResourcesView";
-import AuraIndicator from "@/components/ui/AuraIndicator";
 import Grainient from "@/components/ui/Grainient";
 import { getWorkspaceBySlug } from "@/services/resource.service";
 import type { WorkspaceInfo } from "@/types/resource";
@@ -217,13 +218,7 @@ export default function WorkspacePage() {
   const auraHex = workspace?.aura || cachedAura || "#507DBC";
 
   return (
-    <div
-      // Bound the shell to (viewport - dashboard header) so the inner <main>
-      // becomes the scroll surface. This keeps the sidebar and workspace top
-      // header fixed while only the main content area scrolls.
-      // Offset matches the dashboard layout header (logo 60 + py-4 32 + border 1 = 93px).
-      className="flex h-[calc(100vh-93px)] bg-main overflow-hidden"
-    >
+    <div className="flex flex-col h-screen bg-main overflow-hidden">
       <div className="fixed inset-0 z-0">
         <Grainient
           color1="#111721"
@@ -240,9 +235,84 @@ export default function WorkspacePage() {
           zoom={0.95}
         />
       </div>
-      <div className="relative z-10 flex h-full w-full">
+
+      {/* Unified Topbar */}
+      <header className="h-[56px] shrink-0 w-full px-6 flex items-center justify-between border-b border-white/8 bg-white/4 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.25)] relative z-20">
+        {/* Left Side */}
+        <div className="flex items-center">
+          <Link href="/">
+            <Image src="/images/logo/logo.svg" alt="Ezy Notez" width={100} height={32} className="h-10 w-auto" />
+          </Link>
+          <div className="w-px h-5 bg-white/20 mx-4" />
+          <button
+            onClick={() => router.push("/workspaces")}
+            className="text-text-muted hover:text-text-primary transition-colors flex items-center justify-center mr-3"
+            aria-label="Back to workspaces"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[14px] font-semibold text-white/90">
+              {workspace?.name ?? "Loading…"}
+            </span>
+            <span className="text-white/30 text-[12px] mx-1">/</span>
+            <span className="text-[12px] text-text-muted font-medium tracking-wide">
+              {navSubtitles[activeNav]}
+            </span>
+          </div>
+        </div>
+
+        {/* Right Side */}
+        <div className="flex items-center gap-4">
+          {activeNav === "quiz" && (
+            <div className="shrink-0">
+              <TeddyCompanion size={96} height={56} />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.setItem("ezynotes:last-workspace-slug", slug);
+              } catch { /* */ }
+              router.push("/settings");
+            }}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
+            aria-label="Settings"
+          >
+            <Settings className="w-4 h-4 opacity-80" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-blue-accent flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-white/10">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-semibold text-white">
+                  {initials || "U"}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col overflow-hidden max-w-[120px]">
+              <span className="text-sm font-medium text-text-primary truncate leading-tight">
+                {displayName}
+              </span>
+              <span className="text-[11px] text-white/50 truncate leading-tight">
+                {displayEmail}
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Workspace App Layout */}
+      <div className="flex-1 flex overflow-hidden relative z-10 w-full">
       {/* Left Sidebar */}
-      <aside className="w-64 flex flex-col border-r border-white/[0.08] bg-white/[0.04] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.25)] h-full shrink-0">
+      <aside className="w-64 flex flex-col border-r border-white/8 bg-white/4 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.25)] h-full shrink-0">
         {/* 2. Active workspace chip */}
         <div className="px-4 mt-6 shrink-0 relative" ref={switcherRef}>
           <div className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
@@ -370,85 +440,10 @@ export default function WorkspacePage() {
             })}
           </nav>
         </div>
-
-        {/* 4. Footer */}
-        <div className="p-4 border-t border-fade-border shrink-0 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.setItem("ezynotes:last-workspace-slug", slug);
-              } catch { /* */ }
-              router.push("/settings");
-            }}
-            className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:bg-white/4 hover:text-text-primary transition-colors"
-          >
-            <Settings className="w-3.75 h-3.75 opacity-60" />
-            <span>Settings</span>
-          </button>
-          <div className="flex items-center gap-3 px-1">
-            <div className="w-9 h-9 rounded-full bg-blue-accent flex items-center justify-center shrink-0 overflow-hidden">
-              {profile?.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatar_url}
-                  alt={displayName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-sm font-semibold text-white">
-                  {initials || "U"}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-medium text-text-primary truncate">
-                {displayName}
-              </span>
-              <span className="text-xs text-text-muted truncate">
-                {displayEmail}
-              </span>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Top Header */}
-        <header
-          className="w-full bg-main px-6 py-4 flex items-center border-b border-fade-border"
-        >
-          {/* Left */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/workspaces")}
-              className="text-text-muted hover:text-text-primary transition-colors"
-              aria-label="Back to workspaces"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-text-primary font-semibold text-lg">
-                  {workspace?.name ?? "Loading…"}
-                </h1>
-                <AuraIndicator hex={auraHex} />
-              </div>
-              <span className="text-xs text-text-muted mt-1 inline-block">
-                {navSubtitles[activeNav]}
-              </span>
-            </div>
-          </div>
-
-          {/* Quiz companion animation — right of header, quiz tab only */}
-          {activeNav === "quiz" && (
-            <div className="ml-auto shrink-0">
-              <TeddyCompanion size={96} height={56} />
-            </div>
-          )}
-        </header>
-
         {/* View Content */}
         <main className={`flex-1 min-h-0 ${activeNav === "chattie" ? "overflow-hidden" : "overflow-y-auto"}`}>
           <AnimatePresence mode="wait" initial={false}>
