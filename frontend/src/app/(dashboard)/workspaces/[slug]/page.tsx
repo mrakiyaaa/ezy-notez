@@ -164,8 +164,9 @@ export default function WorkspacePage() {
     });
   }, [loadWorkspaceList]);
 
-  const { profile } = useProfile();
+  const { profile, user } = useProfile();
   const displayName = profile?.full_name || "Student";
+  const displayEmail = profile?.email || user?.email || "";
   const initials = useMemo(() => {
     return displayName
       .split(" ")
@@ -240,7 +241,7 @@ export default function WorkspacePage() {
         {/* Left Side */}
         <div className="flex items-center">
           <Link href="/">
-            <Image src="/images/logo/logo.svg" alt="Ezy Notez" width={80} height={24} className="h-6 w-auto" />
+            <Image src="/images/logo/logo.svg" alt="Ezy Notez" width={100} height={32} className="h-10 w-auto" />
           </Link>
           <div className="w-px h-5 bg-white/20 mx-4" />
           <button
@@ -297,8 +298,11 @@ export default function WorkspacePage() {
               )}
             </div>
             <div className="flex flex-col overflow-hidden max-w-[120px]">
-              <span className="text-sm font-medium text-text-primary truncate">
+              <span className="text-sm font-medium text-text-primary truncate leading-tight">
                 {displayName}
+              </span>
+              <span className="text-[11px] text-white/50 truncate leading-tight">
+                {displayEmail}
               </span>
             </div>
           </div>
