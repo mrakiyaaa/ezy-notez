@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from quiz.router import router as quiz_router
 from chatie.router import router as chatie_router
+from routers.flashcards import router as flashcards_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -96,6 +97,7 @@ def health():
 
 app.include_router(quiz_router, prefix="/quiz", tags=["quiz"])
 app.include_router(chatie_router, prefix="/chatie", tags=["chatie"])
+app.include_router(flashcards_router, prefix="/flashcards", tags=["flashcards"])
 
 
 if __name__ == "__main__":
