@@ -45,7 +45,8 @@ const spawnPythonScript = (scriptRelPath: string, fileUrl: string): Promise<stri
   const scriptPath = path.resolve(__dirname, scriptRelPath);
 
   return new Promise((resolve, reject) => {
-    const proc = spawn("python", [scriptPath, fileUrl]);
+    const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+    const proc = spawn(pythonBin, [scriptPath, fileUrl]);
 
     let stdout = "";
     let stderr = "";
