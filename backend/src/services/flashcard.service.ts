@@ -1,6 +1,5 @@
 import { supabaseAdmin } from "../config/supabase";
-import { spawn } from "child_process";
-import path from "path";
+import axios from "axios";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,8 +49,9 @@ interface GeneratedFlashcard {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCRIPT_PATH = path.resolve(__dirname, "../../scripts/generate_flashcards.py");
-const SCRIPT_TIMEOUT_MS = 30_000;
+const PYTHON_ML_URL = process.env.PYTHON_ML_URL || "http://localhost:8000";
+const FLASHCARD_ML_BASE_URL = `${PYTHON_ML_URL.replace(/\/+$/, "")}/flashcards`;
+const ML_TIMEOUT_MS = 30_000;
 const MIN_CARD_COUNT = 5;
 const MAX_CARD_COUNT = 20;
 const DEFAULT_CARD_COUNT = 10;
@@ -68,85 +68,47 @@ const nowISO = (): string => new Date().toISOString();
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : "Unknown error";
 
-/**
- * Spawn the Python flashcard generation script and return parsed cards.
- */
-const spawnFlashcardScript = (
+const callFlashcardMLService = async (
   inputText: string,
   count: number,
   topic?: string,
 ): Promise<GeneratedFlashcard[]> => {
-  const args = [SCRIPT_PATH, String(count)];
-  if (topic) args.push(topic);
-
-  return new Promise((resolve, reject) => {
-    const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
-    const proc = spawn(pythonBin, args);
-    let stdout = "";
-    let stderr = "";
-    let done = false;
-
-    const finish = (err?: Error, result?: GeneratedFlashcard[]) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      if (err) reject(err);
-      else resolve(result!);
-    };
-
-    const timer = setTimeout(() => {
-      proc.kill();
-      finish(new Error("Flashcard generation timed out (30 s). Please try again with fewer resources."));
-    }, SCRIPT_TIMEOUT_MS);
-
-    proc.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-
-    proc.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on("error", (err) => {
-      finish(new Error(`Failed to start Python process: ${err.message}. Is Python installed?`));
-    });
-
-    proc.stdin.on("error", () => {
-      // Swallow — process may have exited before we finished writing.
-    });
-
-    proc.on("close", (code) => {
-      if (code !== 0) {
-        const lastLine = stderr.trim().split("\n").pop() ?? "No error details";
-        finish(new Error(`Generation script failed (exit ${code}): ${lastLine}`));
-        return;
+  try {
+    const response = await axios.post<{ flashcards: GeneratedFlashcard[] }>(
+      `${FLASHCARD_ML_BASE_URL}/generate`,
+      { text: inputText, count, topic },
+      { timeout: ML_TIMEOUT_MS },
+    );
+    const cards = response.data.flashcards;
+    if (!Array.isArray(cards) || cards.length === 0) {
+      throw new Error("ML service returned an empty or non-array result");
+    }
+    return cards;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+        const msg = `Flashcard generation timed out after ${ML_TIMEOUT_MS / 1000}s — the service may be under load.`;
+        console.error("[flashcard] ML service timeout:", msg);
+        throw new Error(msg);
       }
-
-      try {
-        const cards = JSON.parse(stdout.trim()) as GeneratedFlashcard[];
-
-        if (!Array.isArray(cards) || cards.length === 0) {
-          finish(new Error("Script returned an empty or non-array result"));
-          return;
-        }
-
-        const invalid = cards.find(
-          (c) => typeof c.front !== "string" || typeof c.back !== "string",
-        );
-        if (invalid) {
-          finish(new Error("Script returned a card with missing front/back fields"));
-          return;
-        }
-
-        finish(undefined, cards);
-      } catch {
-        finish(new Error("Failed to parse JSON from generation script"));
+      if (err.response) {
+        const detail = err.response.data?.detail;
+        const mlMessage =
+          typeof detail === "object" && detail !== null
+            ? ((detail as Record<string, unknown>).message ?? JSON.stringify(detail))
+            : typeof detail === "string"
+              ? detail
+              : JSON.stringify(err.response.data);
+        const msg = `ML service returned ${err.response.status}: ${mlMessage}`;
+        console.error("[flashcard] ML service error:", msg);
+        throw new Error(msg);
       }
-    });
-
-    proc.stdin.write(inputText);
-    proc.stdin.end();
-  });
+      const msg = `Cannot reach ML service at ${FLASHCARD_ML_BASE_URL} — ${err.message}`;
+      console.error("[flashcard] ML service unreachable:", msg);
+      throw new Error(msg);
+    }
+    throw err instanceof Error ? err : new Error(String(err));
+  }
 };
 
 const getUsableResources = (rows: ResourceTextRow[]): ResourceTextRow[] =>
@@ -187,7 +149,7 @@ const runPipeline = async (
   await updateSetStatus(setId, "processing");
 
   try {
-    const cards = await spawnFlashcardScript(text, count, topic);
+    const cards = await callFlashcardMLService(text, count, topic);
 
     const rows = cards.map((card, i) => ({
       set_id: setId,
