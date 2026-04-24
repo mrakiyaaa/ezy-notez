@@ -175,6 +175,7 @@ def _build_quiz_prompt(
     cleaned_text: str,
     question_type: Literal["mcq", "scenario", "mixed"],
     question_count: int,
+    extra_instruction: str | None = None,
 ) -> str:
     if question_type == "mixed":
         type_instruction = (
@@ -192,6 +193,8 @@ def _build_quiz_prompt(
             'grounded in the source text'
         )
 
+    extra_line = f"\n- {extra_instruction}" if extra_instruction else ""
+
     return (
         "You are an expert academic quiz generator. Generate quiz questions "
         "STRICTLY from the SOURCE TEXT below — do not invent facts that are "
@@ -202,10 +205,12 @@ def _build_quiz_prompt(
         f"- {type_instruction}.\n"
         "- Each question must have exactly 4 options (1 correct, 3 plausible "
         "but clearly incorrect distractors).\n"
+        "- Each option must be a complete word, phrase, or sentence — never a "
+        "single character, symbol, or variable name.\n"
         "- Distractors must be topically related to the source text and "
         "distinct from the correct answer.\n"
         "- Provide a 1-2 sentence explanation grounded in the source text.\n"
-        "- Provide a short topic_tag (1-3 words).\n\n"
+        f"- Provide a short topic_tag (1-3 words).{extra_line}\n\n"
         "OUTPUT FORMAT — return ONLY a valid JSON array. No prose, no "
         "markdown fences, no preamble. Each element MUST match this schema "
         "exactly:\n"
@@ -287,11 +292,12 @@ async def generate_quiz_via_openrouter(
     question_type: Literal["mcq", "scenario", "mixed"],
     question_count: int,
     temperature: float = OPENROUTER_TEMPERATURE,
+    extra_instruction: str | None = None,
 ) -> str | None:
     if len(cleaned_text) > MAX_CONTEXT_CHARS:
         cleaned_text = _truncate_to_char_limit(cleaned_text, MAX_CONTEXT_CHARS)
 
-    prompt = _build_quiz_prompt(cleaned_text, question_type, question_count)
+    prompt = _build_quiz_prompt(cleaned_text, question_type, question_count, extra_instruction)
 
     try:
         async with httpx.AsyncClient(timeout=OPENROUTER_TIMEOUT_SECONDS) as client:
@@ -375,6 +381,13 @@ def parse_and_validate_questions(
             option_texts = [str(o).strip() for o in options_raw]
             if any(not t for t in option_texts):
                 logger.warning(f"[Stage 3] Item {idx}: empty option text, skipping")
+                continue
+            if any(len(t) < 3 for t in option_texts):
+                short = [t for t in option_texts if len(t) < 3]
+                logger.warning(
+                    f"[Stage 3] Item {idx}: option(s) shorter than 3 chars "
+                    f"{short!r}, skipping"
+                )
                 continue
 
             labels = ["A", "B", "C", "D"]
@@ -565,6 +578,10 @@ async def run_pipeline(
                 question_type=question_type,
                 question_count=target_count,
                 temperature=OPENROUTER_RETRY_TEMPERATURE,
+                extra_instruction=(
+                    f"You MUST return exactly {question_count} questions. "
+                    f"Returning fewer is not acceptable."
+                ),
             )
             if retry_raw is not None:
                 retry_candidates = parse_and_validate_questions(
@@ -572,6 +589,11 @@ async def run_pipeline(
                 )
                 candidates.extend(retry_candidates)
                 logger.info(f"[Stage 3] After retry: {len(candidates)} total candidates")
+            if len(candidates) < question_count:
+                logger.warning(
+                    f"[Stage 3] Still only {len(candidates)}/{question_count} candidates "
+                    f"after retry — proceeding with what was generated"
+                )
     except ValueError:
         raise
     except Exception as e:
@@ -582,6 +604,11 @@ async def run_pipeline(
         if not final:
             raise ValueError(
                 "Pipeline could not produce any valid questions. Try adding more resources."
+            )
+        if len(final) < question_count:
+            logger.warning(
+                f"[Stage 4] Returning {len(final)}/{question_count} questions — "
+                f"could not reach the requested count after retry and quality filtering"
             )
     except ValueError:
         raise
