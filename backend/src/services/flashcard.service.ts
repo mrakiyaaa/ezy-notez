@@ -80,7 +80,8 @@ const spawnFlashcardScript = (
   if (topic) args.push(topic);
 
   return new Promise((resolve, reject) => {
-    const proc = spawn("python", args);
+    const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+    const proc = spawn(pythonBin, args);
     let stdout = "";
     let stderr = "";
     let done = false;
