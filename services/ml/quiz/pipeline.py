@@ -35,10 +35,10 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = "meta-llama/llama-3.1-8b-instruct"
 OPENROUTER_HTTP_REFERER = "https://ezynotez.com"
 OPENROUTER_APP_TITLE = "EZY Notez"
-OPENROUTER_TIMEOUT_SECONDS = 30.0
+OPENROUTER_TIMEOUT_SECONDS = 60.0
 OPENROUTER_TEMPERATURE = 0.7
 OPENROUTER_RETRY_TEMPERATURE = 0.9
-MAX_CONTEXT_CHARS = 3000
+MAX_CONTEXT_CHARS = 3000  # fallback only; scaled dynamically per request in run_pipeline
 
 MIN_LINE_LENGTH = 30
 EXTRACTION_REMOVAL_WARNING_THRESHOLD = 0.4
@@ -230,6 +230,7 @@ async def _post_to_openrouter(
     client: httpx.AsyncClient,
     prompt: str,
     temperature: float,
+    max_tokens: int | None = None,
 ) -> str | None:
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
@@ -242,11 +243,13 @@ async def _post_to_openrouter(
         "X-Title": OPENROUTER_APP_TITLE,
         "Content-Type": "application/json",
     }
-    payload = {
+    payload: dict = {
         "model": OPENROUTER_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
     }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
 
     try:
         response = await client.post(
@@ -293,15 +296,16 @@ async def generate_quiz_via_openrouter(
     question_count: int,
     temperature: float = OPENROUTER_TEMPERATURE,
     extra_instruction: str | None = None,
+    context_char_limit: int = MAX_CONTEXT_CHARS,
 ) -> str | None:
-    if len(cleaned_text) > MAX_CONTEXT_CHARS:
-        cleaned_text = _truncate_to_char_limit(cleaned_text, MAX_CONTEXT_CHARS)
+    if len(cleaned_text) > context_char_limit:
+        cleaned_text = _truncate_to_char_limit(cleaned_text, context_char_limit)
 
     prompt = _build_quiz_prompt(cleaned_text, question_type, question_count, extra_instruction)
 
     try:
         async with httpx.AsyncClient(timeout=OPENROUTER_TIMEOUT_SECONDS) as client:
-            return await _post_to_openrouter(client, prompt, temperature)
+            return await _post_to_openrouter(client, prompt, temperature, max_tokens=question_count * 300)
     except Exception as e:
         logger.error(f"[Stage 2] OpenRouter client raised unexpectedly: {e}")
         return None
@@ -535,6 +539,10 @@ async def run_pipeline(
 ) -> list[GeneratedQuestion]:
     logger.info(f"Pipeline start: type={question_type}, count={question_count}")
 
+    # Fix 2: scale context window with question_count so larger quizzes have
+    # enough source material; capped at 8000 chars.
+    context_char_limit = min(8000, 1500 + 400 * question_count)
+
     try:
         layer1 = clean_extracted_text(text)
         if not layer1:
@@ -543,18 +551,21 @@ async def run_pipeline(
         cleaned_text = preprocess(layer1)
         if not cleaned_text or len(cleaned_text.split()) < 20:
             raise ValueError("Text is too short to generate questions from.")
-        logger.info(f"[Stage 1] Cleaned text ready: {len(cleaned_text)} chars")
+        logger.info(f"[Stage 1] Cleaned text ready: {len(cleaned_text)} chars (context_limit={context_char_limit})")
     except ValueError:
         raise
     except Exception as e:
         raise ValueError(f"[Stage 1] Preprocessing failed unexpectedly: {e}") from e
 
+    # Fix 3: more aggressive oversampling so quality filtering has room to work.
+    target_count = max(question_count * 2, question_count + 5)
+
     try:
-        target_count = max(question_count + 2, int(question_count * 1.5))
         raw_response = await generate_quiz_via_openrouter(
             cleaned_text=cleaned_text,
             question_type=question_type,
             question_count=target_count,
+            context_char_limit=context_char_limit,
         )
         if raw_response is None:
             raise ValueError("Quiz generation service is temporarily unavailable.")
@@ -578,6 +589,7 @@ async def run_pipeline(
                 question_type=question_type,
                 question_count=target_count,
                 temperature=OPENROUTER_RETRY_TEMPERATURE,
+                context_char_limit=context_char_limit,
                 extra_instruction=(
                     f"You MUST return exactly {question_count} questions. "
                     f"Returning fewer is not acceptable."
@@ -605,10 +617,46 @@ async def run_pipeline(
             raise ValueError(
                 "Pipeline could not produce any valid questions. Try adding more resources."
             )
+
+        # Fix 4: top-up loop — run up to 2 additional calls for the exact gap.
+        MAX_TOPUP_ATTEMPTS = 2
+        topup_attempt = 0
+        while len(final) < question_count and topup_attempt < MAX_TOPUP_ATTEMPTS:
+            topup_attempt += 1
+            gap = question_count - len(final)
+            logger.warning(
+                f"[Stage 4] Top-up attempt {topup_attempt}/{MAX_TOPUP_ATTEMPTS}: "
+                f"requesting {gap} more questions to close the gap"
+            )
+            topup_raw = await generate_quiz_via_openrouter(
+                cleaned_text=cleaned_text,
+                question_type=question_type,
+                question_count=gap,
+                temperature=OPENROUTER_RETRY_TEMPERATURE,
+                context_char_limit=context_char_limit,
+                extra_instruction=(
+                    f"You MUST return exactly {gap} questions. "
+                    f"Returning fewer is not acceptable."
+                ),
+            )
+            if topup_raw is None:
+                logger.warning(f"[Stage 4] Top-up attempt {topup_attempt}: no response, stopping")
+                break
+            topup_candidates = parse_and_validate_questions(topup_raw, question_count=gap)
+            valid_topups = [q for q in topup_candidates if is_valid_question(q)]
+            for q in valid_topups:
+                if len(final) >= question_count:
+                    break
+                final.append(q)
+            logger.info(
+                f"[Stage 4] Top-up attempt {topup_attempt}: added {len(valid_topups)} valid, "
+                f"total now {len(final)}/{question_count}"
+            )
+
         if len(final) < question_count:
             logger.warning(
                 f"[Stage 4] Returning {len(final)}/{question_count} questions — "
-                f"could not reach the requested count after retry and quality filtering"
+                f"could not reach the requested count after retry and {topup_attempt} top-up(s)"
             )
     except ValueError:
         raise
