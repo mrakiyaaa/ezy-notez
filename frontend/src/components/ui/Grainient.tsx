@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Renderer, Program, Mesh, Triangle } from 'ogl';
 import './Grainient.css';
 
@@ -154,16 +154,23 @@ const Grainient = ({
 }: GrainientProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const testCanvas = document.createElement('canvas');
-    const webglSupported = !!(
-      testCanvas.getContext('webgl2') ||
-      testCanvas.getContext('webgl') ||
-      testCanvas.getContext('experimental-webgl')
+  // Lazy initializer: runs once, synchronously, during the first client render.
+  // Detects missing WebGL support before any effect fires, so the fallback can
+  // be shown on the very first paint without an effect-triggered setState.
+  const [useCssFallback, setUseCssFallback] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const probe = document.createElement('canvas');
+    return !(
+      probe.getContext('webgl2') ||
+      probe.getContext('webgl') ||
+      probe.getContext('experimental-webgl')
     );
-    if (!webglSupported) return;
+  });
+
+  useEffect(() => {
+    // containerRef is null when the CSS fallback is already active (the ref'd
+    // div is not rendered in that branch), so there is nothing to set up.
+    if (!containerRef.current) return;
 
     // Suppress OGL's internal console.error during Renderer construction
     const originalError = console.error;
@@ -175,6 +182,7 @@ const Grainient = ({
         alpha: true,
         antialias: false,
         dpr: Math.min(window.devicePixelRatio || 1, 2),
+        preserveDrawingBuffer: true,
       });
     } catch {
       console.error = originalError;
@@ -240,10 +248,45 @@ const Grainient = ({
     setSize();
 
     let raf = 0;
+    let frameCount = 0;
+    let webglVerified = false;
     const t0 = performance.now();
+
     const loop = (t: number) => {
       (program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
       renderer.render({ scene: mesh });
+      frameCount += 1;
+
+      // ── Blank-canvas detection (frame 3 only) ────────────────────────────
+      // Placed here — inside a RAF callback — so that setState is called from
+      // a callback function, not directly from the effect body (satisfies the
+      // react-hooks/set-state-in-effect rule).
+      // We wait until frame 3: the GPU may not have committed output on the
+      // very first RAF callback in Chrome, causing false-positive blank reads.
+      // preserveDrawingBuffer: true ensures the buffer is not cleared between
+      // frames, so readPixels always sees the last rendered result.
+      // The fragment shader always outputs alpha = 1.0; a transparent pixel
+      // with no GL error means the draw was silently discarded by the pipeline.
+      if (!webglVerified && frameCount === 3) {
+        webglVerified = true;
+        const px = new Uint8Array(4);
+        gl.readPixels(
+          Math.max(0, Math.floor(gl.drawingBufferWidth / 2)),
+          Math.max(0, Math.floor(gl.drawingBufferHeight / 2)),
+          1, 1,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          px,
+        );
+        if (px[3] === 0 && gl.getError() === 0) {
+          ro.disconnect();
+          try { container.removeChild(canvas); } catch { /* already gone */ }
+          setUseCssFallback(true);
+          return;
+        }
+      }
+      // ── End detection ────────────────────────────────────────────────────
+
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -263,6 +306,44 @@ const Grainient = ({
     grainAmount, grainScale, grainAnimated, contrast, gamma, saturation,
     centerX, centerY, zoom, color1, color2, color3,
   ]);
+
+  // ── CSS-only fallback ──────────────────────────────────────────────────────
+  // Approximates the shader visually: an animated multi-stop gradient plus an
+  // SVG feTurbulence grain overlay. The grain is rendered as a CSS background
+  // image (not filtered onto a canvas), which avoids the Chrome pipeline issue.
+  if (useCssFallback) {
+    const tileSize = Math.round(200 * Math.max(grainScale, 0.1));
+    const grainFreq = (0.65 / Math.max(grainScale, 0.1)).toFixed(3);
+    const grainOpacity = Math.min(1, grainAmount * 0.6);
+    const grainSvg = encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg">` +
+      `<filter id="g">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${grainFreq}" numOctaves="4" stitchTiles="stitch"/>` +
+      `</filter>` +
+      `<rect width="100%" height="100%" filter="url(#g)"/>` +
+      `</svg>`,
+    );
+
+    return (
+      <div className={`grainient-container ${className}`.trim()}>
+        <div
+          className="grainient-css-gradient"
+          style={{
+            background: `linear-gradient(135deg, ${color1}, ${color2}, ${color3}, ${color2})`,
+          }}
+        />
+        <div
+          className={`grainient-css-grain${grainAnimated ? ' grainient-css-grain--animated' : ''}`}
+          style={{
+            backgroundImage: `url("data:image/svg+xml,${grainSvg}")`,
+            backgroundSize: `${tileSize}px ${tileSize}px`,
+            opacity: grainOpacity,
+          }}
+        />
+      </div>
+    );
+  }
+  // ── End CSS fallback ───────────────────────────────────────────────────────
 
   return <div ref={containerRef} className={`grainient-container ${className}`.trim()} />;
 };

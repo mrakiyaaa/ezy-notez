@@ -4,3 +4,51 @@
   height: 100%;
   overflow: hidden;
 }
+
+/* ── CSS fallback (used when WebGL canvas renders blank, e.g. Chrome) ─────── */
+
+.grainient-css-gradient {
+  position: absolute;
+  inset: 0;
+  background-size: 300% 300%;
+  animation: grainient-gradient-shift 8s ease infinite;
+}
+
+/*
+ * The grain div is intentionally oversized (300 % × 300 %) and offset to
+ * −100 % so that translation animations never expose an untextured edge.
+ */
+.grainient-css-grain {
+  position: absolute;
+  inset: -100%;
+  width: 300%;
+  height: 300%;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.grainient-css-grain--animated {
+  animation: grainient-grain-drift 0.9s steps(1) infinite;
+}
+
+@keyframes grainient-gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes grainient-grain-drift {
+  0%   { transform: translate(0,    0);   }
+  17%  { transform: translate(-3%,  2%);  }
+  33%  { transform: translate(2%,  -3%);  }
+  50%  { transform: translate(-2%,  3%);  }
+  67%  { transform: translate(3%,  -1%);  }
+  83%  { transform: translate(-1%,  2%);  }
+  100% { transform: translate(0,    0);   }
+}

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Trash2, Play, FileText, Calendar } from "lucide-react";
 import type { FlashcardSet } from "./constants";
 import { formatFlashcardDate } from "./constants";
+import DeleteConfirmationModal from "@/components/ui/DeleteConfirmationModal";
 
 interface FlashcardSetCardProps {
   set: FlashcardSet;
@@ -18,8 +20,10 @@ export default function FlashcardSetCard({
   const total = set.cards.length;
   const known = set.knownIds.length;
   const progressPct = total > 0 ? (known / total) * 100 : 0;
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
+    <>
     <div
       className="group rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-5 flex flex-col gap-4 transition-all duration-200 hover:-translate-y-0.5"
     >
@@ -31,7 +35,7 @@ export default function FlashcardSetCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(set.id);
+            setShowConfirm(true);
           }}
           className="shrink-0 p-1.5 rounded-lg text-text-muted opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-400/10 transition-all duration-150"
           aria-label="Delete set"
@@ -90,5 +94,13 @@ export default function FlashcardSetCard({
         Study
       </button>
     </div>
+
+    <DeleteConfirmationModal
+      isOpen={showConfirm}
+      itemName={set.title}
+      onConfirm={() => { setShowConfirm(false); onDelete(set.id); }}
+      onCancel={() => setShowConfirm(false)}
+    />
+    </>
   );
 }

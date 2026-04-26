@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   FileText,
   Presentation,
@@ -9,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Resource, ResourceType, ResourceStatus } from "@/types/resource";
+import DeleteConfirmationModal from "@/components/ui/DeleteConfirmationModal";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -98,8 +100,10 @@ export default function ResourceItem({
 }: ResourceItemProps) {
   const { bg, icon: Icon, color } = iconConfig[resource.type] ?? iconConfig.pdf;
   const status = statusConfig[resource.status] ?? statusConfig.processing;
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
+    <>
     <div
       className="bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl border-white/[0.08] px-4 py-3 flex items-center gap-4 group"
     >
@@ -130,12 +134,20 @@ export default function ResourceItem({
 
       {/* Delete button */}
       <button
-        onClick={() => onDelete(resource.id)}
+        onClick={() => setShowConfirm(true)}
         className="text-text-muted opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all shrink-0"
         title="Delete"
       >
         <Trash2 className="w-4 h-4" />
       </button>
     </div>
+
+    <DeleteConfirmationModal
+      isOpen={showConfirm}
+      itemName={resource.name}
+      onConfirm={() => { setShowConfirm(false); onDelete(resource.id); }}
+      onCancel={() => setShowConfirm(false)}
+    />
+    </>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Trash2, Play, Eye, Calendar, FileText } from "lucide-react";
+import DeleteConfirmationModal from "@/components/ui/DeleteConfirmationModal";
 import type { QuizWithAttempt } from "@/types/quiz";
 import {
   formatQuizDate,
@@ -33,6 +35,7 @@ export default function QuizCard({
     isCompleted ? totalQuestions : answeredCount,
     totalQuestions
   );
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleAction = () => {
     if (isCompleted && attempt) {
@@ -44,7 +47,7 @@ export default function QuizCard({
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDelete?.(quiz.id);
+    setShowConfirm(true);
   };
 
   // Accent bar color
@@ -62,6 +65,7 @@ export default function QuizCard({
     : "bg-blue-accent";
 
   return (
+    <>
     <div className="w-96 shrink-0 bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] rounded-xl p-4.5 flex flex-col gap-3 relative overflow-hidden hover:border-blue-accent/20 transition-colors">
       {/* Left accent bar */}
       <div className={`absolute left-0 top-0 bottom-0 w-0.75 rounded-r ${accentBar}`} />
@@ -165,5 +169,13 @@ export default function QuizCard({
         )}
       </div>
     </div>
+
+    <DeleteConfirmationModal
+      isOpen={showConfirm}
+      itemName={quiz.title}
+      onConfirm={() => { setShowConfirm(false); onDelete?.(quiz.id); }}
+      onCancel={() => setShowConfirm(false)}
+    />
+    </>
   );
 }
