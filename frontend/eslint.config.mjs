@@ -17,6 +17,7 @@ export default [
       ".vercel/**",
       "dist/**",
       "node_modules/**",
+      "tests/e2e/results/**",
     ],
   },
   {
@@ -63,6 +64,15 @@ export default [
       react: {
         version: "detect",
       },
+    },
+  },
+  {
+    // Playwright fixtures use a `use` callback that ESLint mistakes for a
+    // React hook. These rules don't apply to E2E test code.
+    files: ["tests/e2e/**/*.{ts,tsx}"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/exhaustive-deps": "off",
     },
   },
 ];

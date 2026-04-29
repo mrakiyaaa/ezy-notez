@@ -64,3 +64,12 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.pem
+
+# Playwright E2E
+/frontend/tests/e2e/results/
+/frontend/tests/e2e/setup/.auth-state.json
+/frontend/tests/e2e/setup/.seed-data.json
+/frontend/tests/e2e/.env.test
+/frontend/tests/e2e/fixtures/files/
+/frontend/playwright-report/
+/frontend/test-results/

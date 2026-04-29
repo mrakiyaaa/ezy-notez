@@ -10,7 +10,13 @@
       "mcp__supabase__list_extensions",
       "mcp__supabase__execute_sql",
       "mcp__supabase__apply_migration",
-      "Bash(grep -l \"Loading\\\\|Skeleton\\\\|loading\\\\|skeleton\" \"/c/Users/Dinuli Nethmini/Desktop/3rd year/Computing Individual Project/Ezynotes/project/ezy-notez/frontend/src/components/workspace\"/*.tsx)"
+      "Bash(grep -l \"Loading\\\\|Skeleton\\\\|loading\\\\|skeleton\" \"/c/Users/Dinuli Nethmini/Desktop/3rd year/Computing Individual Project/Ezynotes/project/ezy-notez/frontend/src/components/workspace\"/*.tsx)",
+      "Read(//c/Users/alakshitha/.claude/projects/c--Users-alakshitha-Desktop-Projects-ezy-notez/memory/**)",
+      "Read(//c/Users/alakshitha/.claude/projects/**)",
+      "Bash(npm install *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npx playwright *)",
+      "Bash(npm run *)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -6,7 +6,11 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report tests/e2e/results/html-report"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.19.0",
@@ -34,6 +38,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@next/eslint-plugin-next": "^16.1.6",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/cookie-parser": "^1.4.10",
     "@types/node": "^20",
@@ -42,6 +47,7 @@
     "@types/three": "^0.182.0",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
+    "dotenv": "^16.6.1",
     "eslint": "^9.39.3",
     "eslint-config-next": "^0.2.4",
     "eslint-plugin-react": "^7.37.5",
