@@ -27,6 +27,8 @@ export default function VoicePanel({
     warning,
     peers,
     selfSpeaking,
+    localAudioLevel,
+    speakingUsers,
     maxParticipants,
     join,
     leave,
@@ -39,6 +41,11 @@ export default function VoicePanel({
 
   const totalCount = (joined ? 1 : 0) + peers.length;
   const overCapacity = totalCount > maxParticipants;
+
+  // Ring scale/opacity driven by localAudioLevel. When silent the ring is
+  // barely visible; as level rises it scales out and brightens.
+  const ringScale = 1 + localAudioLevel * 0.45;
+  const ringOpacity = 0.12 + localAudioLevel * 0.58;
 
   return (
     <div className="rounded-xl bg-bg-card/60 border border-fade-border p-5 mb-6">
@@ -56,19 +63,37 @@ export default function VoicePanel({
 
         <div className="flex items-center gap-2">
           {joined && (
-            <button
-              onClick={toggleMute}
-              aria-pressed={muted}
-              aria-label={muted ? "Unmute" : "Mute"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                muted
-                  ? "bg-red-500/15 border-red-500/30 text-red-300 hover:bg-red-500/25"
-                  : "bg-white/[0.04] border-fade-border text-text-secondary hover:bg-white/[0.08]"
-              }`}
-            >
-              {muted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              {muted ? "Muted" : "Mic on"}
-            </button>
+            // Relative wrapper so the ring <span> can be positioned absolutely
+            // around the button without affecting its size or click area.
+            <span className="relative inline-flex">
+              <button
+                onClick={toggleMute}
+                aria-pressed={muted}
+                aria-label={muted ? "Unmute" : "Mute"}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  muted
+                    ? "bg-red-500/15 border-red-500/30 text-red-300 hover:bg-red-500/25"
+                    : "bg-white/[0.04] border-fade-border text-text-secondary hover:bg-white/[0.08]"
+                }`}
+              >
+                {muted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                {muted ? "Muted" : "Mic on"}
+              </button>
+
+              {/* Animated ring driven by localAudioLevel */}
+              {!muted && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute rounded-lg"
+                  style={{
+                    inset: "-3px",
+                    border: "1.5px solid var(--color-blue-accent)",
+                    transform: `scale(${ringScale})`,
+                    opacity: ringOpacity,
+                  }}
+                />
+              )}
+            </span>
           )}
 
           {joined ? (
@@ -123,6 +148,7 @@ export default function VoicePanel({
             speaking: !muted && selfSpeaking,
           }}
           peers={peers}
+          speakingUsers={speakingUsers}
         />
       ) : (
         <p className="text-text-muted text-xs">
@@ -141,9 +167,10 @@ export default function VoicePanel({
 interface VoiceParticipantListProps {
   self: VoicePeerState;
   peers: VoicePeerState[];
+  speakingUsers: Set<string>;
 }
 
-function VoiceParticipantList({ self, peers }: VoiceParticipantListProps) {
+function VoiceParticipantList({ self, peers, speakingUsers }: VoiceParticipantListProps) {
   const rows = useMemo(() => [self, ...peers], [self, peers]);
 
   return (
@@ -153,6 +180,7 @@ function VoiceParticipantList({ self, peers }: VoiceParticipantListProps) {
           key={p.userId}
           participant={p}
           isSelf={p === self}
+          isSpeaking={speakingUsers.has(p.userId)}
         />
       ))}
     </ul>
@@ -162,9 +190,10 @@ function VoiceParticipantList({ self, peers }: VoiceParticipantListProps) {
 interface VoiceParticipantRowProps {
   participant: VoicePeerState;
   isSelf: boolean;
+  isSpeaking: boolean;
 }
 
-function VoiceParticipantRow({ participant, isSelf }: VoiceParticipantRowProps) {
+function VoiceParticipantRow({ participant, isSelf, isSpeaking }: VoiceParticipantRowProps) {
   const initials = (participant.name || "?")
     .split(" ")
     .filter(Boolean)
@@ -174,16 +203,23 @@ function VoiceParticipantRow({ participant, isSelf }: VoiceParticipantRowProps) 
 
   return (
     <li
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors duration-150 ${
         participant.speaking
           ? "bg-blue-accent/10 border-blue-accent/40"
           : "bg-white/[0.02] border-fade-border"
       }`}
     >
+      {/* Avatar with glow ring when actively speaking */}
       <div
         className={`relative w-8 h-8 rounded-full bg-blue-accent/20 border flex items-center justify-center overflow-hidden ${
           participant.speaking ? "border-blue-accent" : "border-blue-accent/30"
         }`}
+        style={{
+          boxShadow: isSpeaking
+            ? "0 0 0 2px rgba(80,125,188,0.55), 0 0 10px rgba(80,125,188,0.30)"
+            : "none",
+          transition: "box-shadow 150ms ease",
+        }}
       >
         {participant.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -199,8 +235,8 @@ function VoiceParticipantRow({ participant, isSelf }: VoiceParticipantRowProps) 
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <span className="text-text-primary text-sm font-medium truncate block">
+      <div className="flex-1 min-w-0 flex items-center gap-1.5">
+        <span className="text-text-primary text-sm font-medium truncate">
           {participant.name}
           {isSelf && (
             <span className="text-text-muted text-[11px] font-normal ml-1.5">
@@ -208,10 +244,13 @@ function VoiceParticipantRow({ participant, isSelf }: VoiceParticipantRowProps) 
             </span>
           )}
         </span>
+        {/* Animated sound-wave bars — visible while actively speaking */}
+        {isSpeaking && !participant.muted && <SpeakingIndicator />}
       </div>
 
       <div className="flex items-center gap-2">
-        {participant.speaking && !participant.muted && (
+        {/* Legacy speaking indicator kept for non-rAF speaking decay */}
+        {participant.speaking && !isSpeaking && !participant.muted && (
           <SpeakingIndicator />
         )}
         {participant.muted ? (
@@ -231,7 +270,7 @@ function VoiceParticipantRow({ participant, isSelf }: VoiceParticipantRowProps) 
 
 function SpeakingIndicator() {
   return (
-    <span className="flex items-end gap-0.5 h-3.5" aria-hidden="true">
+    <span className="flex items-end gap-0.5 h-3.5 shrink-0" aria-hidden="true">
       <span className="w-0.5 bg-blue-accent rounded-sm voice-bar voice-bar-1" />
       <span className="w-0.5 bg-blue-accent rounded-sm voice-bar voice-bar-2" />
       <span className="w-0.5 bg-blue-accent rounded-sm voice-bar voice-bar-3" />

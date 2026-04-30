@@ -144,6 +144,18 @@ export default function WorkspacesPage() {
     }
   }, []);
 
+  const handleJoinedByCode = useCallback(
+    (roomId: string, workspaceId: string) => {
+      const workspace = workspaces.find((w) => w.id === workspaceId);
+      if (workspace) {
+        router.push(`/workspaces/${workspace.slug}?tab=studyroom&room=${roomId}`);
+      } else {
+        console.warn(`[WorkspacesPage] No workspace found for id ${workspaceId}`);
+      }
+    },
+    [router, workspaces],
+  );
+
   return (
     <div className="h-screen overflow-hidden bg-main px-4 md:px-6 text-text-primary">
       <div className="fixed inset-0 z-0">
@@ -245,6 +257,7 @@ export default function WorkspacesPage() {
             briefingLoading={briefingLoading}
             onJoinInvite={handleJoinInvite}
             onDismissInvite={handleDismissInvite}
+            onJoinedByCode={handleJoinedByCode}
           />
         </div>
 

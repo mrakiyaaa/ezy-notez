@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { KeyRound } from "lucide-react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import type { PendingInvite } from "@/types/studyRoom";
+import { joinRoomByCode } from "@/services/studyRoom.service";
 
 interface StudyRoomInvitesPanelProps {
   invites: PendingInvite[];
   isLoading?: boolean;
   onJoin: (invite: PendingInvite) => Promise<void>;
   onDismiss: (inviteId: string) => Promise<void>;
+  /** Called after a successful join-by-code; caller handles navigation. */
+  onJoinedRoom?: (roomId: string, workspaceId: string) => void;
 }
 
 function HostAvatar({ name }: { name: string }) {
@@ -126,11 +130,101 @@ function LoadingState() {
   );
 }
 
+function JoinByCodeForm({ onJoined }: { onJoined: (roomId: string, workspaceId: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    const code = otp.trim();
+    if (!/^\d{6}$/.test(code)) {
+      setError("Enter a valid 6-digit code");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const room = await joinRoomByCode(code);
+      setIsOpen(false);
+      setOtp("");
+      onJoined(room.id, room.workspace_id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join room");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs text-white/60 transition-colors hover:bg-[rgba(255,255,255,0.08)] hover:text-text-secondary"
+      >
+        <KeyRound className="h-3.5 w-3.5" />
+        Join with Code
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        maxLength={6}
+        value={otp}
+        onChange={(e) => {
+          setOtp(e.target.value.replace(/\D/g, ""));
+          setError(null);
+        }}
+        onKeyDown={(e) => e.key === "Enter" && !loading && handleSubmit()}
+        placeholder="000000"
+        className="w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-center text-lg font-bold tracking-[0.4em] text-text-primary placeholder:text-[rgba(255,255,255,0.2)] placeholder:text-sm placeholder:tracking-normal focus:border-blue-accent/50 focus:outline-none transition-colors"
+        autoFocus
+      />
+      {error && (
+        <p className="rounded-md border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-400">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => { setIsOpen(false); setOtp(""); setError(null); }}
+          disabled={loading}
+          className="flex-1 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] py-1.5 text-xs text-white/60 transition-colors hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading || otp.length !== 6}
+          className="flex-1 rounded-lg bg-blue-accent py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-accent/80 disabled:opacity-50"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <span className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+              Joining…
+            </span>
+          ) : (
+            "Join"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function StudyRoomInvitesPanel({
   invites,
   isLoading = false,
   onJoin,
   onDismiss,
+  onJoinedRoom,
 }: StudyRoomInvitesPanelProps) {
   return (
     <section>
@@ -163,6 +257,7 @@ export default function StudyRoomInvitesPanel({
             </div>
           )}
         </div>
+        {onJoinedRoom && <JoinByCodeForm onJoined={onJoinedRoom} />}
       </div>
     </section>
   );

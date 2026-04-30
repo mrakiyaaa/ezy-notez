@@ -282,6 +282,24 @@ export async function getPendingInvites(): Promise<PendingInvite[]> {
 }
 
 /**
+ * Join a study room by its 6-digit OTP code (no room ID required).
+ * Returns the room's id and workspace_id so the caller can navigate.
+ */
+export async function joinRoomByCode(
+  otpCode: string,
+): Promise<{ id: string; workspace_id: string }> {
+  try {
+    const response = await apiClient.post("/study-rooms/join-by-code", {
+      otp_code: otpCode,
+    });
+    const { room } = response.data.data as { room: { id: string; workspace_id: string } };
+    return room;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to join room"));
+  }
+}
+
+/**
  * Dismiss a pending invite — sets status to 'dismissed' on the backend.
  */
 export async function dismissInvite(inviteId: string): Promise<void> {

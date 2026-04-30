@@ -21,6 +21,7 @@ interface CollapsibleSidebarProps {
   briefingLoading?: boolean;
   onJoinInvite: (invite: PendingInvite) => Promise<void>;
   onDismissInvite: (inviteId: string) => Promise<void>;
+  onJoinedByCode?: (roomId: string, workspaceId: string) => void;
 }
 
 export default function CollapsibleSidebar({
@@ -32,6 +33,7 @@ export default function CollapsibleSidebar({
   briefingLoading = false,
   onJoinInvite,
   onDismissInvite,
+  onJoinedByCode,
 }: CollapsibleSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -117,6 +119,7 @@ export default function CollapsibleSidebar({
           isLoading={invitesLoading}
           onJoin={onJoinInvite}
           onDismiss={onDismissInvite}
+          onJoinedRoom={onJoinedByCode}
         />
         <UpcomingActivities activities={activities} isLoading={activitiesLoading} />
         <DailyBriefing highlights={dailyBriefing} isLoading={briefingLoading} />

@@ -39,7 +39,7 @@ export interface InviteRow {
   room_id: string;
   email: string;
   token: string;
-  status: "pending" | "accepted";
+  status: "pending" | "accepted" | "dismissed";
   created_at: string;
 }
 
@@ -1180,47 +1180,67 @@ export const getHostedRooms = async (
 export const getPendingInvites = async (
   userEmail: string,
 ): Promise<PendingInviteShape[]> => {
-  const { data: invites, error } = await supabaseAdmin
+  // Fetch invite records without a PostgREST FK join — the join silently
+  // returns null rows when the FK relationship is absent from the schema
+  // cache, causing the filter below to strip every result.
+  const { data: inviteRows, error: inviteErr } = await supabaseAdmin
     .from("study_room_invites")
-    .select("id, token, room_id, created_at, study_rooms(id, title, workspace_id, host_id)")
+    .select("id, token, room_id, created_at")
     .eq("email", userEmail)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error(`Failed to fetch pending invites: ${error.message}`);
-  if (!invites || invites.length === 0) return [];
+  if (inviteErr) throw new Error(`Failed to fetch pending invites: ${inviteErr.message}`);
+  if (!inviteRows || inviteRows.length === 0) return [];
 
-  type InviteJoinRow = {
-    id: string;
-    token: string;
-    room_id: string;
-    created_at: string;
-    study_rooms: { id: string; title: string; workspace_id: string; host_id: string } | null;
-  };
+  type InviteBasicRow = { id: string; token: string; room_id: string; created_at: string };
+  const rows = inviteRows as InviteBasicRow[];
+  const roomIds = rows.map((r) => r.room_id);
 
-  const rows = invites as unknown as InviteJoinRow[];
-  const hostIds = [...new Set(rows.map((r) => r.study_rooms?.host_id).filter(Boolean) as string[])];
+  // Fetch room details for each invite
+  const { data: rooms, error: roomsErr } = await supabaseAdmin
+    .from("study_rooms")
+    .select("id, title, workspace_id, host_id")
+    .in("id", roomIds);
 
-  const { data: profiles } = await supabaseAdmin
-    .from("profiles")
-    .select("id, full_name")
-    .in("id", hostIds);
+  if (roomsErr) throw new Error(`Failed to fetch study rooms: ${roomsErr.message}`);
 
-  const nameMap = new Map(
-    (profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p.full_name]),
+  type RoomInfo = { id: string; title: string; workspace_id: string; host_id: string };
+  const roomMap = new Map<string, RoomInfo>(
+    ((rooms ?? []) as RoomInfo[]).map((r) => [r.id, r]),
   );
 
+  // Fetch host display names (guard against empty hostIds to avoid invalid .in() call)
+  const hostIds = [
+    ...new Set(((rooms ?? []) as RoomInfo[]).map((r) => r.host_id).filter(Boolean)),
+  ] as string[];
+
+  const nameMap = new Map<string, string>();
+  if (hostIds.length > 0) {
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", hostIds);
+    for (const p of (profiles ?? []) as { id: string; full_name: string }[]) {
+      nameMap.set(p.id, p.full_name);
+    }
+  }
+
   return rows
-    .filter((r) => r.study_rooms !== null)
-    .map((r) => ({
-      inviteId: r.id,
-      token: r.token,
-      roomId: r.study_rooms!.id,
-      roomTitle: r.study_rooms!.title,
-      hostName: nameMap.get(r.study_rooms!.host_id) ?? "Unknown",
-      workspaceId: r.study_rooms!.workspace_id,
-      createdAt: r.created_at,
-    }));
+    .map((r) => {
+      const room = roomMap.get(r.room_id);
+      if (!room) return null;
+      return {
+        inviteId: r.id,
+        token: r.token,
+        roomId: room.id,
+        roomTitle: room.title,
+        hostName: nameMap.get(room.host_id) ?? "Unknown",
+        workspaceId: room.workspace_id,
+        createdAt: r.created_at,
+      };
+    })
+    .filter((r): r is PendingInviteShape => r !== null);
 };
 
 // ---------------------------------------------------------------------------

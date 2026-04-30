@@ -26,6 +26,8 @@ export interface UseVoiceRoomResult {
   warning: string | null;
   peers: VoicePeerState[];
   selfSpeaking: boolean;
+  localAudioLevel: number;
+  speakingUsers: Set<string>;
   maxParticipants: number;
   join: () => Promise<void>;
   leave: () => void;
@@ -43,8 +45,12 @@ const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
 
-const SPEAKING_THRESHOLD = 18; // 0–255 RMS-ish band on AnalyserNode
+// 0–255 threshold used for the existing decay-based `speaking` boolean on peers
+const SPEAKING_THRESHOLD = 18;
 const SPEAKING_DECAY_MS = 250;
+
+// Normalized 0–1 threshold used for the real-time `speakingUsers` Set
+const SPEAKING_NORMALIZED_THRESHOLD = 0.05;
 
 // ---------------------------------------------------------------------------
 // Realtime payload shapes
@@ -103,6 +109,8 @@ export function useVoiceRoom(
   const [warning, setWarning] = useState<string | null>(null);
   const [peers, setPeers] = useState<VoicePeerState[]>([]);
   const [selfSpeaking, setSelfSpeaking] = useState(false);
+  const [localAudioLevel, setLocalAudioLevel] = useState(0);
+  const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
 
   // Refs for live, non-render state
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -116,6 +124,8 @@ export function useVoiceRoom(
     name: "You",
     avatarUrl: null,
   });
+  // Tracks previous speakingUsers membership to avoid 60fps state churn
+  const prevSpeakingSetRef = useRef<Set<string>>(new Set());
 
   userIdRef.current = userId;
 
@@ -149,19 +159,29 @@ export function useVoiceRoom(
     const tick = () => {
       const now = Date.now();
 
-      // Self
+      // ── Local user ────────────────────────────────────────────────────────
+      let selfLevel = 0;
       const selfAnalyser = selfAnalyserRef.current;
       if (selfAnalyser) {
         selfAnalyser.getByteFrequencyData(buffer);
         const avg = averageEnergy(buffer);
+        selfLevel = avg / 255;
         setSelfSpeaking(avg > SPEAKING_THRESHOLD);
       } else {
         setSelfSpeaking(false);
       }
+      setLocalAudioLevel(selfLevel);
 
-      // Peers
+      // ── Build speakingUsers (real-time, no decay) ─────────────────────────
+      const nextSpeaking = new Set<string>();
+      const me = userIdRef.current;
+      if (me && selfLevel > SPEAKING_NORMALIZED_THRESHOLD) {
+        nextSpeaking.add(me);
+      }
+
+      // ── Remote peers ──────────────────────────────────────────────────────
       let mutated = false;
-      for (const rec of peersRef.current.values()) {
+      for (const [uid, rec] of peersRef.current) {
         if (!rec.analyser) continue;
         rec.analyser.getByteFrequencyData(buffer);
         const avg = averageEnergy(buffer);
@@ -169,8 +189,21 @@ export function useVoiceRoom(
           rec.lastSpokeAt = now;
           mutated = true;
         }
+        if (avg / 255 > SPEAKING_NORMALIZED_THRESHOLD) {
+          nextSpeaking.add(uid);
+        }
       }
       if (mutated) publishPeers();
+
+      // Only update speakingUsers state when membership actually changed
+      const prev = prevSpeakingSetRef.current;
+      const changed =
+        nextSpeaking.size !== prev.size ||
+        [...nextSpeaking].some((id) => !prev.has(id));
+      if (changed) {
+        prevSpeakingSetRef.current = nextSpeaking;
+        setSpeakingUsers(nextSpeaking);
+      }
 
       speakingRafRef.current = requestAnimationFrame(tick);
     };
@@ -184,6 +217,9 @@ export function useVoiceRoom(
       speakingRafRef.current = null;
     }
     setSelfSpeaking(false);
+    setLocalAudioLevel(0);
+    prevSpeakingSetRef.current = new Set();
+    setSpeakingUsers(new Set());
   }, []);
 
   // -------------------------------------------------------------------------
@@ -658,6 +694,8 @@ export function useVoiceRoom(
     warning,
     peers,
     selfSpeaking,
+    localAudioLevel,
+    speakingUsers,
     maxParticipants,
     join,
     leave,
