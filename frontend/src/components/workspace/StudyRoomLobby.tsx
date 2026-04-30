@@ -7,6 +7,7 @@ import { getLobbyParticipants, startRoom, sendLobbyInvites } from "@/services/st
 import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import ParticipantAvatar from "./study-room/ParticipantAvatar";
+import VoicePanel from "./study-room/VoicePanel";
 import {
   Tooltip,
   TooltipContent,
@@ -285,6 +286,20 @@ export default function StudyRoomLobby({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           {disconnectBanner}
         </div>
+      )}
+
+      {/* Voice Chat */}
+      {currentUserId && (
+        <VoicePanel
+          roomId={room.id}
+          currentUserId={currentUserId}
+          currentUserName={
+            participants.find((p) => p.user_id === currentUserId)?.name
+          }
+          currentUserAvatar={
+            participants.find((p) => p.user_id === currentUserId)?.avatar_url ?? null
+          }
+        />
       )}
 
       {/* Participants */}

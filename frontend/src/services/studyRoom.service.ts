@@ -11,6 +11,8 @@ import type {
   StudyRoomResults,
   StudyRoomStats,
   PendingInvite,
+  VoiceJoinResponse,
+  VoiceParticipantRow,
 } from "@/types/studyRoom";
 
 function extractErrorMessage(error: unknown, fallback: string): string {
@@ -299,5 +301,47 @@ export async function deleteStudyRoom(roomId: string): Promise<void> {
     await apiClient.delete(`/study-rooms/${roomId}`);
   } catch (error) {
     throw new Error(extractErrorMessage(error, "Failed to delete room"));
+  }
+}
+
+/**
+ * Validate room membership and register the user as an active voice
+ * participant. Returns the existing roster so the client knows whom to dial.
+ */
+export async function joinVoiceRoom(roomId: string): Promise<VoiceJoinResponse> {
+  try {
+    const response = await apiClient.post(`/study-rooms/${roomId}/voice/join`);
+    return response.data.data as VoiceJoinResponse;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to join voice room"));
+  }
+}
+
+/**
+ * Best-effort cleanup of voice presence. Failures are swallowed because the
+ * call typically fires during page unload.
+ */
+export async function leaveVoiceRoom(roomId: string): Promise<void> {
+  try {
+    await apiClient.post(`/study-rooms/${roomId}/voice/leave`);
+  } catch {
+    /* swallow — presence times out on the server */
+  }
+}
+
+/**
+ * Fetch the current voice roster (without joining).
+ */
+export async function getVoiceParticipants(
+  roomId: string,
+): Promise<VoiceParticipantRow[]> {
+  try {
+    const response = await apiClient.get(
+      `/study-rooms/${roomId}/voice/participants`,
+    );
+    const data = response.data.data as { participants?: VoiceParticipantRow[] };
+    return data.participants ?? [];
+  } catch {
+    return [];
   }
 }

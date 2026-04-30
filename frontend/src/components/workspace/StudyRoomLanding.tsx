@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Clock, Crown, KeyRound, X, Users, Mail, Trash2 } from "lucide-react";
+import { Plus, KeyRound, X, Users, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type {
-  ActiveInvitation,
   RecentRoom,
   HostedRoom,
   StudyRoom,
@@ -13,7 +12,6 @@ import type {
   PendingInvite,
 } from "@/types/studyRoom";
 import {
-  getActiveInvitations,
   getRecentRooms,
   getHostedRooms,
   getStudyRoomStats,
@@ -52,23 +50,6 @@ function StatusBadge({ status }: { status: string }) {
     >
       {s.label}
     </span>
-  );
-}
-
-function InitialsCircle({ name, index }: { name: string; index: number }) {
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .map((w) => w[0]?.toUpperCase())
-    .slice(0, 2)
-    .join("");
-  return (
-    <div
-      className="w-6 h-6 rounded-full bg-blue-accent/20 border border-blue-accent/30 flex items-center justify-center text-[9px] font-semibold text-blue-accent"
-      style={{ marginLeft: index > 0 ? -6 : 0, zIndex: 10 - index }}
-    >
-      {initials || "?"}
-    </div>
   );
 }
 
@@ -123,7 +104,6 @@ export default function StudyRoomLanding({
   onJoinRoom,
   onGoToLobby,
 }: StudyRoomLandingProps) {
-  const [invitations, setInvitations] = useState<ActiveInvitation[]>([]);
   const [recentRooms, setRecentRooms] = useState<RecentRoom[]>([]);
   const [hostedRooms, setHostedRooms] = useState<HostedRoom[]>([]);
   const [stats, setStats] = useState<StudyRoomStats>({ hostedCount: 0, playedCount: 0, totalPoints: 0 });
@@ -144,14 +124,12 @@ export default function StudyRoomLanding({
 
   const fetchData = useCallback(async () => {
     try {
-      const [inv, recent, hosted, st, pending] = await Promise.all([
-        getActiveInvitations(workspaceId),
+      const [recent, hosted, st, pending] = await Promise.all([
         getRecentRooms(workspaceId),
         getHostedRooms(workspaceId),
         getStudyRoomStats(workspaceId),
         getPendingInvites(),
       ]);
-      setInvitations(inv);
       setRecentRooms(recent);
       setHostedRooms(hosted);
       setStats(st);

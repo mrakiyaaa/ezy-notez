@@ -194,3 +194,18 @@ export interface CreateStudyRoomPayload {
   invite_method: InviteMethod;
   emails?: string[];
 }
+
+// ── Voice room (WebRTC) types ───────────────────────────────────────────────
+
+export interface VoiceParticipantRow {
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  joined_at: number;
+}
+
+export interface VoiceJoinResponse {
+  participants: VoiceParticipantRow[];
+  warning: string | null;
+  max_participants: number;
+}

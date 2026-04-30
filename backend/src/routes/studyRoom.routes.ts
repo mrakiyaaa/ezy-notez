@@ -22,6 +22,11 @@ import {
   getRoomHandler,
   deleteRoomHandler,
 } from "../controllers/studyRoom.controller";
+import {
+  getVoiceParticipantsHandler,
+  joinVoiceHandler,
+  leaveVoiceHandler,
+} from "../controllers/voiceRoom.controller";
 
 const router = Router();
 
@@ -60,6 +65,12 @@ router.post("/:roomId/next", nextQuestionHandler);
 router.get("/:roomId/results", getRoomResultsHandler);
 router.post("/:roomId/insights", generateInsightsHandler);
 router.get("/:roomId/current-question", getCurrentQuestionHandler);
+
+// Voice (WebRTC) — discovery + membership validation. Signaling itself
+// happens over Supabase Realtime on channel `voice-room-{roomId}`.
+router.get("/:roomId/voice/participants", getVoiceParticipantsHandler);
+router.post("/:roomId/voice/join", joinVoiceHandler);
+router.post("/:roomId/voice/leave", leaveVoiceHandler);
 
 // Room detail — catch-all, must be last
 router.get("/:roomId", getRoomHandler);

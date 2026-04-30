@@ -16,7 +16,10 @@
       "Bash(npm install *)",
       "Bash(echo \"EXIT=$?\")",
       "Bash(npx playwright *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(echo \"frontend-exit=$?\")",
+      "Bash(echo \"backend-exit=$?\")",
+      "Bash(echo \"exit=$?\")"
     ]
   },
   "enableAllProjectMcpServers": true,
