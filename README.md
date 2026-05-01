@@ -98,7 +98,7 @@ Workspace-scoped conversational AI grounded in your uploaded resources. Built on
 <td colspan="2">
 
 ### 🎮 Study Rooms
-Live collaborative study sessions within a workspace — study together with peers in real time.
+Standalone real-time collaborative study sessions at `/study-rooms/*` — fully decoupled from the workspace UI. Four URL-addressable stages: **landing → lobby → live quiz → results**. Join by email invite, shareable link, or 6-digit OTP code. Lobby includes a **voice channel** powered by Supabase Realtime. A `?from=` query param carries the originating workspace, surfacing a back link and workspace chip in the dedicated Study Room layout.
 
 </td>
 </tr>
@@ -122,7 +122,7 @@ Live collaborative study sessions within a workspace — study together with pee
 | **Auth** | Supabase Auth (JWT) | Authentication & session management |
 | **Storage** | UploadThing | File uploads & hosting |
 | **Containers** | Docker, Docker Compose | Dev & production orchestration |
-| **Testing** | Jest + Supertest | Express API test suite |
+| **Testing** | Jest + Supertest, Playwright | Express API tests + E2E |
 
 </div>
 
@@ -296,12 +296,18 @@ ezy-notez/
 │   └── src/
 │       ├── app/
 │       │   ├── (auth)/                   Login · Register
-│       │   └── (dashboard)/              Protected workspace pages
+│       │   ├── (dashboard)/              Protected workspace pages
+│       │   └── study-rooms/              Standalone Study Room route group
+│       │       ├── layout.tsx            Logo · back link · workspace chip
+│       │       ├── page.tsx              Landing (redirects if no ?from=)
+│       │       ├── invite/[token]/       Email invite acceptance
+│       │       └── [roomId]/             lobby · session · results
 │       ├── components/
 │       │   ├── ui/                       Base UI (shadcn)
 │       │   ├── workspace/                Workspace feature components
 │       │   │   ├── quiz/                 Quiz sub-components
 │       │   │   └── flashcards/           Flashcard sub-components
+│       │   ├── study-room/               Study Room components (flat)
 │       │   └── dashboard/               Dashboard layout components
 │       ├── lib/
 │       │   ├── animations.ts             Framer Motion variants
@@ -361,6 +367,7 @@ ezy-notez/
 | `POST` | `/api/workspaces` | Create workspace |
 | `GET` | `/api/workspaces` | List user workspaces |
 | `GET` | `/api/workspaces/:slug` | Get workspace by slug |
+| `GET` | `/api/workspaces/by-id/:id` | Get workspace by ID |
 
 </details>
 
@@ -660,6 +667,6 @@ SQL files live in `supabase/`. Run them **in order** against your Supabase proje
 
 <br/>
 
-*Last updated: April 2026 &nbsp;·&nbsp; Status: Active Development*
+*Last updated: May 2026 &nbsp;·&nbsp; Status: Active Development*
 
 </div>
