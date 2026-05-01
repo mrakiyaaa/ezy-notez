@@ -13,7 +13,7 @@ This feature swaps each panel for live, cross-workspace data sourced from the au
 ### 1. Study Room Invites → real pending email invites
 - The sidebar now calls `getPendingInvites()` (`GET /api/study-rooms/invites/pending`) and lists every pending `study_room_invites` row addressed to the logged-in user's email, across all workspaces they're invited to.
 - The old mock `StudyInvites` component and `Invite` type were removed. The sidebar reuses the polished `StudyRoomInvitesPanel` that already powers the per-workspace study-room landing page.
-- Join: calls `acceptInvite(token)`, removes the invite from the list, resolves the invite's `workspaceId` to a workspace `slug` from the loaded workspace list, then navigates to `/workspaces/{slug}?tab=studyroom&room={roomId}`.
+- Join: calls `acceptInvite(token)`, removes the invite from the list, then navigates to `/workspaces/{workspaceSlug}?tab=studyroom&room={roomId}` using the `workspaceSlug` returned on the `PendingInvite` payload. (The slug is sourced from the backend because the invitee is typically not a member of the host's workspace, so the local workspace list can't resolve it.)
 - Dismiss: calls `dismissInvite(inviteId)` (optimistic UI — item is removed immediately).
 - Empty state uses a dotLottie animation from LottieFiles plus the copy "No invites right now."
 - Loading state renders two skeleton invite cards.
@@ -81,6 +81,6 @@ Capped at 4 sentences.
 - `/api/analytics/hub` and `/api/study-rooms/invites/pending` both run under the standard `authenticateUser` middleware; they key off `req.user.id` (for workspace scoping) and `req.user.email` (to match `study_room_invites.email`). Dismiss uses the caller's email to ensure you can only dismiss your own invites.
 
 ## UX details
-- Invite join is optimistic on list removal but awaits `acceptInvite(token)` before routing; failures log to the console and leave the rest of the UI usable.
+- Invite join awaits `acceptInvite(token)` before routing. Failures bubble back to `InviteCard` and render an inline red error pill above the action buttons; the card stays on screen so the user can retry. The Join button shows a "Joining…" loading state while the request is in flight.
 - The existing `tab=studyroom` query already opens the Study Room view inside `WorkspacePage`; the new `room=<id>` param layers on top and auto-enters the lobby, then strips itself from the URL so a back-navigation doesn't re-trigger.
 - Collapsed-sidebar indicator dots still reflect pending invites and active activities, now driven by real counts.

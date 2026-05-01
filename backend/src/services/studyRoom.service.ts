@@ -142,6 +142,7 @@ export interface PendingInviteShape {
   roomTitle: string;
   hostName: string;
   workspaceId: string;
+  workspaceSlug: string;
   createdAt: string;
 }
 
@@ -1226,10 +1227,30 @@ export const getPendingInvites = async (
     }
   }
 
+  // Fetch workspace slugs so the frontend can navigate to the lobby route
+  // (`/workspaces/:slug?tab=studyroom&room=:roomId`) even when the invitee
+  // isn't a member of the workspace and so can't resolve the slug locally.
+  const workspaceIds = [
+    ...new Set(((rooms ?? []) as RoomInfo[]).map((r) => r.workspace_id).filter(Boolean)),
+  ] as string[];
+
+  const slugMap = new Map<string, string>();
+  if (workspaceIds.length > 0) {
+    const { data: workspaces } = await supabaseAdmin
+      .from("workspaces")
+      .select("id, slug")
+      .in("id", workspaceIds);
+    for (const w of (workspaces ?? []) as { id: string; slug: string }[]) {
+      slugMap.set(w.id, w.slug);
+    }
+  }
+
   return rows
     .map((r) => {
       const room = roomMap.get(r.room_id);
       if (!room) return null;
+      const workspaceSlug = slugMap.get(room.workspace_id);
+      if (!workspaceSlug) return null;
       return {
         inviteId: r.id,
         token: r.token,
@@ -1237,6 +1258,7 @@ export const getPendingInvites = async (
         roomTitle: room.title,
         hostName: nameMap.get(room.host_id) ?? "Unknown",
         workspaceId: room.workspace_id,
+        workspaceSlug,
         createdAt: r.created_at,
       };
     })

@@ -176,6 +176,7 @@ export interface PendingInvite {
   roomTitle: string;
   hostName: string;
   workspaceId: string;
+  workspaceSlug: string;
   createdAt: string;
 }
 

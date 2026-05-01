@@ -114,25 +114,16 @@ export default function WorkspacesPage() {
 
   const handleJoinInvite = useCallback(
     async (invite: PendingInvite) => {
-      try {
-        await acceptInvite(invite.token);
-        setInvites((prev) => prev.filter((p) => p.inviteId !== invite.inviteId));
-
-        const workspace = workspaces.find((w) => w.id === invite.workspaceId);
-        if (workspace) {
-          router.push(
-            `/workspaces/${workspace.slug}?tab=studyroom&room=${invite.roomId}`,
-          );
-        } else {
-          console.warn(
-            `[WorkspacesPage] No workspace found for id ${invite.workspaceId}`,
-          );
-        }
-      } catch (error) {
-        console.error("Failed to accept invite:", error);
-      }
+      // The invitee is usually NOT a member of the host's workspace, so we
+      // can't resolve the slug from the local `workspaces` list — the backend
+      // sends `workspaceSlug` on PendingInvite for exactly this navigation.
+      await acceptInvite(invite.token);
+      setInvites((prev) => prev.filter((p) => p.inviteId !== invite.inviteId));
+      router.push(
+        `/workspaces/${invite.workspaceSlug}?tab=studyroom&room=${invite.roomId}`,
+      );
     },
-    [router, workspaces],
+    [router],
   );
 
   const handleDismissInvite = useCallback(async (inviteId: string) => {

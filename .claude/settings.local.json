@@ -19,7 +19,8 @@
       "Bash(npm run *)",
       "Bash(echo \"frontend-exit=$?\")",
       "Bash(echo \"backend-exit=$?\")",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(xargs grep *)"
     ]
   },
   "enableAllProjectMcpServers": true,

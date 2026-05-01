@@ -41,20 +41,27 @@ function InviteCard({
 }) {
   const [isJoining, setIsJoining] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleJoin = async () => {
+    setError(null);
     setIsJoining(true);
     try {
       await onJoin(invite);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join room");
     } finally {
       setIsJoining(false);
     }
   };
 
   const handleDismiss = async () => {
+    setError(null);
     setIsDismissing(true);
     try {
       await onDismiss(invite.inviteId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to dismiss invite");
     } finally {
       setIsDismissing(false);
     }
@@ -71,6 +78,14 @@ function InviteCard({
           </p>
         </div>
       </div>
+      {error && (
+        <p
+          role="alert"
+          className="mt-3 rounded-md border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-400"
+        >
+          {error}
+        </p>
+      )}
       <div className="mt-4 flex gap-2">
         <button
           type="button"
