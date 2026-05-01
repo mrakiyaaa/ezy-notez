@@ -69,6 +69,8 @@ export default function StudyRoomLobby({
   }, [room.id]);
 
   useEffect(() => {
+    if (!room?.id) return;
+
     const channel = supabase.channel(`study-room:${room.id}`);
     channelRef.current = channel;
 
@@ -135,10 +137,16 @@ export default function StudyRoomLobby({
         }
       })
       .subscribe((status) => {
-        if (status === "CHANNEL_ERROR") {
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
           setChannelError(
-            "Failed to connect to room. Please refresh the page.",
+            "Lost connection to room. Please refresh the page.",
           );
+        } else if (status === "SUBSCRIBED") {
+          setChannelError(null);
         }
       });
 
