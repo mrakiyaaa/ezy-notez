@@ -4,6 +4,8 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StudyRoomLanding from "@/components/study-room/StudyRoomLanding";
 
+export const dynamic = "force-dynamic";
+
 function StudyRoomsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
