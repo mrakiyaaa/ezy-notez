@@ -114,14 +114,9 @@ export default function WorkspacesPage() {
 
   const handleJoinInvite = useCallback(
     async (invite: PendingInvite) => {
-      // The invitee is usually NOT a member of the host's workspace, so we
-      // can't resolve the slug from the local `workspaces` list — the backend
-      // sends `workspaceSlug` on PendingInvite for exactly this navigation.
       await acceptInvite(invite.token);
       setInvites((prev) => prev.filter((p) => p.inviteId !== invite.inviteId));
-      router.push(
-        `/workspaces/${invite.workspaceSlug}?tab=studyroom&room=${invite.roomId}`,
-      );
+      router.push(`/study-rooms/${invite.roomId}/lobby`);
     },
     [router],
   );
@@ -136,15 +131,10 @@ export default function WorkspacesPage() {
   }, []);
 
   const handleJoinedByCode = useCallback(
-    (roomId: string, workspaceId: string) => {
-      const workspace = workspaces.find((w) => w.id === workspaceId);
-      if (workspace) {
-        router.push(`/workspaces/${workspace.slug}?tab=studyroom&room=${roomId}`);
-      } else {
-        console.warn(`[WorkspacesPage] No workspace found for id ${workspaceId}`);
-      }
+    (roomId: string) => {
+      router.push(`/study-rooms/${roomId}/lobby`);
     },
-    [router, workspaces],
+    [router],
   );
 
   return (

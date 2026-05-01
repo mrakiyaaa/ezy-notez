@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import StudyRoomInvitesPanel from "@/components/workspace/study-room/StudyRoomInvitesPanel";
+import StudyRoomInvitesPanel from "@/components/study-room/StudyRoomInvitesPanel";
 import UpcomingActivities from "./UpcomingActivities";
 import DailyBriefing from "./DailyBriefing";
 import type { PendingInvite } from "@/types/studyRoom";
@@ -21,7 +21,7 @@ interface CollapsibleSidebarProps {
   briefingLoading?: boolean;
   onJoinInvite: (invite: PendingInvite) => Promise<void>;
   onDismissInvite: (inviteId: string) => Promise<void>;
-  onJoinedByCode?: (roomId: string, workspaceId: string) => void;
+  onJoinedByCode?: (roomId: string) => void;
 }
 
 export default function CollapsibleSidebar({

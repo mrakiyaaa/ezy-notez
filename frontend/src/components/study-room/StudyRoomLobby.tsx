@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, Check, Crown, AlertTriangle, Play, Users, UserPlus, Plus, Trash2, X, Mail } from "lucide-react";
 import type { Participant, StudyRoom } from "@/types/studyRoom";
 import { getLobbyParticipants, startRoom, sendLobbyInvites } from "@/services/studyRoom.service";
 import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import ParticipantAvatar from "./study-room/ParticipantAvatar";
-import VoicePanel from "./study-room/VoicePanel";
+import ParticipantAvatar from "./ParticipantAvatar";
+import VoicePanel from "./VoicePanel";
 import {
   Tooltip,
   TooltipContent,
@@ -17,15 +18,24 @@ import {
 
 interface StudyRoomLobbyProps {
   room: StudyRoom;
-  onQuizStarted: () => void;
-  onBack: () => void;
+  fromWorkspaceId?: string;
 }
 
 export default function StudyRoomLobby({
   room,
-  onQuizStarted,
-  onBack,
+  fromWorkspaceId,
 }: StudyRoomLobbyProps) {
+  const router = useRouter();
+  const fromQuery = fromWorkspaceId ? `?from=${fromWorkspaceId}` : "";
+
+  const goToSession = useCallback(() => {
+    router.push(`/study-rooms/${room.id}/session${fromQuery}`);
+  }, [router, room.id, fromQuery]);
+
+  const goBack = useCallback(() => {
+    router.push(`/study-rooms${fromQuery}`);
+  }, [router, fromQuery]);
+
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [otpCopied, setOtpCopied] = useState(false);
@@ -35,7 +45,6 @@ export default function StudyRoomLobby({
   const [channelError, setChannelError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // Invite modal state
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmailInput, setInviteEmailInput] = useState("");
   const [inviteEmails, setInviteEmails] = useState<string[]>([]);
@@ -46,14 +55,12 @@ export default function StudyRoomLobby({
   const isHost = !!currentUserId && room.host_id === currentUserId;
   const hasEnoughParticipants = participants.length >= 2;
 
-  // Resolve current user ID once on mount
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
     });
   }, []);
 
-  // Fetch initial participants
   useEffect(() => {
     getLobbyParticipants(room.id)
       .then(setParticipants)
@@ -61,7 +68,6 @@ export default function StudyRoomLobby({
       .finally(() => setIsLoading(false));
   }, [room.id]);
 
-  // Supabase Realtime subscription — stored in a ref to avoid re-render loops
   useEffect(() => {
     const channel = supabase.channel(`study-room:${room.id}`);
     channelRef.current = channel;
@@ -122,10 +128,10 @@ export default function StudyRoomLobby({
               // sessionStorage may be unavailable in some contexts — not fatal
             }
           }
-          onQuizStarted();
+          goToSession();
         } catch (err) {
           console.error("[Lobby] quiz:started handler error:", err);
-          onQuizStarted(); // still navigate even if storage failed
+          goToSession();
         }
       })
       .subscribe((status) => {
@@ -140,7 +146,7 @@ export default function StudyRoomLobby({
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [room.id, onQuizStarted]);
+  }, [room.id, goToSession]);
 
   const copyOtp = useCallback(() => {
     if (!room.otp_code) return;
@@ -153,7 +159,7 @@ export default function StudyRoomLobby({
     setStarting(true);
     try {
       await startRoom(room.id);
-      onQuizStarted();
+      goToSession();
     } catch (err) {
       console.error("[Lobby] Failed to start room:", err);
     } finally {
@@ -180,7 +186,6 @@ export default function StudyRoomLobby({
   const handleSendInvites = async () => {
     let emailsToSend = inviteEmails;
 
-    // Auto-add pending input
     if (inviteEmailInput.trim()) {
       const trimmed = inviteEmailInput.trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -222,15 +227,13 @@ export default function StudyRoomLobby({
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      {/* Back button */}
       <button
-        onClick={onBack}
+        onClick={goBack}
         className="text-text-muted text-sm hover:text-text-primary transition-colors mb-6"
       >
         &larr; Back to Study Room
       </button>
 
-      {/* Room Info */}
       <div className="text-center mb-8">
         <h2 className="text-text-primary text-2xl font-semibold">{room.title}</h2>
         {room.description && (
@@ -240,7 +243,6 @@ export default function StudyRoomLobby({
         )}
       </div>
 
-      {/* OTP Code Display */}
       {room.invite_method === "otp" && room.otp_code && (
         <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-6 text-center">
           <p className="text-text-secondary text-sm mb-4">
@@ -272,7 +274,6 @@ export default function StudyRoomLobby({
         </div>
       )}
 
-      {/* Channel error banner */}
       {channelError && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm mb-4 sr-fade-in">
           <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -280,7 +281,6 @@ export default function StudyRoomLobby({
         </div>
       )}
 
-      {/* Disconnect Banner */}
       {disconnectBanner && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm mb-4 sr-fade-in">
           <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -288,7 +288,6 @@ export default function StudyRoomLobby({
         </div>
       )}
 
-      {/* Voice Chat */}
       {currentUserId && (
         <VoicePanel
           roomId={room.id}
@@ -302,7 +301,6 @@ export default function StudyRoomLobby({
         />
       )}
 
-      {/* Participants */}
       <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide">
@@ -364,7 +362,6 @@ export default function StudyRoomLobby({
         )}
       </div>
 
-      {/* Start Button (host only) */}
       {isHost && (
         <TooltipProvider>
           <Tooltip>
@@ -398,7 +395,6 @@ export default function StudyRoomLobby({
         </TooltipProvider>
       )}
 
-      {/* Non-host waiting text */}
       {!isHost && (
         <div className="text-center py-4">
           <p className="text-text-muted text-sm">
@@ -407,11 +403,9 @@ export default function StudyRoomLobby({
         </div>
       )}
 
-      {/* Invite Friends Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-fade-border">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-blue-accent/15 flex items-center justify-center">
@@ -427,7 +421,6 @@ export default function StudyRoomLobby({
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-5 space-y-4">
               {inviteSuccess ? (
                 <div className="flex flex-col items-center py-6 gap-3">
@@ -442,7 +435,6 @@ export default function StudyRoomLobby({
                     Enter email addresses to send invite links. Friends will receive an email to join this room.
                   </p>
 
-                  {/* Email input */}
                   <div className="flex gap-2">
                     <input
                       type="email"
@@ -461,7 +453,6 @@ export default function StudyRoomLobby({
                     </button>
                   </div>
 
-                  {/* Email list */}
                   {inviteEmails.length > 0 && (
                     <div className="space-y-1.5 max-h-40 overflow-y-auto">
                       {inviteEmails.map((email) => (
@@ -482,12 +473,10 @@ export default function StudyRoomLobby({
                     </div>
                   )}
 
-                  {/* Error */}
                   {inviteError && (
                     <p className="text-red-400 text-xs">{inviteError}</p>
                   )}
 
-                  {/* Send button */}
                   <button
                     onClick={handleSendInvites}
                     disabled={inviteSending}

@@ -12,7 +12,7 @@ interface StudyRoomInvitesPanelProps {
   onJoin: (invite: PendingInvite) => Promise<void>;
   onDismiss: (inviteId: string) => Promise<void>;
   /** Called after a successful join-by-code; caller handles navigation. */
-  onJoinedRoom?: (roomId: string, workspaceId: string) => void;
+  onJoinedRoom?: (roomId: string) => void;
 }
 
 function HostAvatar({ name }: { name: string }) {
@@ -145,7 +145,7 @@ function LoadingState() {
   );
 }
 
-function JoinByCodeForm({ onJoined }: { onJoined: (roomId: string, workspaceId: string) => void }) {
+function JoinByCodeForm({ onJoined }: { onJoined: (roomId: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -163,7 +163,7 @@ function JoinByCodeForm({ onJoined }: { onJoined: (roomId: string, workspaceId: 
       const room = await joinRoomByCode(code);
       setIsOpen(false);
       setOtp("");
-      onJoined(room.id, room.workspace_id);
+      onJoined(room.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join room");
     } finally {

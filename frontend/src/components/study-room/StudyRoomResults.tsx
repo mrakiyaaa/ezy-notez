@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Trophy, ArrowLeft, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import type { StudyRoomResults as ResultsType, LeaderboardEntry, Badge, WrongAnswer } from "@/types/studyRoom";
@@ -13,7 +14,7 @@ import {
 
 interface StudyRoomResultsProps {
   roomId: string;
-  onBack: () => void;
+  fromWorkspaceId?: string;
 }
 
 function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: number }) {
@@ -35,20 +36,14 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
     <motion.div
       variants={resultStaggerItem}
       className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all duration-200 ${
-        medal
-          ? ""
-          : "border-fade-border bg-white/[0.02]"
+        medal ? "" : "border-fade-border bg-white/[0.02]"
       }`}
       style={
         medal
-          ? {
-              backgroundColor: medal.bg,
-              borderColor: medal.border,
-            }
+          ? { backgroundColor: medal.bg, borderColor: medal.border }
           : undefined
       }
     >
-      {/* Position */}
       <motion.span
         variants={popIn}
         initial="initial"
@@ -63,7 +58,6 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
         {entry.position}
       </motion.span>
 
-      {/* Avatar */}
       <div className="w-9 h-9 rounded-full bg-blue-accent/20 border border-blue-accent/30 flex items-center justify-center shrink-0">
         {entry.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -79,12 +73,10 @@ function LeaderboardRow({ entry, index }: { entry: LeaderboardEntry; index: numb
         )}
       </div>
 
-      {/* Name */}
       <span className="flex-1 text-text-primary text-sm font-medium truncate">
         {entry.name}
       </span>
 
-      {/* Points */}
       <span
         className="text-sm font-bold tabular-nums"
         style={{ color: medal?.text ?? "var(--color-text-secondary)" }}
@@ -119,7 +111,6 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
       variants={resultStaggerItem}
       className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-5"
     >
-      {/* Question */}
       <div className="flex items-center gap-2 mb-3">
         <span className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-xs font-bold text-text-muted">
           {item.question_number}
@@ -129,7 +120,6 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
         </p>
       </div>
 
-      {/* Options */}
       <div className="space-y-2 mb-3">
         {item.options.map((opt, i) => {
           const isSelected = i === item.selected_answer;
@@ -166,7 +156,6 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
         })}
       </div>
 
-      {/* Explanation */}
       <div className="rounded-lg bg-blue-accent/5 border border-blue-accent/15 px-3 py-2">
         <p className="text-text-secondary text-xs leading-relaxed">
           <span className="text-blue-accent font-medium">Explanation: </span>
@@ -177,24 +166,40 @@ function WrongAnswerCard({ item }: { item: WrongAnswer }) {
   );
 }
 
-export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsProps) {
+export default function StudyRoomResults({
+  roomId,
+  fromWorkspaceId,
+}: StudyRoomResultsProps) {
+  const router = useRouter();
+  const fromQuery = fromWorkspaceId ? `?from=${fromWorkspaceId}` : "";
+
+  const goBack = useCallback(() => {
+    router.push(`/study-rooms${fromQuery}`);
+  }, [router, fromQuery]);
+
   const [results, setResults] = useState<ResultsType | null>(null);
   const [insights, setInsights] = useState<string>("Generating insights...");
   const [showRevision, setShowRevision] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
     getResults(roomId)
-      .then(setResults)
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
+      .then((r) => { if (mounted) setResults(r); })
+      .catch((err) => {
+        if (mounted) setError(err instanceof Error ? err.message : "Failed to load results");
+      })
+      .finally(() => { if (mounted) setIsLoading(false); });
 
     getInsights(roomId)
-      .then((data) => setInsights(data.insights))
+      .then((data) => { if (mounted) setInsights(data.insights); })
       .catch(console.error);
+
+    return () => { mounted = false; };
   }, [roomId]);
 
-  if (isLoading || !results) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-6 h-6 border-2 border-blue-accent border-t-transparent rounded-full animate-spin" />
@@ -202,9 +207,27 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
     );
   }
 
+  if (error || !results) {
+    return (
+      <div className="p-6 max-w-md mx-auto text-center">
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-5 py-6 mb-6">
+          <p className="text-red-300 text-sm">
+            {error ?? "Results unavailable."}
+          </p>
+        </div>
+        <button
+          onClick={goBack}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border-white/[0.08] bg-white/[0.04] text-text-secondary text-sm font-medium hover:bg-white/[0.08] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Study Room
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      {/* Header */}
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-full bg-blue-accent/15 flex items-center justify-center mx-auto mb-4">
           <Trophy className="w-8 h-8 text-blue-accent" />
@@ -215,7 +238,6 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         <p className="text-text-muted text-sm mt-1">Final Results</p>
       </div>
 
-      {/* Leaderboard */}
       <section className="mb-8">
         <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide mb-4">
           Leaderboard
@@ -232,7 +254,6 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         </motion.div>
       </section>
 
-      {/* Badges */}
       <section className="mb-8">
         <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide mb-4">
           Badges Earned
@@ -249,7 +270,6 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         </motion.div>
       </section>
 
-      {/* AI Insights */}
       <section className="mb-8">
         <h3 className="text-text-secondary text-sm font-semibold uppercase tracking-wide mb-4">
           AI Insights
@@ -264,7 +284,6 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         </div>
       </section>
 
-      {/* Revision Mode Toggle */}
       <section className="mb-8">
         <button
           onClick={() => setShowRevision((prev) => !prev)}
@@ -307,9 +326,8 @@ export default function StudyRoomResults({ roomId, onBack }: StudyRoomResultsPro
         )}
       </section>
 
-      {/* Back Button */}
       <button
-        onClick={onBack}
+        onClick={goBack}
         className="flex items-center gap-2 px-5 py-3 rounded-lg border-white/[0.08] bg-white/[0.04] text-text-secondary text-sm font-medium hover:bg-white/[0.08] transition-colors mx-auto"
       >
         <ArrowLeft className="w-4 h-4" />

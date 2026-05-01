@@ -299,7 +299,7 @@ export const createRoom = async (params: {
         email: string;
         token: string;
       }[]) {
-        const inviteUrl = `${frontendUrl}/study-room/invite/${invite.token}`;
+        const inviteUrl = `${frontendUrl}/study-rooms/invite/${invite.token}`;
         sendStudyRoomInvite(invite.email, title, inviteUrl).catch((e) =>
           console.warn("[studyRoom] Failed to send invite email:", e),
         );
@@ -468,7 +468,7 @@ export const sendLobbyInvites = async (
   if (insertErr) throw new Error(`Failed to create invites: ${insertErr.message}`);
 
   for (const invite of (inserted ?? []) as { email: string; token: string }[]) {
-    const inviteUrl = `${frontendUrl}/study-room/invite/${invite.token}`;
+    const inviteUrl = `${frontendUrl}/study-rooms/invite/${invite.token}`;
     sendStudyRoomInvite(invite.email, room.title, inviteUrl).catch((e) =>
       console.warn("[studyRoom] Failed to send lobby invite email:", e),
     );
@@ -1227,9 +1227,9 @@ export const getPendingInvites = async (
     }
   }
 
-  // Fetch workspace slugs so the frontend can navigate to the lobby route
-  // (`/workspaces/:slug?tab=studyroom&room=:roomId`) even when the invitee
-  // isn't a member of the workspace and so can't resolve the slug locally.
+  // Fetch workspace slugs so the hub can render workspace context on invite
+  // cards. Lobby navigation itself uses `/study-rooms/:roomId/lobby` and
+  // doesn't need the slug.
   const workspaceIds = [
     ...new Set(((rooms ?? []) as RoomInfo[]).map((r) => r.workspace_id).filter(Boolean)),
   ] as string[];

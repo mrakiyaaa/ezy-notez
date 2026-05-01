@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -27,7 +27,6 @@ import FlashcardsView from "@/components/workspace/FlashcardsView";
 import QuizView from "@/components/workspace/QuizView";
 import QuizAttemptView from "@/components/workspace/QuizAttemptView";
 import QuizResultsView from "@/components/workspace/QuizResultsView";
-import StudyRoomView from "@/components/workspace/StudyRoomView";
 import TeddyCompanion from "@/components/workspace/quiz/TeddyCompanion";
 import type { TabItem } from "@/components/workspace/ResourcesView";
 import Grainient from "@/components/ui/Grainient";
@@ -37,16 +36,20 @@ import { useProfile } from "@/hooks/useProfile";
 import { useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 
-type NavItem = "home" | "resources" | "chattie" | "summarization" | "flashcards" | "studyroom" | "quiz";
+type NavItem = "home" | "resources" | "chattie" | "summarization" | "flashcards" | "quiz";
 
-const navItems: { id: NavItem; icon: React.ElementType; label: string }[] = [
-  { id: "home", icon: LayoutDashboard, label: "Home" },
-  { id: "resources", icon: BookOpen, label: "Resources" },
-  { id: "chattie", icon: MessageCircle, label: "Chattie" },
-  { id: "summarization", icon: AlignLeft, label: "Summarization" },
-  { id: "flashcards", icon: WalletCards, label: "Flashcards" },
-  { id: "studyroom", icon: Brain, label: "Study Room" },
-  { id: "quiz", icon: ClipboardList, label: "Quiz" },
+type SidebarItem =
+  | { id: NavItem; icon: React.ElementType; label: string; kind: "view" }
+  | { id: "studyroom"; icon: React.ElementType; label: string; kind: "external"; href: (workspaceId: string) => string };
+
+const navItems: SidebarItem[] = [
+  { id: "home", icon: LayoutDashboard, label: "Home", kind: "view" },
+  { id: "resources", icon: BookOpen, label: "Resources", kind: "view" },
+  { id: "chattie", icon: MessageCircle, label: "Chattie", kind: "view" },
+  { id: "summarization", icon: AlignLeft, label: "Summarization", kind: "view" },
+  { id: "flashcards", icon: WalletCards, label: "Flashcards", kind: "view" },
+  { id: "studyroom", icon: Brain, label: "Study Room", kind: "external", href: (id) => `/study-rooms?from=${id}` },
+  { id: "quiz", icon: ClipboardList, label: "Quiz", kind: "view" },
 ];
 
 /** View-name → subtitle mapping for the header. */
@@ -56,22 +59,16 @@ const navSubtitles: Record<NavItem, string> = {
   chattie: "AI Chat",
   summarization: "AI Summarization",
   flashcards: "Flashcards",
-  studyroom: "Study Room",
   quiz: "Quizzes",
 };
 
 export default function WorkspacePage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
   const slug = params.slug as string;
 
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [activeNav, setActiveNav] = useState<NavItem>(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "studyroom") return "studyroom";
-    return "home";
-  });
+  const [activeNav, setActiveNav] = useState<NavItem>("home");
   const [activeTab, setActiveTab] = useState<TabItem>("all");
   const [cachedAura, setCachedAura] = useState<string | null>(null);
 
@@ -410,12 +407,28 @@ export default function WorkspacePage() {
             Navigation
           </div>
           <nav className="flex flex-col gap-1">
-            {navItems.map(({ id, icon: Icon, label }) => {
-              const isActive = activeNav === id;
+            {navItems.map((item) => {
+              const Icon = item.icon;
+
+              if (item.kind === "external") {
+                if (!workspace) return null;
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href(workspace.id)}
+                    className="relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-text-muted hover:bg-white/4 hover:text-text-primary"
+                  >
+                    <Icon className="w-3.75 h-3.75 opacity-60" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              }
+
+              const isActive = activeNav === item.id;
               return (
                 <button
-                  key={id}
-                  onClick={() => handleNavChange(id)}
+                  key={item.id}
+                  onClick={() => handleNavChange(item.id)}
                   className={`relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-blue-accent/10 text-text-secondary"
@@ -434,7 +447,7 @@ export default function WorkspacePage() {
                       isActive ? "opacity-100" : "opacity-60"
                     }`}
                   />
-                  <span>{label}</span>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
@@ -468,6 +481,7 @@ export default function WorkspacePage() {
               {activeNav === "home" && workspace && (
                 <WorkspaceHome
                   workspaceName={workspace.name}
+                  workspaceId={workspace.id}
                   onNavigate={(nav) => setActiveNav(nav as NavItem)}
                 />
               )}
@@ -486,9 +500,6 @@ export default function WorkspacePage() {
                 <FlashcardsView
                   workspaceId={workspace.id}
                 />
-              )}
-              {activeNav === "studyroom" && workspace && (
-                <StudyRoomView workspaceId={workspace.id} />
               )}
               {activeNav === "quiz" && workspace && (
                 <>

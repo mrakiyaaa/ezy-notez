@@ -18,6 +18,14 @@ export const getWorkspaceBySlugApi = async (slug: string): Promise<Workspace> =>
 };
 
 /**
+ * Get a single workspace by id
+ */
+export const getWorkspaceByIdApi = async (id: string): Promise<Workspace> => {
+  const response = await apiClient.get(`/workspaces/by-id/${id}`);
+  return response.data.data;
+};
+
+/**
  * Create a new workspace
  */
 export const createWorkspaceApi = async (

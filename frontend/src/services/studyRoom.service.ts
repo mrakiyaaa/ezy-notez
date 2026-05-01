@@ -197,6 +197,20 @@ export async function getLobbyParticipants(
 }
 
 /**
+ * Fetch a single study room by id (used by route pages to hydrate
+ * lobby / session / results entrypoints).
+ */
+export async function getStudyRoomById(roomId: string): Promise<StudyRoom> {
+  try {
+    const response = await apiClient.get(`/study-rooms/${roomId}`);
+    const data = response.data.data as { room: StudyRoom };
+    return data.room;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Failed to fetch study room"));
+  }
+}
+
+/**
  * Fetch the current active question for a live quiz.
  */
 export async function getCurrentQuestion(

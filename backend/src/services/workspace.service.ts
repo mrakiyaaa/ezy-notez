@@ -191,3 +191,24 @@ export const getWorkspaceBySlug = async (
 
   return data as WorkspaceResponse;
 };
+
+/**
+ * Get a single workspace by id for a user
+ */
+export const getWorkspaceById = async (
+  userId: string,
+  workspaceId: string
+): Promise<WorkspaceResponse> => {
+  const { data, error } = await supabaseAdmin
+    .from("workspaces")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", workspaceId)
+    .single();
+
+  if (error) {
+    throw new Error(`Workspace not found: ${error.message}`);
+  }
+
+  return data as WorkspaceResponse;
+};

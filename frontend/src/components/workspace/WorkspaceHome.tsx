@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Sparkles,
   FileText,
@@ -11,38 +12,95 @@ import { Button } from "@/components/ui/button";
 
 interface WorkspaceHomeProps {
   workspaceName: string;
+  workspaceId: string;
   onNavigate: (nav: string) => void;
 }
 
-const aiTools = [
+type AiTool =
+  | {
+      icon: React.ElementType;
+      title: string;
+      description: string;
+      kind: "view";
+      nav: string;
+    }
+  | {
+      icon: React.ElementType;
+      title: string;
+      description: string;
+      kind: "external";
+      href: (workspaceId: string) => string;
+    };
+
+const aiTools: AiTool[] = [
   {
     icon: FileText,
     title: "Summarization",
     description: "Generate concise summaries from your uploaded resources",
+    kind: "view",
     nav: "summarization",
   },
   {
     icon: Layers,
     title: "Flashcards",
     description: "Create AI-powered flashcards for quick revision",
+    kind: "view",
     nav: "flashcards",
   },
   {
     icon: BrainCircuit,
     title: "Quiz Generator",
     description: "Test your knowledge with AI-generated quizzes",
+    kind: "view",
     nav: "quiz",
   },
   {
     icon: Users,
     title: "Study Room",
     description: "Collaborate with peers in real-time quiz sessions",
-    nav: "studyroom",
+    kind: "external",
+    href: (workspaceId) => `/study-rooms?from=${workspaceId}`,
   },
 ];
 
+function ToolCardInner({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      className="relative bg-[rgba(255,255,255,0.04)] backdrop-blur-md rounded-xl p-5 overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-300 h-full flex flex-col justify-between hover:border-white/20 hover:bg-white/3"
+    >
+      <div className="relative z-10">
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 border-white/[0.08]"
+          style={{ backgroundColor: "rgba(80, 125, 188, 0.08)" }}
+        >
+          <Icon className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
+        </div>
+        <h3 className="text-text-primary font-semibold tracking-wide text-base mb-1">
+          {title}
+        </h3>
+        <p className="text-text-muted text-sm leading-relaxed">
+          {description}
+        </p>
+      </div>
+
+      <div className="flex justify-end mt-4 relative z-10">
+        <ArrowRight className="text-text-muted w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+      </div>
+    </div>
+  );
+}
+
 export default function WorkspaceHome({
   workspaceName,
+  workspaceId,
   onNavigate,
 }: WorkspaceHomeProps) {
   return (
@@ -85,36 +143,36 @@ export default function WorkspaceHome({
 
       {/* AI Feature Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {aiTools.map((tool) => (
-          <button
-            key={tool.nav}
-            onClick={() => onNavigate(tool.nav)}
-            className="group text-left"
-          >
-            <div
-              className="relative bg-[rgba(255,255,255,0.04)] backdrop-blur-md rounded-xl p-5 overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-300 h-full flex flex-col justify-between hover:border-white/20 hover:bg-white/3"
+        {aiTools.map((tool) => {
+          if (tool.kind === "external") {
+            return (
+              <Link
+                key={tool.title}
+                href={tool.href(workspaceId)}
+                className="group text-left"
+              >
+                <ToolCardInner
+                  icon={tool.icon}
+                  title={tool.title}
+                  description={tool.description}
+                />
+              </Link>
+            );
+          }
+          return (
+            <button
+              key={tool.nav}
+              onClick={() => onNavigate(tool.nav)}
+              className="group text-left"
             >
-              <div className="relative z-10">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 border-white/[0.08]"
-                  style={{ backgroundColor: "rgba(80, 125, 188, 0.08)" }}
-                >
-                  <tool.icon className="w-5 h-5" style={{ color: "var(--color-blue-accent)" }} />
-                </div>
-                <h3 className="text-text-primary font-semibold tracking-wide text-base mb-1">
-                  {tool.title}
-                </h3>
-                <p className="text-text-muted text-sm leading-relaxed">
-                  {tool.description}
-                </p>
-              </div>
-
-              <div className="flex justify-end mt-4 relative z-10">
-                <ArrowRight className="text-text-muted w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
-              </div>
-            </div>
-          </button>
-        ))}
+              <ToolCardInner
+                icon={tool.icon}
+                title={tool.title}
+                description={tool.description}
+              />
+            </button>
+          );
+        })}
       </div>
 
       {/* Quick Tip Banner */}

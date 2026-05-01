@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useReducer, useRef } from "react";
+import { useState, useEffect, useReducer, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Users, ChevronRight, AlertTriangle } from "lucide-react";
 import type { StudyRoom, Participant, StudyRoomQuestion } from "@/types/studyRoom";
 import {
@@ -11,13 +12,13 @@ import {
 } from "@/services/studyRoom.service";
 import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import PointsCounter from "./study-room/PointsCounter";
-import ParticipantAvatar from "./study-room/ParticipantAvatar";
-import DisconnectModal from "./study-room/DisconnectModal";
+import PointsCounter from "./PointsCounter";
+import ParticipantAvatar from "./ParticipantAvatar";
+import DisconnectModal from "./DisconnectModal";
 
 interface StudyRoomQuizProps {
   room: StudyRoom;
-  onRoomEnded: () => void;
+  fromWorkspaceId?: string;
 }
 
 interface QuizState {
@@ -85,7 +86,6 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
 const CORRECT_ANSWER_INDEX: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
 
 function normaliseQuestion(q: StudyRoomQuestion): StudyRoomQuestion {
-  // Backend may send options as {A,B,C,D} object — normalise to string[]
   if (q.options && !Array.isArray(q.options)) {
     const obj = q.options as Record<string, string>;
     return {
@@ -100,7 +100,14 @@ function normaliseQuestion(q: StudyRoomQuestion): StudyRoomQuestion {
   return q;
 }
 
-export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps) {
+export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizProps) {
+  const router = useRouter();
+  const fromQuery = fromWorkspaceId ? `?from=${fromWorkspaceId}` : "";
+
+  const goToResults = useCallback(() => {
+    router.push(`/study-rooms/${room.id}/results${fromQuery}`);
+  }, [router, room.id, fromQuery]);
+
   const [state, dispatch] = useReducer(quizReducer, {
     currentQuestion: null,
     selectedAnswer: null,
@@ -121,14 +128,12 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
 
   const isHost = !!currentUserId && room.host_id === currentUserId;
 
-  // Resolve current user ID once on mount
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
     });
   }, []);
 
-  // Initial load — prefer sessionStorage first question from lobby handoff
   useEffect(() => {
     const stored = sessionStorage.getItem(`ezn_room_first_question_${room.id}`);
     if (stored) {
@@ -155,7 +160,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
       .finally(() => setIsLoading(false));
   }, [room.id]);
 
-  // Supabase Realtime
   useEffect(() => {
     const channel = supabase.channel(`study-room:${room.id}`);
     channelRef.current = channel;
@@ -163,7 +167,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
     channel
       .on("broadcast", { event: "answer:confirmed" }, (payload) => {
         try {
-          console.log("[Quiz] answer:confirmed", payload);
           const data = payload.payload as {
             userId?: string;
             allConfirmed?: boolean;
@@ -185,7 +188,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
       })
       .on("broadcast", { event: "question:next" }, (payload) => {
         try {
-          console.log("[Quiz] question:next", payload);
           const data = payload.payload as {
             question?: StudyRoomQuestion;
             previousAnswer?: { correct_answer: string | number; explanation: string };
@@ -202,7 +204,7 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
             type: "REVEAL_ANSWER",
             correctAnswer: correctIndex,
             explanation: prevAnswer?.explanation ?? "",
-            pointsEarned: 0, // points already tracked server-side; local reveal is display-only
+            pointsEarned: 0,
           });
 
           if (data?.question) {
@@ -223,7 +225,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
       })
       .on("broadcast", { event: "participant:disconnected" }, (payload) => {
         try {
-          console.log("[Quiz] participant:disconnected", payload);
           const name =
             (payload.payload as { name?: string })?.name ?? "A participant";
           if (isHost) {
@@ -233,10 +234,9 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
           console.error("[Quiz] participant:disconnected handler error:", err);
         }
       })
-      .on("broadcast", { event: "room:ended" }, (payload) => {
+      .on("broadcast", { event: "room:ended" }, () => {
         try {
-          console.log("[Quiz] room:ended", payload);
-          onRoomEnded();
+          goToResults();
         } catch (err) {
           console.error("[Quiz] room:ended handler error:", err);
         }
@@ -251,7 +251,7 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [room.id, isHost, onRoomEnded]);
+  }, [room.id, isHost, goToResults]);
 
   const handleSelectAnswer = (index: number) => {
     dispatch({ type: "SELECT_ANSWER", index });
@@ -262,12 +262,11 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
     dispatch({ type: "CONFIRM_ANSWER" });
 
     try {
-      const result = await submitAnswer(
+      await submitAnswer(
         room.id,
         state.currentQuestion.id,
         state.selectedAnswer
       );
-      console.log("[Quiz] Answer submitted:", result);
     } catch (err) {
       console.error("[Quiz] Failed to submit answer:", err);
     }
@@ -278,7 +277,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
 
     try {
       await nextQuestionService(room.id, state.currentQuestion.id);
-      // The question:next (or room:ended) broadcast drives the UI transition
     } catch (err) {
       console.error("[Quiz] Failed to advance question:", err);
     }
@@ -303,7 +301,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
 
   return (
     <div className="flex flex-col h-full">
-      {/* Top Bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-fade-border">
         <h3 className="text-text-secondary text-sm font-medium truncate max-w-[200px]">
           {room.title}
@@ -315,7 +312,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
         </div>
       </div>
 
-      {/* Channel error banner */}
       {channelError && (
         <div className="flex items-center gap-2 px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-300 text-sm">
           <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -323,9 +319,7 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
         </div>
       )}
 
-      {/* Main Quiz Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 overflow-y-auto">
-        {/* Question Card */}
         <div className="w-full max-w-2xl rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-8"
           style={{ boxShadow: "0 4px 24px rgba(0, 0, 0, 0.2)" }}
         >
@@ -342,7 +336,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
           </p>
         </div>
 
-        {/* Options */}
         <div className="w-full max-w-2xl space-y-3 mb-8">
           {q.options.map((option, i) => {
             const isSelected = state.selectedAnswer === i;
@@ -410,9 +403,9 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
                   style={{ backgroundColor: labelBg, color: labelColor }}
                 >
                   {state.answerRevealed && isCorrectOption
-                    ? "\u2713"
+                    ? "✓"
                     : state.answerRevealed && isWrongOption
-                    ? "\u2717"
+                    ? "✗"
                     : optionLabels[i]}
                 </span>
                 <span
@@ -426,7 +419,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
           })}
         </div>
 
-        {/* Explanation (shown after reveal) */}
         {state.answerRevealed && state.explanation && (
           <div className="w-full max-w-2xl rounded-xl border border-blue-accent/20 bg-blue-accent/5 p-4 mb-6 sr-fade-in">
             <p className="text-text-secondary text-sm leading-relaxed">
@@ -436,7 +428,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
           </div>
         )}
 
-        {/* Confirm / Waiting Button */}
         <div className="w-full max-w-2xl">
           {!state.answerRevealed && (
             <button
@@ -459,10 +450,8 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
         </div>
       </div>
 
-      {/* Bottom Strip — Participant Status + Host Controls */}
       <div className="border-t border-fade-border px-6 py-3">
         <div className="flex items-center justify-between">
-          {/* Participant Confirmations */}
           <div className="flex items-center gap-2">
             {participants.map((p) => (
               <ParticipantAvatar
@@ -475,7 +464,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
             ))}
           </div>
 
-          {/* Host: Next Question */}
           {isHost && !state.answerRevealed && (
             <button
               onClick={handleNextQuestion}
@@ -489,7 +477,6 @@ export default function StudyRoomQuiz({ room, onRoomEnded }: StudyRoomQuizProps)
         </div>
       </div>
 
-      {/* Disconnect Modal (host only) */}
       {disconnectedUser && isHost && (
         <DisconnectModal
           participantName={disconnectedUser}

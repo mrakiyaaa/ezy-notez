@@ -3,6 +3,7 @@ import {
   createWorkspace,
   getUserWorkspaces,
   getWorkspaceBySlug,
+  getWorkspaceById,
   deleteWorkspace,
   type CreateWorkspaceInput,
 } from "../services/workspace.service";
@@ -142,6 +143,50 @@ export const getWorkspaceBySlugHandler = async (
     const message =
       error instanceof Error ? error.message : "Workspace not found";
     console.error("[getWorkspaceBySlugHandler]", error);
+
+    res.status(404).json({
+      status: "error",
+      message,
+    });
+  }
+};
+
+/**
+ * GET /workspaces/by-id/:id
+ * Get a single workspace by id
+ */
+export const getWorkspaceByIdHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ status: "error", message: "Unauthorized" });
+      return;
+    }
+
+    if (!id) {
+      res.status(400).json({
+        status: "error",
+        message: "Workspace id is required",
+      });
+      return;
+    }
+
+    const workspace = await getWorkspaceById(userId, id);
+
+    res.status(200).json({
+      status: "success",
+      message: "Workspace fetched successfully",
+      data: workspace,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Workspace not found";
+    console.error("[getWorkspaceByIdHandler]", error);
 
     res.status(404).json({
       status: "error",

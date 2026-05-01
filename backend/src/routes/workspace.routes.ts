@@ -4,6 +4,7 @@ import {
   createWorkspaceHandler,
   getWorkspacesHandler,
   getWorkspaceBySlugHandler,
+  getWorkspaceByIdHandler,
   deleteWorkspaceHandler,
 } from "../controllers/workspace.controller";
 
@@ -17,6 +18,9 @@ router.get("/", getWorkspacesHandler);
 
 // Create new workspace
 router.post("/", createWorkspaceHandler);
+
+// Get workspace by id (must be declared before /:slug to avoid shadowing)
+router.get("/by-id/:id", getWorkspaceByIdHandler);
 
 // Get workspace by slug
 router.get("/:slug", getWorkspaceBySlugHandler);

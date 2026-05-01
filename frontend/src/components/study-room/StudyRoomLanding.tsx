@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, KeyRound, X, Users, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -21,7 +22,7 @@ import {
   deleteStudyRoom,
 } from "@/services/studyRoom.service";
 import { apiClient } from "@/api/axios-config";
-import CreateRoomModal from "./study-room/CreateRoomModal";
+import CreateRoomModal from "./CreateRoomModal";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -95,15 +96,19 @@ function SkeletonInvitePanel() {
 
 interface StudyRoomLandingProps {
   workspaceId: string;
-  onJoinRoom?: (roomId: string) => void;
-  onGoToLobby?: (room: StudyRoom) => void;
 }
 
-export default function StudyRoomLanding({
-  workspaceId,
-  onJoinRoom,
-  onGoToLobby,
-}: StudyRoomLandingProps) {
+export default function StudyRoomLanding({ workspaceId }: StudyRoomLandingProps) {
+  const router = useRouter();
+
+  const fromQuery = `?from=${workspaceId}`;
+  const goToLobby = useCallback(
+    (roomId: string) => {
+      router.push(`/study-rooms/${roomId}/lobby${fromQuery}`);
+    },
+    [router, fromQuery],
+  );
+
   const [recentRooms, setRecentRooms] = useState<RecentRoom[]>([]);
   const [hostedRooms, setHostedRooms] = useState<HostedRoom[]>([]);
   const [stats, setStats] = useState<StudyRoomStats>({ hostedCount: 0, playedCount: 0, totalPoints: 0 });
@@ -153,13 +158,9 @@ export default function StudyRoomLanding({
     }
   }, []);
 
-  const handleJoin = (roomId: string) => {
-    onJoinRoom?.(roomId);
-  };
-
   const handleRoomCreated = (room: StudyRoom) => {
     setShowCreateModal(false);
-    onGoToLobby?.(room);
+    goToLobby(room.id);
   };
 
   const handleJoinByCode = async () => {
@@ -180,7 +181,7 @@ export default function StudyRoomLanding({
       const data = response.data.data as { room: StudyRoom };
       setShowJoinDialog(false);
       setOtpInput("");
-      onGoToLobby?.(data.room);
+      goToLobby(data.room.id);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to join room";
       setJoinError(msg);
@@ -193,7 +194,7 @@ export default function StudyRoomLanding({
     try {
       await acceptInvite(invite.token);
       setPendingInvites((prev) => prev.filter((p) => p.inviteId !== invite.inviteId));
-      handleJoin(invite.roomId);
+      goToLobby(invite.roomId);
     } catch (err) {
       console.error("[StudyRoomLanding] accept invite failed:", err);
     }
@@ -228,20 +229,14 @@ export default function StudyRoomLanding({
     }
   };
 
-  // Filter pending invites to this workspace
   const filteredInvites = pendingInvites.filter((p) => p.workspaceId === workspaceId);
-
-  // ─── render ─────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* ── Two-column grid ─────────────────────────────────────────── */}
       <div className="grid gap-8" style={{ gridTemplateColumns: "1fr 300px" }}>
-        {/* ── LEFT / MAIN COLUMN ─────────────────────────────────────── */}
         <div className="flex flex-col gap-8 min-w-0">
-          {/* Header row */}
           <div className="flex items-start justify-between gap-4">
-            <PageHeader 
+            <PageHeader
               icon={<Users size={22} color="#507DBC" strokeWidth={1.8} fill="none" />}
               title="Study Room"
               description="Collaborate with friends in real-time quiz battles"
@@ -279,26 +274,20 @@ export default function StudyRoomLanding({
                     key={room.id}
                     className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 transition-all duration-200 hover:border-blue-accent/30"
                   >
-                    {/* Title + badge */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <h4 className="text-text-primary text-sm font-medium truncate flex-1">
                         {room.title}
                       </h4>
                       <StatusBadge status={room.status} />
                     </div>
-
-                    {/* Meta */}
                     <p className="text-text-muted text-[11px] mb-3">
                       {timeAgo(room.date)} · {room.total_questions} questions
                     </p>
-
-                    {/* Footer */}
                     <div className="flex items-center justify-between border-t border-fade-border pt-3">
                       <div className="flex items-center gap-1.5 text-text-muted">
                         <Users className="w-3 h-3" />
                         <span className="text-[11px]">{room.participant_count}</span>
                       </div>
-                      {/* Score bar */}
                       {room.score !== undefined && room.total_questions > 0 && (
                         <div className="flex items-center gap-2">
                           <div className="w-16 h-1.5 rounded-full bg-white/5 overflow-hidden">
@@ -340,20 +329,15 @@ export default function StudyRoomLanding({
                     key={room.id}
                     className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4 transition-all duration-200 hover:border-blue-accent/30"
                   >
-                    {/* Title + badge */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <h4 className="text-text-primary text-sm font-medium truncate flex-1">
                         {room.title}
                       </h4>
                       <StatusBadge status={room.status} />
                     </div>
-
-                    {/* Meta */}
                     <p className="text-text-muted text-[11px] mb-3">
                       {timeAgo(room.date)} · Hosted
                     </p>
-
-                    {/* Footer */}
                     <div className="flex items-center justify-between border-t border-fade-border pt-3">
                       <div className="flex items-center gap-1.5 text-text-muted">
                         <Users className="w-3 h-3" />
@@ -362,14 +346,14 @@ export default function StudyRoomLanding({
                       <div className="flex items-center gap-1.5">
                         {room.status === "waiting" ? (
                           <button
-                            onClick={() => handleJoin(room.id)}
+                            onClick={() => goToLobby(room.id)}
                             className="px-3 py-1 rounded-md border border-blue-accent/40 text-blue-accent text-[11px] font-medium hover:bg-blue-accent/10 transition-colors"
                           >
                             Go to Lobby
                           </button>
                         ) : room.status === "in_progress" ? (
                           <button
-                            onClick={() => handleJoin(room.id)}
+                            onClick={() => goToLobby(room.id)}
                             className="px-3 py-1 rounded-md border border-blue-accent/40 text-blue-accent text-[11px] font-medium hover:bg-blue-accent/10 transition-colors"
                           >
                             Rejoin
@@ -400,31 +384,23 @@ export default function StudyRoomLanding({
           </section>
         </div>
 
-        {/* ── RIGHT SIDEBAR ──────────────────────────────────────────── */}
+        {/* Right sidebar */}
         <div className="flex flex-col gap-3">
-          {/* Stats bar */}
           {isLoading ? (
             <SkeletonStatBar />
           ) : (
             <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] px-4 py-3">
               <div className="flex items-center">
-                {/* Hosted */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[15px] font-medium text-text-primary">{stats.hostedCount}</span>
                   <span className="text-[11px] text-text-muted">Hosted</span>
                 </div>
-
                 <div className="mx-3 h-5 border-r border-fade-border" style={{ width: "0.5px" }} />
-
-                {/* Played */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[15px] font-medium text-text-primary">{stats.playedCount}</span>
                   <span className="text-[11px] text-text-muted">Played</span>
                 </div>
-
                 <div className="mx-3 h-5 border-r border-fade-border" style={{ width: "0.5px" }} />
-
-                {/* Points */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[15px] font-medium text-text-primary">{stats.totalPoints}</span>
                   <span className="text-[11px] text-text-muted">Points</span>
@@ -433,12 +409,10 @@ export default function StudyRoomLanding({
             </div>
           )}
 
-          {/* Invitations panel */}
           {isLoading ? (
             <SkeletonInvitePanel />
           ) : (
             <div className="rounded-lg bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] p-4">
-              {/* Header */}
               <div className="flex items-center gap-2 mb-4">
                 <h3 className="text-text-primary text-sm font-semibold">Invitations</h3>
                 {filteredInvites.length > 0 && (
@@ -455,7 +429,6 @@ export default function StudyRoomLanding({
                       key={invite.inviteId}
                       className="rounded-md border-white/[0.08] p-3"
                     >
-                      {/* Top: avatar + info */}
                       <div className="flex items-start gap-2.5 mb-3">
                         <div className="w-8 h-8 rounded-full bg-blue-accent/20 border border-blue-accent/30 flex items-center justify-center shrink-0">
                           <span className="text-[10px] font-semibold text-blue-accent">
@@ -479,7 +452,6 @@ export default function StudyRoomLanding({
                         </div>
                       </div>
 
-                      {/* Bottom: buttons */}
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleAcceptInvite(invite)}
@@ -507,9 +479,7 @@ export default function StudyRoomLanding({
         </div>
       </div>
 
-      {/* ── Modals ─────────────────────────────────────────────────── */}
-
-      {/* Create Room Modal */}
+      {/* Modals */}
       <CreateRoomModal
         isOpen={showCreateModal}
         workspaceId={workspaceId}
@@ -517,7 +487,6 @@ export default function StudyRoomLanding({
         onCreated={handleRoomCreated}
       />
 
-      {/* Delete Confirmation Dialog */}
       {roomToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl p-6">
@@ -569,7 +538,6 @@ export default function StudyRoomLanding({
         </div>
       )}
 
-      {/* Join by Code Dialog */}
       {showJoinDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)] shadow-2xl p-6">

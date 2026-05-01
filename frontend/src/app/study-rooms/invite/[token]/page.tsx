@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getInviteByToken, acceptInvite } from "@/services/studyRoom.service";
-import { getWorkspacesApi } from "@/api/workspace.api";
 import { supabase } from "@/lib/supabase/client";
 import type { StudyRoom } from "@/types/studyRoom";
 
@@ -19,16 +18,13 @@ export default function InviteAcceptPage() {
   const [inviteEmail, setInviteEmail] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Check auth and fetch invite details
   useEffect(() => {
     if (!token) return;
 
     const init = async () => {
-      // Verify user is logged in
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // Redirect to login, then come back here
-        router.push(`/auth/login?redirect=/study-room/invite/${token}`);
+        router.push(`/auth/login?redirect=/study-rooms/invite/${token}`);
         return;
       }
 
@@ -57,16 +53,7 @@ export default function InviteAcceptPage() {
 
     try {
       await acceptInvite(token);
-
-      // Find the workspace slug to navigate to
-      const workspaces = await getWorkspacesApi();
-      const ws = workspaces.find((w) => w.id === room.workspace_id);
-
-      if (ws) {
-        router.push(`/workspaces/${ws.slug}?tab=studyroom`);
-      } else {
-        router.push("/workspaces");
-      }
+      router.push(`/study-rooms/${room.id}/lobby`);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to accept invite");
       setState("error");
@@ -75,7 +62,7 @@ export default function InviteAcceptPage() {
 
   if (state === "loading") {
     return (
-      <div className="min-h-screen bg-bg-base flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-blue-accent border-t-transparent rounded-full animate-spin" />
           <p className="text-text-muted text-sm">Loading invitation...</p>
@@ -86,7 +73,7 @@ export default function InviteAcceptPage() {
 
   if (state === "already_used") {
     return (
-      <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="w-14 h-14 rounded-full bg-yellow-500/15 flex items-center justify-center mx-auto mb-4">
             <svg className="w-7 h-7 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +95,7 @@ export default function InviteAcceptPage() {
 
   if (state === "error") {
     return (
-      <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mx-auto mb-4">
             <svg className="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,24 +115,20 @@ export default function InviteAcceptPage() {
     );
   }
 
-  // ready or accepting
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
+    <div className="min-h-[60vh] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="rounded-xl bg-bg-card border border-fade-border shadow-2xl overflow-hidden">
-          {/* Header */}
           <div className="bg-gradient-to-r from-blue-accent to-blue-600 px-8 py-7 text-center">
             <p className="text-blue-200 text-xs font-semibold tracking-widest uppercase mb-2">EzyNotez</p>
             <h1 className="text-white text-2xl font-bold">Study Room Invite</h1>
           </div>
 
-          {/* Body */}
           <div className="px-8 py-7">
             <p className="text-text-secondary text-sm mb-5">
               You&apos;ve been invited to join a collaborative study session.
             </p>
 
-            {/* Room card */}
             <div className="rounded-lg bg-white/[0.03] border border-fade-border px-5 py-4 mb-6">
               <p className="text-text-muted text-xs font-semibold uppercase tracking-wider mb-1">Room</p>
               <p className="text-text-primary text-lg font-bold">{room?.title}</p>
