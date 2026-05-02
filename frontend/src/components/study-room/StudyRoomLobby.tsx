@@ -4,7 +4,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check, Crown, AlertTriangle, Play, Users, UserPlus, Plus, Trash2, X, Mail } from "lucide-react";
 import type { Participant, StudyRoom } from "@/types/studyRoom";
-import { getLobbyParticipants, startRoom, sendLobbyInvites } from "@/services/studyRoom.service";
+import {
+  getLobbyParticipants,
+  startRoom,
+  sendLobbyInvites,
+  getStudyRoomById,
+} from "@/services/studyRoom.service";
 import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import ParticipantAvatar from "./ParticipantAvatar";
@@ -154,6 +159,16 @@ export default function StudyRoomLobby({
             .then(setParticipants)
             .catch((err) =>
               console.error("[Lobby] resync after SUBSCRIBED failed:", err),
+            );
+          // Resync room status — if the host already started the room while
+          // this client was disconnected/subscribing, the quiz:started
+          // broadcast was missed. Navigate to /session in that case.
+          getStudyRoomById(room.id)
+            .then((r) => {
+              if (r.status === "in_progress") goToSession();
+            })
+            .catch((err) =>
+              console.error("[Lobby] room status resync failed:", err),
             );
         }
       });

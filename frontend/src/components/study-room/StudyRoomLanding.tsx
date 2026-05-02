@@ -22,7 +22,7 @@ import {
   deleteStudyRoom,
 } from "@/services/studyRoom.service";
 import { apiClient } from "@/api/axios-config";
-import { supabase } from "@/lib/supabase/client";
+import { supabase, ensureRealtimeAuth } from "@/lib/supabase/client";
 import CreateRoomModal from "./CreateRoomModal";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -171,6 +171,9 @@ export default function StudyRoomLanding({ workspaceId }: StudyRoomLandingProps)
       const email = data.user?.email;
       if (!email || !mounted) return;
 
+      await ensureRealtimeAuth();
+      if (!mounted) return;
+
       channel = supabase
         .channel(`landing-invites:${email}`)
         .on(
@@ -220,6 +223,7 @@ export default function StudyRoomLanding({ workspaceId }: StudyRoomLandingProps)
   // workspace transitions status (waiting -> in_progress -> completed).
   useEffect(() => {
     let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const refetchRoomsAndStats = async () => {
       try {
@@ -237,33 +241,40 @@ export default function StudyRoomLanding({ workspaceId }: StudyRoomLandingProps)
       }
     };
 
-    const channel = supabase
-      .channel(`landing-rooms:${workspaceId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "study_rooms",
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        () => {
-          void refetchRoomsAndStats();
-        },
-      )
-      .subscribe((status) => {
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          console.warn(`[StudyRoomLanding] rooms channel status: ${status}`);
-        }
-      });
+    const setup = async () => {
+      await ensureRealtimeAuth();
+      if (!mounted) return;
+
+      channel = supabase
+        .channel(`landing-rooms:${workspaceId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "study_rooms",
+            filter: `workspace_id=eq.${workspaceId}`,
+          },
+          () => {
+            void refetchRoomsAndStats();
+          },
+        )
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            console.warn(`[StudyRoomLanding] rooms channel status: ${status}`);
+          }
+        });
+    };
+
+    void setup();
 
     return () => {
       mounted = false;
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [workspaceId]);
 
