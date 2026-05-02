@@ -15,6 +15,7 @@ import {
   dismissInvite,
 } from "@/services/studyRoom.service";
 import { getHubAnalytics } from "@/services/analytics.service";
+import { supabase } from "@/lib/supabase/client";
 import type { Activity } from "@/types/activity";
 import type { PendingInvite } from "@/types/studyRoom";
 import type { Workspace } from "@/types/workspace";
@@ -80,6 +81,71 @@ export default function WorkspacesPage() {
 
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  // Realtime: refetch pending invites when study_room_invites changes for this user.
+  // The schema keys invites by email (no invitee_id column), so we filter by email.
+  useEffect(() => {
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const refetchInvites = async () => {
+      try {
+        const inviteList = await getPendingInvites();
+        if (mounted) setInvites(inviteList);
+      } catch (err) {
+        console.error("[Hub] Failed to refetch pending invites:", err);
+      }
+    };
+
+    const setup = async () => {
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email;
+      if (!email || !mounted) return;
+
+      channel = supabase
+        .channel(`hub-invites:${email}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "study_room_invites",
+            filter: `email=eq.${email}`,
+          },
+          () => {
+            void refetchInvites();
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "study_room_invites",
+            filter: `email=eq.${email}`,
+          },
+          () => {
+            void refetchInvites();
+          },
+        )
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            console.warn(`[Hub] invites channel status: ${status}`);
+          }
+        });
+    };
+
+    void setup();
+
+    return () => {
+      mounted = false;
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 

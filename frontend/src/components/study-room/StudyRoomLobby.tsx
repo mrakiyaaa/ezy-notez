@@ -147,6 +147,14 @@ export default function StudyRoomLobby({
           );
         } else if (status === "SUBSCRIBED") {
           setChannelError(null);
+          // Resync participants once the channel is established to close the
+          // race window where a participant:joined broadcast may have fired
+          // before this subscription was active.
+          getLobbyParticipants(room.id)
+            .then(setParticipants)
+            .catch((err) =>
+              console.error("[Lobby] resync after SUBSCRIBED failed:", err),
+            );
         }
       });
 
