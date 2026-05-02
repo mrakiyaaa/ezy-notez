@@ -25,7 +25,20 @@
       "PowerShell(npx tsc --noEmit 2>&1)",
       "PowerShell(npx tsc --noEmit -p frontend 2>&1)",
       "PowerShell(npx eslint src/app/\\(dashboard\\)/workspaces/page.tsx src/components/study-room/StudyRoomLanding.tsx src/components/study-room/StudyRoomLobby.tsx src/components/study-room/StudyRoomQuiz.tsx 2>&1 | Out-String)",
-      "PowerShell(npx eslint 'src/app/\\(dashboard\\)/workspaces/page.tsx' 'src/components/study-room/StudyRoomLanding.tsx' 'src/components/study-room/StudyRoomLobby.tsx' 'src/components/study-room/StudyRoomQuiz.tsx' 2>&1)"
+      "PowerShell(npx eslint 'src/app/\\(dashboard\\)/workspaces/page.tsx' 'src/components/study-room/StudyRoomLanding.tsx' 'src/components/study-room/StudyRoomLobby.tsx' 'src/components/study-room/StudyRoomQuiz.tsx' 2>&1)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" log --oneline -10)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show --stat 434f51a)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show 434f51a)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show 9a2eaf9)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" log --oneline --all -- frontend/src/components/study-room/StudyRoomLobby.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show f176e36 --stat)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" log --oneline -- backend/src/controllers/studyRoom.controller.ts)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" log --oneline -- backend/src/services/studyRoomRealtime.service.ts)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show f176e36 -- frontend/src/components/study-room/StudyRoomLobby.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" log --oneline --all -- frontend/src/components/workspace/study-room/)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show 1a09016:frontend/src/components/workspace/study-room/StudyRoomLobby.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show 5ae1d68:frontend/src/components/workspace/StudyRoomLobby.tsx)",
+      "Bash(npx eslint *)"
     ]
   },
   "enableAllProjectMcpServers": true,

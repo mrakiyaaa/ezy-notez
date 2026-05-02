@@ -15,7 +15,7 @@ import {
   dismissInvite,
 } from "@/services/studyRoom.service";
 import { getHubAnalytics } from "@/services/analytics.service";
-import { supabase } from "@/lib/supabase/client";
+import { supabase, ensureRealtimeAuth } from "@/lib/supabase/client";
 import type { Activity } from "@/types/activity";
 import type { PendingInvite } from "@/types/studyRoom";
 import type { Workspace } from "@/types/workspace";
@@ -103,6 +103,9 @@ export default function WorkspacesPage() {
       const { data } = await supabase.auth.getUser();
       const email = data.user?.email;
       if (!email || !mounted) return;
+
+      await ensureRealtimeAuth();
+      if (!mounted) return;
 
       channel = supabase
         .channel(`hub-invites:${email}`)
