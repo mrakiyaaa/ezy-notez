@@ -225,10 +225,14 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
       })
       .on("broadcast", { event: "participant:disconnected" }, (payload) => {
         try {
-          const name =
-            (payload.payload as { name?: string })?.name ?? "A participant";
+          const data = payload.payload as { userId?: string; name?: string };
+          if (data?.userId) {
+            setParticipants((prev) =>
+              prev.filter((p) => p.user_id !== data.userId),
+            );
+          }
           if (isHost) {
-            setDisconnectedUser(name);
+            setDisconnectedUser(data?.name ?? "A participant");
           }
         } catch (err) {
           console.error("[Quiz] participant:disconnected handler error:", err);
@@ -242,8 +246,14 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
         }
       })
       .subscribe((status) => {
-        if (status === "CHANNEL_ERROR") {
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
           setChannelError("Lost connection to room. Please refresh the page.");
+        } else if (status === "SUBSCRIBED") {
+          setChannelError(null);
         }
       });
 

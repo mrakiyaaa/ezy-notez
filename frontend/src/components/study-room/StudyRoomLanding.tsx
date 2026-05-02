@@ -22,6 +22,7 @@ import {
   deleteStudyRoom,
 } from "@/services/studyRoom.service";
 import { apiClient } from "@/api/axios-config";
+import { supabase } from "@/lib/supabase/client";
 import CreateRoomModal from "./CreateRoomModal";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -149,6 +150,122 @@ export default function StudyRoomLanding({ workspaceId }: StudyRoomLandingProps)
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Realtime: refetch invitations panel when study_room_invites changes
+  // for this user (filter by email since the schema has no invitee_id).
+  useEffect(() => {
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const refetchInvites = async () => {
+      try {
+        const pending = await getPendingInvites();
+        if (mounted) setPendingInvites(pending);
+      } catch (err) {
+        console.error("[StudyRoomLanding] refetch invites failed:", err);
+      }
+    };
+
+    const setup = async () => {
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email;
+      if (!email || !mounted) return;
+
+      channel = supabase
+        .channel(`landing-invites:${email}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "study_room_invites",
+            filter: `email=eq.${email}`,
+          },
+          () => {
+            void refetchInvites();
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "study_room_invites",
+            filter: `email=eq.${email}`,
+          },
+          () => {
+            void refetchInvites();
+          },
+        )
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            console.warn(`[StudyRoomLanding] invites channel status: ${status}`);
+          }
+        });
+    };
+
+    void setup();
+
+    return () => {
+      mounted = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Realtime: refetch room lists + stats when any study_rooms row in this
+  // workspace transitions status (waiting -> in_progress -> completed).
+  useEffect(() => {
+    let mounted = true;
+
+    const refetchRoomsAndStats = async () => {
+      try {
+        const [recent, hosted, st] = await Promise.all([
+          getRecentRooms(workspaceId),
+          getHostedRooms(workspaceId),
+          getStudyRoomStats(workspaceId),
+        ]);
+        if (!mounted) return;
+        setRecentRooms(recent);
+        setHostedRooms(hosted);
+        setStats(st);
+      } catch (err) {
+        console.error("[StudyRoomLanding] refetch rooms/stats failed:", err);
+      }
+    };
+
+    const channel = supabase
+      .channel(`landing-rooms:${workspaceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "study_rooms",
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        () => {
+          void refetchRoomsAndStats();
+        },
+      )
+      .subscribe((status) => {
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          console.warn(`[StudyRoomLanding] rooms channel status: ${status}`);
+        }
+      });
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [workspaceId]);
 
   // ?create=true auto-open
   useEffect(() => {

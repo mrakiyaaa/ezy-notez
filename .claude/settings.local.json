@@ -20,7 +20,12 @@
       "Bash(echo \"frontend-exit=$?\")",
       "Bash(echo \"backend-exit=$?\")",
       "Bash(echo \"exit=$?\")",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(Select-Object -First 80)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "PowerShell(npx tsc --noEmit -p frontend 2>&1)",
+      "PowerShell(npx eslint src/app/\\(dashboard\\)/workspaces/page.tsx src/components/study-room/StudyRoomLanding.tsx src/components/study-room/StudyRoomLobby.tsx src/components/study-room/StudyRoomQuiz.tsx 2>&1 | Out-String)",
+      "PowerShell(npx eslint 'src/app/\\(dashboard\\)/workspaces/page.tsx' 'src/components/study-room/StudyRoomLanding.tsx' 'src/components/study-room/StudyRoomLobby.tsx' 'src/components/study-room/StudyRoomQuiz.tsx' 2>&1)"
     ]
   },
   "enableAllProjectMcpServers": true,
