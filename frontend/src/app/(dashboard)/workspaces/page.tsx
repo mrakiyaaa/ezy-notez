@@ -237,15 +237,21 @@ export default function WorkspacesPage() {
                     Your AI-powered learning space
                   </h1>
                 </div>
-                <div className="relative w-96">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <div className="relative w-96 bg-bg-card/30 backdrop-blur-xl border border-fade-border rounded-full shadow-lg">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search workspaces"
-                    className="w-full bg-[rgba(255,255,255,0.04)] backdrop-blur-md border border-[rgba(255,255,255,0.08)] rounded-lg pl-10 pr-4 py-2 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-blue-accent"
+                    className="w-full bg-transparent pl-6 pr-16 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none rounded-full"
                   />
+                  <button
+                    type="button"
+                    aria-label="Search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-blue-accent hover:bg-blue-accent/90 flex items-center justify-center transition-colors"
+                  >
+                    <Search className="w-4 h-4 text-white" />
+                  </button>
                 </div>
               </div>
               <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] backdrop-blur-md p-6 shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
