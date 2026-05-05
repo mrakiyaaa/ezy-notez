@@ -8,10 +8,6 @@
 #   SUPABASE_TEST_URL          Supabase project URL for E2E data isolation
 #   SUPABASE_TEST_ANON_KEY     Supabase anon (public) key for test project
 #   SUPABASE_TEST_SERVICE_ROLE Supabase service-role key (server-only, never exposed)
-#   EXPRESS_URL                Railway staging Express backend URL
-#                              e.g. https://ezy-notez-api.up.railway.app
-#   FASTAPI_URL                Railway staging FastAPI ML service URL
-#                              e.g. https://ezy-notez-ml.up.railway.app
 #   TEST_USER_EMAIL            Email for the seeded E2E test user
 #   TEST_USER_PASSWORD         Password for the seeded E2E test user
 #   VERCEL_PRODUCTION_URL      Production frontend URL (used on push to main and
@@ -130,40 +126,7 @@ jobs:
         run: npx playwright install-deps chromium firefox
         working-directory: frontend
 
-      # ── 7. Health-check backend services (90 s timeout each) ────────────────
-      - name: Health-check Express backend
-        env:
-          EXPRESS_URL: ${{ secrets.EXPRESS_URL }}
-        run: |
-          echo "Polling ${EXPRESS_URL}/health (90 s timeout) …"
-          deadline=$((SECONDS + 90))
-          STATUS="000"
-          while [ $SECONDS -lt $deadline ]; do
-            STATUS=$(curl -sf -o /dev/null -w '%{http_code}' "${EXPRESS_URL}/health" 2>/dev/null || echo "000")
-            [ "$STATUS" = "200" ] && { echo "Express is healthy."; exit 0; }
-            echo "  → HTTP ${STATUS} — retrying in 5 s"
-            sleep 5
-          done
-          echo "::error::Express health check timed out after 90 s (last status: ${STATUS})."
-          exit 1
-
-      - name: Health-check FastAPI ML service
-        env:
-          FASTAPI_URL: ${{ secrets.FASTAPI_URL }}
-        run: |
-          echo "Polling ${FASTAPI_URL}/health (90 s timeout) …"
-          deadline=$((SECONDS + 90))
-          STATUS="000"
-          while [ $SECONDS -lt $deadline ]; do
-            STATUS=$(curl -sf -o /dev/null -w '%{http_code}' "${FASTAPI_URL}/health" 2>/dev/null || echo "000")
-            [ "$STATUS" = "200" ] && { echo "FastAPI is healthy."; exit 0; }
-            echo "  → HTTP ${STATUS} — retrying in 5 s"
-            sleep 5
-          done
-          echo "::error::FastAPI health check timed out after 90 s (last status: ${STATUS})."
-          exit 1
-
-      # ── 8. Run Playwright tests ──────────────────────────────────────────────
+      # ── 7. Run Playwright tests ──────────────────────────────────────────────
       # @slow tests (AI generation) are excluded from PR and push-to-main checks.
       # Run workflow_dispatch with run_slow=true for the full pre-deploy gate.
       - name: Run E2E tests
@@ -175,8 +138,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
           E2E_TEST_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-          EXPRESS_URL: ${{ secrets.EXPRESS_URL }}
-          FASTAPI_URL: ${{ secrets.FASTAPI_URL }}
           CI: 'true'
         run: |
           GREP_ARG=""
@@ -186,7 +147,7 @@ jobs:
           npx playwright test --project=chromium --project=firefox $GREP_ARG
         working-directory: frontend
 
-      # ── 9. Upload report and artifacts ──────────────────────────────────────
+      # ── 8. Upload report and artifacts ──────────────────────────────────────
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -198,7 +159,7 @@ jobs:
             frontend/tests/e2e/results/junit.xml
           retention-days: 14
 
-      # ── 10. Publish JUnit test results ───────────────────────────────────────
+      # ── 9. Publish JUnit test results ────────────────────────────────────────
       - name: Publish test results
         if: always()
         uses: dorny/test-reporter@v1
@@ -209,7 +170,7 @@ jobs:
           fail-on-error: false
           fail-on-empty: false
 
-      # ── 11. Post PR summary comment ──────────────────────────────────────────
+      # ── 10. Post PR summary comment ──────────────────────────────────────────
       - name: Post PR summary comment
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
