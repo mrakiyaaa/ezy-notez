@@ -28,7 +28,7 @@ test.describe("Chattie", () => {
     expect(lockedHint || wavingAvatarVisible).toBeTruthy();
   });
 
-  test("TC-CHAT-02: Sending a question returns a response referencing workspace resources", async ({
+  test("@slow TC-CHAT-02: Sending a question returns a response referencing workspace resources", async ({
     page,
     chattiePage,
   }) => {

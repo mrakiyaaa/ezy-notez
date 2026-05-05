@@ -12,7 +12,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky",
     "lint:frontend": "cd frontend && npm run lint",
-    "build:backend": "cd backend && npm run build"
+    "build:backend": "cd backend && npm run build",
+    "test:e2e": "cd frontend && npx playwright test --project=chromium --grep-invert @slow",
+    "test:e2e:local": "cd frontend && npx playwright test --project=chromium",
+    "test:e2e:ui": "cd frontend && npx playwright test --ui",
+    "test:e2e:report": "cd frontend && npx playwright show-report tests/e2e/results/html-report"
   },
   "repository": {
     "type": "git",

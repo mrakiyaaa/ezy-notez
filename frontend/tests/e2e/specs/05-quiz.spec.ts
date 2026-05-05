@@ -28,7 +28,7 @@ test.describe("Quiz", () => {
     expect(disabled || hint).toBeTruthy();
   });
 
-  test("TC-QUIZ-02: Configuring question count and type starts quiz", async ({
+  test("@slow TC-QUIZ-02: Configuring question count and type starts quiz", async ({
     page,
     quizPage,
   }) => {
@@ -74,7 +74,7 @@ test.describe("Quiz", () => {
     await expect(page.locator("[class*='QuestionCard']").first()).toBeVisible();
   });
 
-  test("TC-QUIZ-05: Completing the quiz shows a results summary screen", async ({
+  test("@slow TC-QUIZ-05: Completing the quiz shows a results summary screen", async ({
     page,
     quizPage,
   }) => {

@@ -34,7 +34,7 @@ test.describe("Flashcards", () => {
     expect(lockedHint || disabled).toBeTruthy();
   });
 
-  test("TC-FLASH-02: Generating flashcards returns a set of cards", async ({
+  test("@slow TC-FLASH-02: Generating flashcards returns a set of cards", async ({
     page,
     flashcardsPage,
   }) => {

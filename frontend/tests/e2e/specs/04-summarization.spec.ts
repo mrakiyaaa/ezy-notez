@@ -18,7 +18,7 @@ test.describe("Summarization", () => {
     await summarizationPage.expectLockedState();
   });
 
-  test("TC-SUM-02: General summary is generated after at least one ready resource exists", async ({
+  test("@slow TC-SUM-02: General summary is generated after at least one ready resource exists", async ({
     page,
     summarizationPage,
   }) => {
@@ -42,7 +42,7 @@ test.describe("Summarization", () => {
     await summarizationPage.waitForResults(60_000);
   });
 
-  test("TC-SUM-03: Customize mode generates summary for a selected individual resource", async ({
+  test("@slow TC-SUM-03: Customize mode generates summary for a selected individual resource", async ({
     page,
     summarizationPage,
   }) => {

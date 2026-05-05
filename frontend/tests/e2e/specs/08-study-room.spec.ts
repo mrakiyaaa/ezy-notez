@@ -32,7 +32,7 @@ test.describe("Study Room", () => {
     expect(err ?? "").toMatch(/title|required/i);
   });
 
-  test("TC-SR-03: Host creates a room and receives an OTP", async ({
+  test("@slow TC-SR-03: Host creates a room and receives an OTP", async ({
     page,
     studyRoomPage,
   }) => {
@@ -55,7 +55,7 @@ test.describe("Study Room", () => {
     expect(otp).toMatch(/^\d{6}$/);
   });
 
-  test("TC-SR-04: Second browser context joins the room using the OTP", async ({
+  test("@slow TC-SR-04: Second browser context joins the room using the OTP", async ({
     page,
     studyRoomPage,
     browser,
