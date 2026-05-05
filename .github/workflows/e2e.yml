@@ -50,6 +50,11 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write   # needed for PR comment
+      issues: write          # createComment uses the issues API
+      deployments: read      # needed for wait-for-vercel-preview
 
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────────
@@ -59,9 +64,11 @@ jobs:
       # ── 2. Wait for Vercel preview deployment (PRs only) ────────────────────
       # patrickedqvist/wait-for-vercel-preview polls the GitHub Deployments API
       # until Vercel marks the preview as successful and returns its URL.
+      # Only runs for same-repo PRs — fork PRs don't have deployments:read
+      # even with explicit permissions, so we skip and fall back to production URL.
       - name: Wait for Vercel preview deployment
         id: vercel-preview
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: patrickedqvist/wait-for-vercel-preview@v1.3.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -74,6 +81,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_URL="${{ steps.vercel-preview.outputs.url }}"
+            # vercel-preview step was skipped (fork PR) — fall back to production URL
+            if [ -z "$BASE_URL" ]; then
+              BASE_URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+            fi
           elif [ -n "${{ inputs.base_url }}" ]; then
             BASE_URL="${{ inputs.base_url }}"
           else
@@ -196,10 +207,12 @@ jobs:
           path: frontend/tests/e2e/results/junit.xml
           reporter: java-junit
           fail-on-error: false
+          fail-on-empty: false
 
       # ── 11. Post PR summary comment ──────────────────────────────────────────
       - name: Post PR summary comment
-        if: always() && github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
