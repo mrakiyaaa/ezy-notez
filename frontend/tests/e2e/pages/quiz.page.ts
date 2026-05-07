@@ -100,4 +100,44 @@ export class QuizPage {
     if (await err.count() === 0) return null;
     return (await err.textContent())?.trim() ?? null;
   }
+
+  // TODO: confirm button label for scenario-based quiz type in the config form
+  async setQuizMode(mode: "scenario" | "mixed"): Promise<void> {
+    const labels: Record<typeof mode, RegExp> = {
+      scenario: /scenario/i,
+      mixed: /mixed/i,
+    };
+    await this.page
+      .getByRole("button", { name: labels[mode] })
+      .first()
+      .click();
+  }
+
+  // TODO: confirm class/attribute applied to the correct answer option after submission
+  async expectAnswerMarkedCorrect(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[class*="correct"], [data-correct="true"], [class*="green"]')
+        .first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+
+  // TODO: confirm class/attribute applied to the wrong answer option after submission
+  async expectAnswerMarkedIncorrect(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[class*="incorrect"], [class*="wrong"], [data-correct="false"], [class*="red"]')
+        .first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+
+  async getScore(): Promise<number> {
+    const el = this.page
+      .locator("text=/score|\\d+\\s*\\/\\s*\\d+/i")
+      .first();
+    if (await el.count() === 0) return 0;
+    const text = (await el.textContent()) ?? "";
+    const match = text.match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
 }

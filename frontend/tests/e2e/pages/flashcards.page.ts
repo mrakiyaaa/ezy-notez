@@ -95,4 +95,35 @@ export class FlashcardsPage {
     if (await progress.count() === 0) return null;
     return (await progress.textContent())?.trim() ?? null;
   }
+
+  // TODO: confirm selector for the back-side content of a flipped card
+  async expectCardBackVisible(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[class*="back"], [data-side="back"], [class*="Back"]')
+        .first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+
+  // TODO: confirm selector for revision/review-later queue counter
+  async getRevisionQueueCount(): Promise<number> {
+    const queue = this.page.locator(
+      '[class*="revision"], [class*="review-queue"], text=/review later/i'
+    );
+    return queue.count();
+  }
+
+  async getProgressBreakdown(): Promise<{ known: number; review: number; unknown: number }> {
+    // TODO: confirm actual progress breakdown representation in the UI
+    const known = await this.page
+      .locator('[class*="known"], [data-status="known"]')
+      .count();
+    const review = await this.page
+      .locator('[class*="review"], [data-status="review"]')
+      .count();
+    const total = await this.page
+      .locator('[class*="FlashcardFlipCard"]')
+      .count();
+    return { known, review, unknown: Math.max(0, total - known - review) };
+  }
 }

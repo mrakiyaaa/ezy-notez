@@ -70,4 +70,26 @@ export class ChattiePage {
   async messageCount(): Promise<number> {
     return this.page.locator("[class*='Message'], article, .prose").count();
   }
+
+  // TODO: confirm exact text Chattie shows when no relevant context is found
+  async expectNoRelevantInfo(): Promise<void> {
+    await expect(
+      this.page
+        .getByText(/no relevant|couldn't find|not enough context|no information found/i)
+        .first()
+    ).toBeVisible({ timeout: 30_000 });
+  }
+
+  /** Returns true if the assistant reply appeared within `ms` milliseconds. */
+  async waitForResponseWithin(ms: number): Promise<boolean> {
+    const start = Date.now();
+    try {
+      await expect(
+        this.page.locator(".prose, article, [class*='markdown']").nth(1)
+      ).toBeVisible({ timeout: ms });
+      return Date.now() - start <= ms;
+    } catch {
+      return false;
+    }
+  }
 }

@@ -54,4 +54,33 @@ export class SummarizationPage {
     const innerHtml = await container.innerHTML();
     expect(innerHtml).toMatch(/<(h[1-6]|ul|ol|li|p|strong|em|code)\b/i);
   }
+
+  // TODO: confirm button labels for each format once the summary format selector is inspected
+  async chooseSummaryFormat(format: "bullet" | "short" | "detailed"): Promise<void> {
+    const labels: Record<typeof format, RegExp> = {
+      bullet: /bullet( points?)?/i,
+      short: /short|brief/i,
+      detailed: /detailed|comprehensive/i,
+    };
+    await this.page
+      .getByRole("button", { name: labels[format] })
+      .first()
+      .click();
+  }
+
+  async selectMultipleResources(count = 2): Promise<void> {
+    const checkboxes = this.page.locator('input[type="checkbox"], [role="checkbox"]');
+    const total = await checkboxes.count();
+    const toSelect = Math.min(count, total);
+    for (let i = 0; i < toSelect; i++) {
+      await checkboxes.nth(i).click();
+    }
+  }
+
+  async hasSources(): Promise<boolean> {
+    const sources = this.page.locator(
+      "text=/sources?\\s*:|references?\\s*:|cited from/i"
+    );
+    return (await sources.count()) > 0;
+  }
 }

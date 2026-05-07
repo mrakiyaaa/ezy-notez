@@ -108,4 +108,27 @@ export class WorkspacePage {
     if (await header.count() === 0) return null;
     return (await header.textContent())?.trim() ?? null;
   }
+
+  async openProfileMenu(): Promise<void> {
+    // TODO: confirm selector once profile avatar/button is inspected in the hub
+    const profileBtn = this.page
+      .locator('[class*="avatar"], [aria-label*="profile" i], [data-testid="profile-button"]')
+      .first();
+    if (await profileBtn.count()) {
+      await profileBtn.click();
+      return;
+    }
+    await this.page
+      .getByRole("button", { name: /profile|account/i })
+      .first()
+      .click();
+  }
+
+  async expectProfileMenuOpen(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[role="menu"], [class*="dropdown"], [class*="Drawer"]')
+        .first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
 }
