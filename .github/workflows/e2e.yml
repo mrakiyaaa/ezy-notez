@@ -51,6 +51,7 @@ jobs:
       pull-requests: write   # needed for PR comment
       issues: write          # createComment uses the issues API
       deployments: read      # needed for wait-for-vercel-preview
+      checks: write          # needed for dorny/test-reporter
 
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────────
@@ -123,7 +124,30 @@ jobs:
           echo "base_url=${BASE_URL}" >> "$GITHUB_OUTPUT"
           echo "Resolved BASE_URL: ${BASE_URL}"
 
-      # ── 4. Setup Node 20 ─────────────────────────────────────────────────────
+      # ── 4. Validate required secrets ────────────────────────────────────────
+      # Fail fast with a clear message rather than letting global-setup throw
+      # deep inside Playwright after all dependencies have been installed.
+      - name: Validate required secrets
+        run: |
+          missing=""
+          [ -z "$SUPABASE_URL" ]              && missing="$missing SUPABASE_TEST_URL"
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing="$missing SUPABASE_TEST_SERVICE_ROLE"
+          [ -z "$SUPABASE_ANON_KEY" ]         && missing="$missing SUPABASE_TEST_ANON_KEY"
+          [ -z "$E2E_TEST_EMAIL" ]            && missing="$missing TEST_USER_EMAIL"
+          [ -z "$E2E_TEST_PASSWORD" ]         && missing="$missing TEST_USER_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required GitHub Actions secrets:$missing"
+            echo "::error::Go to Settings → Secrets and variables → Actions and add the missing secrets."
+            exit 1
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+          E2E_TEST_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      # ── 5. Setup Node 20 ─────────────────────────────────────────────────────
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
