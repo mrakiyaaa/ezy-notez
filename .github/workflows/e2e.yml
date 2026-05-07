@@ -58,18 +58,47 @@ jobs:
         uses: actions/checkout@v4
 
       # ── 2. Wait for Vercel preview deployment (PRs only) ────────────────────
-      # patrickedqvist/wait-for-vercel-preview polls the GitHub Deployments API
-      # until Vercel marks the preview as successful and returns its URL.
-      # Only runs for same-repo PRs — fork PRs don't have deployments:read
-      # even with explicit permissions, so we skip and fall back to production URL.
+      # Uses the GitHub Deployments API to wait for Vercel to mark the preview
+      # as successful and extract its environment_url — no HTTP polling of the
+      # preview URL, so Vercel Deployment Protection (401) is never an obstacle.
+      # Only runs for same-repo PRs — fork PRs lack deployments:read.
       - name: Wait for Vercel preview deployment
         id: vercel-preview
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: patrickedqvist/wait-for-vercel-preview@v1.3.2
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          max_timeout: 300
-          check_interval: 10
+          script: |
+            const sha     = context.payload.pull_request.head.sha;
+            const owner   = context.repo.owner;
+            const repo    = context.repo.repo;
+            const maxWait = 300_000;   // 5 min
+            const poll    =  10_000;   // 10 s
+            const started = Date.now();
+
+            core.info(`Waiting for Vercel preview deployment for SHA ${sha}`);
+
+            while (Date.now() - started < maxWait) {
+              const { data: deployments } = await github.rest.repos.listDeployments({
+                owner, repo, sha, per_page: 20,
+              });
+
+              for (const d of deployments) {
+                const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                  owner, repo, deployment_id: d.id, per_page: 5,
+                });
+                const latest = statuses[0];
+                if (latest?.state === 'success' && latest?.environment_url) {
+                  core.info(`Preview ready: ${latest.environment_url}`);
+                  core.setOutput('url', latest.environment_url);
+                  return;
+                }
+              }
+
+              core.info('Not ready yet — retrying in 10 s…');
+              await new Promise(r => setTimeout(r, poll));
+            }
+
+            core.setFailed('Timed out waiting for Vercel preview deployment (300 s).');
 
       # ── 3. Resolve BASE_URL ──────────────────────────────────────────────────
       - name: Resolve BASE_URL
