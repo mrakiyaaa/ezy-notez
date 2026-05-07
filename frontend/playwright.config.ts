@@ -41,6 +41,13 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    // Bypass Vercel Deployment Protection on preview URLs so Playwright
+    // reaches the actual app instead of the SSO wall.
+    // Set VERCEL_AUTOMATION_BYPASS_SECRET in GitHub Actions secrets and in
+    // the Vercel project: Settings → Deployment Protection → Protection Bypass.
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? { extraHTTPHeaders: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET } }
+      : {}),
   },
   projects: [
     {

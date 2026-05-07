@@ -140,6 +140,9 @@ jobs:
             echo "::error::Go to Settings → Secrets and variables → Actions and add the missing secrets."
             exit 1
           fi
+          if [ -z "$VERCEL_BYPASS" ] && [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "::warning::VERCEL_AUTOMATION_BYPASS_SECRET is not set. If Vercel Deployment Protection is enabled on preview URLs, the auth setup will hit Vercel's SSO wall and time out. Enable 'Protection Bypass for Automation' in your Vercel project settings and add the generated secret as VERCEL_AUTOMATION_BYPASS_SECRET."
+          fi
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE }}
@@ -191,6 +194,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
           E2E_TEST_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           CI: 'true'
         run: |
           GREP_ARG=""
