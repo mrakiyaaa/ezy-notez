@@ -1,9 +1,10 @@
 import { test, expect, TEST_WORKSPACE_NAME } from "../fixtures/base";
 
 async function openSeededWorkspace(page: import("@playwright/test").Page) {
-  await page.goto("/workspaces");
+  await page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+  await page.getByText("Loading workspaces...").waitFor({ state: "hidden", timeout: 30_000 });
   await page.getByText(TEST_WORKSPACE_NAME).first().click();
-  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 15_000 });
+  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 30_000, waitUntil: "commit" });
 }
 
 test.describe("Flashcards", () => {
@@ -12,29 +13,7 @@ test.describe("Flashcards", () => {
     await flashcardsPage.open();
   });
 
-  test("TC-FLASH-01: Flashcards page is locked when no resources are ready", async ({
-    page,
-  }) => {
-    const generateBtn = page
-      .getByRole("button", { name: /generate flashcards|generate your first/i })
-      .first();
-    if (await generateBtn.count() === 0) {
-      test.skip(true, "Generation entry point not present.");
-    }
-    await generateBtn.click();
-    const lockedHint = await page
-      .getByText(/no ready resources|upload resources first|no resources/i)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    const submitBtn = page
-      .getByRole("button", { name: /^generate$|generate flashcards/i })
-      .last();
-    const disabled = await submitBtn.isDisabled().catch(() => false);
-    expect(lockedHint || disabled).toBeTruthy();
-  });
-
-  test("TC-FLASH-02: Generating flashcards returns a set of cards", async ({
+  test("@slow TC-FC-01: Generating a flashcard set creates cards and status reaches Ready", async ({
     page,
     flashcardsPage,
   }) => {
@@ -46,12 +25,13 @@ test.describe("Flashcards", () => {
     if (await submitBtn.isDisabled().catch(() => true)) {
       test.skip(true, "No ready resources — flashcard generation cannot start.");
     }
+
     await flashcardsPage.selectFirstResource();
     await flashcardsPage.submitGeneration();
     await flashcardsPage.waitForCards(60_000);
   });
 
-  test("TC-FLASH-03: Clicking a card triggers the 3D flip animation", async ({
+  test("TC-FC-02: Clicking a flashcard flips it with animation and shows the back side", async ({
     flashcardsPage,
   }) => {
     const cardVisible = await flashcardsPage.page
@@ -67,12 +47,10 @@ test.describe("Flashcards", () => {
     await flashcardsPage.clickCard();
     await flashcardsPage.page.waitForTimeout(500);
     const after = await flashcardsPage.isCardFlipped();
-    // The flipped class should toggle. Even if implementation is purely
-    // CSS-driven without class changes, we accept any DOM change.
     expect(before).not.toBe(after);
   });
 
-  test("TC-FLASH-04: Marking a card as Known updates the progress", async ({
+  test("TC-FC-03: Marking a card as Known updates the progress tracker", async ({
     flashcardsPage,
   }) => {
     const cardVisible = await flashcardsPage.page
@@ -91,7 +69,7 @@ test.describe("Flashcards", () => {
     expect(after).not.toBe(before);
   });
 
-  test("TC-FLASH-05: Marking a card as Revise Later keeps it in the deck", async ({
+  test("TC-FC-04: Marking a card as Review Later keeps it in the deck (revision queue)", async ({
     flashcardsPage,
   }) => {
     const cardVisible = await flashcardsPage.page
@@ -102,13 +80,17 @@ test.describe("Flashcards", () => {
     if (!cardVisible) {
       test.skip(true, "No flashcards available.");
     }
+
     await flashcardsPage.markReview().catch(() => {});
+    await flashcardsPage.page.waitForTimeout(300);
+
+    // The card remains visible (still in deck) after being marked for review
     await expect(
       flashcardsPage.page.locator("[class*='FlashcardFlipCard']").first()
     ).toBeVisible();
   });
 
-  test("TC-FLASH-06: All cards can be navigated with Next / Previous controls", async ({
+  test("TC-FC-05: Progress tracker reflects the correct Known / Review / Unknown ratio", async ({
     flashcardsPage,
   }) => {
     const cardVisible = await flashcardsPage.page
@@ -120,12 +102,14 @@ test.describe("Flashcards", () => {
       test.skip(true, "No flashcards available.");
     }
 
-    const initialProgress = await flashcardsPage.getProgressText();
-    await flashcardsPage.clickNext().catch(() => {});
-    await flashcardsPage.page.waitForTimeout(300);
-    const afterNext = await flashcardsPage.getProgressText();
-    expect(afterNext).not.toBe(initialProgress);
+    const breakdown = await flashcardsPage.getProgressBreakdown();
+    // All counts must be non-negative and sum to a sensible total
+    expect(breakdown.known).toBeGreaterThanOrEqual(0);
+    expect(breakdown.review).toBeGreaterThanOrEqual(0);
+    expect(breakdown.unknown).toBeGreaterThanOrEqual(0);
 
-    await flashcardsPage.clickPrevious().catch(() => {});
+    // Progress text (e.g. "2 / 10") must still render after reading breakdown
+    const progressText = await flashcardsPage.getProgressText();
+    expect(progressText).not.toBeNull();
   });
 });

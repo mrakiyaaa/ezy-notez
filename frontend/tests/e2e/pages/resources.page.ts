@@ -99,4 +99,19 @@ export class ResourcesPage {
       this.page.getByText(/your resources are empty|no .* files/i)
     ).toBeVisible();
   }
+
+  async searchByFilename(query: string): Promise<void> {
+    const input = this.page.getByPlaceholder(/search/i).first();
+    if (await input.count()) {
+      await input.fill(query);
+    }
+  }
+
+  async expectAIFeaturesLocked(): Promise<void> {
+    await expect(
+      this.page
+        .getByText(/upload.*resource|no resources|add resources|no resources with extracted/i)
+        .first()
+    ).toBeVisible({ timeout: 10_000 });
+  }
 }

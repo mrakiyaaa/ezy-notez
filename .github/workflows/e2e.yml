@@ -1,0 +1,262 @@
+# .github/workflows/e2e.yml
+#
+# Playwright E2E test pipeline for EZY Notez.
+# Runs against the Vercel preview URL on PRs, and against the production URL
+# on push to main or manually via workflow_dispatch (pre-deploy gate).
+#
+# ── Required GitHub Actions secrets ──────────────────────────────────────────
+#   SUPABASE_TEST_URL          Supabase project URL for E2E data isolation
+#   SUPABASE_TEST_ANON_KEY     Supabase anon (public) key for test project
+#   SUPABASE_TEST_SERVICE_ROLE Supabase service-role key (server-only, never exposed)
+#   TEST_USER_EMAIL            Email for the seeded E2E test user
+#   TEST_USER_PASSWORD         Password for the seeded E2E test user
+#   VERCEL_PRODUCTION_URL      Production frontend URL (used on push to main and
+#                              manual runs when base_url input is blank)
+#                              e.g. https://ezy-notez.vercel.app
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+  push:
+    branches: [main]
+
+  # Manual pre-deploy gate — run with run_slow=true to include AI-generation tests.
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Frontend URL to test against (leave blank → VERCEL_PRODUCTION_URL secret)'
+        required: false
+        default: ''
+      run_slow:
+        description: 'Include @slow AI-generation tests (full pre-deploy check)'
+        type: boolean
+        default: false
+
+# Cancel in-flight runs on the same ref/event so a new push supersedes old ones.
+concurrency:
+  group: e2e-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write   # needed for PR comment
+      issues: write          # createComment uses the issues API
+      deployments: read      # needed for wait-for-vercel-preview
+      checks: write          # needed for dorny/test-reporter
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Wait for Vercel preview deployment (PRs only) ────────────────────
+      # Uses the GitHub Deployments API to wait for Vercel to mark the preview
+      # as successful and extract its environment_url — no HTTP polling of the
+      # preview URL, so Vercel Deployment Protection (401) is never an obstacle.
+      # Only runs for same-repo PRs — fork PRs lack deployments:read.
+      - name: Wait for Vercel preview deployment
+        id: vercel-preview
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha     = context.payload.pull_request.head.sha;
+            const owner   = context.repo.owner;
+            const repo    = context.repo.repo;
+            const maxWait = 300_000;   // 5 min
+            const poll    =  10_000;   // 10 s
+            const started = Date.now();
+
+            core.info(`Waiting for Vercel preview deployment for SHA ${sha}`);
+
+            while (Date.now() - started < maxWait) {
+              const { data: deployments } = await github.rest.repos.listDeployments({
+                owner, repo, sha, per_page: 20,
+              });
+
+              for (const d of deployments) {
+                const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                  owner, repo, deployment_id: d.id, per_page: 5,
+                });
+                const latest = statuses[0];
+                if (latest?.state === 'success' && latest?.environment_url) {
+                  core.info(`Preview ready: ${latest.environment_url}`);
+                  core.setOutput('url', latest.environment_url);
+                  return;
+                }
+              }
+
+              core.info('Not ready yet — retrying in 10 s…');
+              await new Promise(r => setTimeout(r, poll));
+            }
+
+            core.setFailed('Timed out waiting for Vercel preview deployment (300 s).');
+
+      # ── 3. Resolve BASE_URL ──────────────────────────────────────────────────
+      - name: Resolve BASE_URL
+        id: resolve-url
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_URL="${{ steps.vercel-preview.outputs.url }}"
+            # vercel-preview step was skipped (fork PR) — fall back to production URL
+            if [ -z "$BASE_URL" ]; then
+              BASE_URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+            fi
+          elif [ -n "${{ inputs.base_url }}" ]; then
+            BASE_URL="${{ inputs.base_url }}"
+          else
+            BASE_URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+          fi
+          if [ -z "$BASE_URL" ]; then
+            echo "::error::BASE_URL resolved to empty string."
+            echo "::error::Set the VERCEL_PRODUCTION_URL secret or provide the base_url input."
+            exit 1
+          fi
+          echo "base_url=${BASE_URL}" >> "$GITHUB_OUTPUT"
+          echo "Resolved BASE_URL: ${BASE_URL}"
+
+      # ── 4. Validate required secrets ────────────────────────────────────────
+      # Fail fast with a clear message rather than letting global-setup throw
+      # deep inside Playwright after all dependencies have been installed.
+      - name: Validate required secrets
+        run: |
+          missing=""
+          [ -z "$SUPABASE_URL" ]              && missing="$missing SUPABASE_TEST_URL"
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing="$missing SUPABASE_TEST_SERVICE_ROLE"
+          [ -z "$SUPABASE_ANON_KEY" ]         && missing="$missing SUPABASE_TEST_ANON_KEY"
+          [ -z "$E2E_TEST_EMAIL" ]            && missing="$missing TEST_USER_EMAIL"
+          [ -z "$E2E_TEST_PASSWORD" ]         && missing="$missing TEST_USER_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required GitHub Actions secrets:$missing"
+            echo "::error::Go to Settings → Secrets and variables → Actions and add the missing secrets."
+            exit 1
+          fi
+          if [ -z "$VERCEL_BYPASS" ] && [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "::warning::VERCEL_AUTOMATION_BYPASS_SECRET is not set. If Vercel Deployment Protection is enabled on preview URLs, the auth setup will hit Vercel's SSO wall and time out. Enable 'Protection Bypass for Automation' in your Vercel project settings and add the generated secret as VERCEL_AUTOMATION_BYPASS_SECRET."
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+          E2E_TEST_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      # ── 5. Setup Node 20 ─────────────────────────────────────────────────────
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── 5. Install frontend dependencies ─────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      # ── 6. Cache Playwright browser binaries ─────────────────────────────────
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium firefox
+        working-directory: frontend
+
+      - name: Install Playwright system dependencies (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium firefox
+        working-directory: frontend
+
+      # ── 7. Run Playwright tests ──────────────────────────────────────────────
+      # @slow tests (AI generation) are excluded from PR and push-to-main checks.
+      # Run workflow_dispatch with run_slow=true for the full pre-deploy gate.
+      - name: Run E2E tests
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.resolve-url.outputs.base_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+          E2E_TEST_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          CI: 'true'
+        run: |
+          GREP_ARG=""
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] || [ "${{ inputs.run_slow }}" != "true" ]; then
+            GREP_ARG="--grep-invert @slow"
+          fi
+          npx playwright test --project=chromium --project=firefox $GREP_ARG
+        working-directory: frontend
+
+      # ── 8. Upload report and artifacts ──────────────────────────────────────
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            frontend/tests/e2e/results/html-report/
+            frontend/tests/e2e/results/artifacts/
+            frontend/tests/e2e/results/junit.xml
+          retention-days: 14
+
+      # ── 9. Publish JUnit test results ────────────────────────────────────────
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Playwright E2E — ${{ github.event_name }}
+          path: frontend/tests/e2e/results/junit.xml
+          reporter: java-junit
+          fail-on-error: false
+          fail-on-empty: false
+
+      # ── 10. Post PR summary comment ──────────────────────────────────────────
+      - name: Post PR summary comment
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const emoji = status === 'success' ? '✅' : '❌';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const previewUrl = '${{ steps.vercel-preview.outputs.url }}' || 'N/A';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const body = [
+              `## ${emoji} E2E Tests — ${status.toUpperCase()}`,
+              '',
+              `| | |`,
+              `|---|---|`,
+              `| **Branch** | \`${{ github.head_ref }}\` |`,
+              `| **Commit** | \`${sha}\` |`,
+              `| **Preview URL** | ${previewUrl} |`,
+              `| **Browsers** | chromium, firefox |`,
+              `| **Full report** | [Run #${{ github.run_number }}](${runUrl}) |`,
+              '',
+              '> ⚡ `@slow` AI-generation tests are excluded from required PR checks.',
+              '> Run the **E2E Tests** workflow manually with **run_slow: true** for the full pre-deploy gate.',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

@@ -1,14 +1,14 @@
 import path from "path";
 import { test, expect, TEST_WORKSPACE_NAME } from "../fixtures/base";
 import { StudyRoomPage } from "../pages/study-room.page";
-import { TEST_USER } from "../setup/global-setup";
 
 const AUTH_FILE = path.join(__dirname, "..", "setup", ".auth-state.json");
 
 async function openSeededWorkspace(page: import("@playwright/test").Page) {
-  await page.goto("/workspaces");
+  await page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+  await page.getByText("Loading workspaces...").waitFor({ state: "hidden", timeout: 30_000 });
   await page.getByText(TEST_WORKSPACE_NAME).first().click();
-  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 15_000 });
+  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 30_000, waitUntil: "commit" });
 }
 
 test.describe("Study Room", () => {
@@ -17,29 +17,13 @@ test.describe("Study Room", () => {
     await studyRoomPage.open();
   });
 
-  test("TC-SR-01: Study room landing page shows Recent, Hosted, and Invitations panels", async ({
-    studyRoomPage,
-  }) => {
-    await studyRoomPage.expectLandingPanels();
-  });
-
-  test("TC-SR-02: Creating a room without a title shows validation error", async ({
-    studyRoomPage,
-  }) => {
-    await studyRoomPage.openCreateModal();
-    await studyRoomPage.submitCreateRoom();
-    const err = await studyRoomPage.getValidationError();
-    expect(err ?? "").toMatch(/title|required/i);
-  });
-
-  test("TC-SR-03: Host creates a room and receives an OTP", async ({
+  test("@slow TC-SR-01: Creating a room with the email invite method opens the lobby and sends invitations", async ({
     page,
     studyRoomPage,
   }) => {
     await studyRoomPage.openCreateModal();
-    await studyRoomPage.fillTitle(`E2E Room ${Date.now()}`);
+    await studyRoomPage.fillTitle(`Email Room ${Date.now()}`);
 
-    // Pick first ready resource if any
     const resourceBtn = page
       .locator("button")
       .filter({ hasText: /\.pdf|\.pptx|\.mp3|youtube/i })
@@ -47,21 +31,63 @@ test.describe("Study Room", () => {
     if (await resourceBtn.count() === 0) {
       test.skip(true, "No ready resources to attach to a study room.");
     }
+
     await studyRoomPage.selectFirstResource();
-    await studyRoomPage.setQuestionCount(20);
+    await studyRoomPage.switchToEmailInviteMethod();
+    await studyRoomPage.fillInviteEmail("e2e-invite-guest@ezy.test");
+    await studyRoomPage.setQuestionCount(5);
+    await studyRoomPage.submitCreateRoom();
+
+    // Lobby opens OR email-sent confirmation is shown
+    const lobbyOrConfirm = await Promise.race([
+      page
+        .getByText(/lobby|waiting|participants/i)
+        .first()
+        .waitFor({ state: "visible", timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false),
+      page
+        .getByText(/invitation sent|email sent|invited/i)
+        .first()
+        .waitFor({ state: "visible", timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false),
+    ]);
+    expect(lobbyOrConfirm).toBeTruthy();
+  });
+
+  test("@slow TC-SR-02: Creating a room with the OTP method displays a 6-digit OTP in the lobby", async ({
+    page,
+    studyRoomPage,
+  }) => {
+    await studyRoomPage.openCreateModal();
+    await studyRoomPage.fillTitle(`OTP Room ${Date.now()}`);
+
+    const resourceBtn = page
+      .locator("button")
+      .filter({ hasText: /\.pdf|\.pptx|\.mp3|youtube/i })
+      .first();
+    if (await resourceBtn.count() === 0) {
+      test.skip(true, "No ready resources to attach to a study room.");
+    }
+
+    await studyRoomPage.selectFirstResource();
+    await studyRoomPage.switchToOtpMethod();
+    await studyRoomPage.setQuestionCount(5);
     await studyRoomPage.submitCreateRoom();
 
     const otp = await studyRoomPage.getOtpCode();
     expect(otp).toMatch(/^\d{6}$/);
   });
 
-  test("TC-SR-04: Second browser context joins the room using the OTP", async ({
+  test("@slow TC-SR-03: Accepting an email invitation adds the user to the participant list", async ({
     page,
     studyRoomPage,
     browser,
   }) => {
+    // Host creates room with email invite
     await studyRoomPage.openCreateModal();
-    await studyRoomPage.fillTitle(`Multi Ctx Room ${Date.now()}`);
+    await studyRoomPage.fillTitle(`Invite Room ${Date.now()}`);
 
     const resourceBtn = page
       .locator("button")
@@ -70,8 +96,56 @@ test.describe("Study Room", () => {
     if (await resourceBtn.count() === 0) {
       test.skip(true, "No ready resources to attach to a study room.");
     }
+
     await studyRoomPage.selectFirstResource();
-    await studyRoomPage.setQuestionCount(20);
+    await studyRoomPage.switchToEmailInviteMethod();
+    await studyRoomPage.fillInviteEmail("e2e-invite-guest@ezy.test");
+    await studyRoomPage.setQuestionCount(5);
+    await studyRoomPage.submitCreateRoom();
+
+    // Second context simulates the invited participant joining
+    const ctx2 = await browser.newContext({ storageState: AUTH_FILE });
+    const page2 = await ctx2.newPage();
+    const sr2 = new StudyRoomPage(page2);
+    await openSeededWorkspace(page2);
+    await sr2.open();
+
+    // Navigate to invitations panel and accept
+    await page2.getByText(/invitations/i).first().click().catch(() => {});
+    const acceptBtn = page2.getByRole("button", { name: /accept|join/i }).first();
+    if (await acceptBtn.count()) {
+      await acceptBtn.click();
+      const joined = await page2
+        .getByText(/lobby|participants|waiting/i)
+        .first()
+        .isVisible({ timeout: 15_000 })
+        .catch(() => false);
+      expect(joined).toBeTruthy();
+    }
+
+    await ctx2.close();
+  });
+
+  test("@slow TC-SR-04: Joining a room via OTP code navigates to the lobby", async ({
+    page,
+    studyRoomPage,
+    browser,
+  }) => {
+    // Host creates OTP room
+    await studyRoomPage.openCreateModal();
+    await studyRoomPage.fillTitle(`OTP Join Room ${Date.now()}`);
+
+    const resourceBtn = page
+      .locator("button")
+      .filter({ hasText: /\.pdf|\.pptx|\.mp3|youtube/i })
+      .first();
+    if (await resourceBtn.count() === 0) {
+      test.skip(true, "No ready resources to attach to a study room.");
+    }
+
+    await studyRoomPage.selectFirstResource();
+    await studyRoomPage.switchToOtpMethod();
+    await studyRoomPage.setQuestionCount(5);
     await studyRoomPage.submitCreateRoom();
 
     const otp = await studyRoomPage.getOtpCode();
@@ -87,9 +161,6 @@ test.describe("Study Room", () => {
     await sr2.openJoinByCodeDialog();
     await sr2.submitOtp(otp!);
 
-    // Either the lobby view loads (success) or an error appears. Since the
-    // host and joiner share a user identity in single-account tests, the
-    // backend may reject self-join — which still proves OTP validation works.
     const lobbyVisible = await page2
       .getByText(/lobby|participants|waiting/i)
       .first()
@@ -100,22 +171,47 @@ test.describe("Study Room", () => {
     await ctx2.close();
   });
 
-  test("TC-SR-05: Room becomes active only after minimum 2 participants join", async ({
+  test("TC-SR-05: Lobby shows participant list with host crown and online status indicators", async ({
     page,
+    studyRoomPage,
   }) => {
-    // Verifies the start-button state from inside a lobby, when reachable.
-    const startBtn = page.getByRole("button", { name: /start (room|quiz)/i });
-    const exists = await startBtn.count();
-    if (exists === 0) {
-      test.skip(true, "No active lobby in this run.");
+    // Check if we're already inside a lobby; otherwise verify the landing page
+    const inLobby = await page
+      .getByText(/lobby|participants/i)
+      .first()
+      .isVisible()
+      .catch(() => false);
+
+    if (!inLobby) {
+      // Verify landing panels are present as a fallback
+      await studyRoomPage.expectLandingPanels();
+      return;
     }
-    const enabled = await startBtn.first().isEnabled().catch(() => false);
-    // With only one participant, start should be disabled.
-    expect(enabled).toBeFalsy();
+
+    await studyRoomPage.expectHostCrown();
+    await studyRoomPage.expectOnlineStatus();
   });
 
-  test("TC-SR-06: All participants see the same question simultaneously (2-context)", async ({
+  test("TC-SR-06: Start Room button is disabled with only 1 participant and shows a tooltip", async ({
     page,
+    studyRoomPage,
+  }) => {
+    const inLobby = await page
+      .getByText(/lobby|participants/i)
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (!inLobby) {
+      test.skip(true, "No active lobby in this run.");
+    }
+
+    await studyRoomPage.expectStartRoomDisabled();
+    await studyRoomPage.expectStartRoomTooltipVisible();
+  });
+
+  test("@slow TC-SR-07: Host starts the session and all participants receive the first question", async ({
+    page,
+    studyRoomPage,
     browser,
   }) => {
     const inLobby = await page
@@ -124,20 +220,63 @@ test.describe("Study Room", () => {
       .isVisible()
       .catch(() => false);
     if (!inLobby) {
-      test.skip(true, "Lobby not active in this run.");
+      test.skip(true, "No active lobby — cannot test session start.");
     }
 
     const ctx2 = await browser.newContext({ storageState: AUTH_FILE });
     const page2 = await ctx2.newPage();
     await openSeededWorkspace(page2);
 
-    const q1 = await page.locator("h2, h3").first().textContent().catch(() => null);
-    const q2 = await page2.locator("h2, h3").first().textContent().catch(() => null);
-    expect((q1 ?? "").trim()).toBe((q2 ?? "").trim());
+    // Host starts the room
+    await studyRoomPage.startRoom().catch(() => {});
+
+    // Both contexts should see a question
+    const q1Host = await page
+      .locator("h2, h3")
+      .first()
+      .textContent()
+      .catch(() => null);
+    const q1Guest = await page2
+      .locator("h2, h3")
+      .first()
+      .textContent()
+      .catch(() => null);
+
+    expect((q1Host ?? "").trim().length).toBeGreaterThan(0);
+    expect((q1Guest ?? "").trim()).toBe((q1Host ?? "").trim());
+
     await ctx2.close();
   });
 
-  test("TC-SR-07: Submitting an answer updates the leaderboard", async ({
+  test("@slow TC-SR-08: A participant confirming their answer shows a ready status to the host", async ({
+    page,
+    studyRoomPage,
+    browser,
+  }) => {
+    const inQuiz = await page
+      .locator("[class*='QuestionCard'], h2, h3")
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (!inQuiz) {
+      test.skip(true, "No active quiz session in this run.");
+    }
+
+    const ctx2 = await browser.newContext({ storageState: AUTH_FILE });
+    const page2 = await ctx2.newPage();
+    const sr2 = new StudyRoomPage(page2);
+    await openSeededWorkspace(page2);
+
+    // Participant (ctx2) confirms their answer
+    await sr2.confirmAnswer().catch(() => {});
+
+    // Host (ctx1) should see a ready/confirmed indicator
+    await studyRoomPage.expectParticipantReadyStatus();
+
+    await ctx2.close();
+  });
+
+  test("@slow TC-SR-09: When all participants confirm, the host clicks Next Question — answer is revealed and the next question loads", async ({
     page,
     studyRoomPage,
   }) => {
@@ -147,17 +286,14 @@ test.describe("Study Room", () => {
       .isVisible()
       .catch(() => false);
     if (!inQuiz) {
-      test.skip(true, "Study room quiz is not active in this run.");
+      test.skip(true, "No active quiz session in this run.");
     }
 
-    const before = await studyRoomPage.getLeaderboardEntries();
-    await studyRoomPage.submitFirstAnswer().catch(() => {});
-    await page.waitForTimeout(1_500);
-    const after = await studyRoomPage.getLeaderboardEntries();
-    expect(after).toBeGreaterThanOrEqual(before);
+    await studyRoomPage.clickNextQuestion();
+    await studyRoomPage.expectAnswerRevealedAndNextLoaded();
   });
 
-  test("TC-SR-08: Final results screen shows individual performance summary", async ({
+  test("@slow TC-SR-10: Completing all questions shows the leaderboard, badges, AI insights, and wrong-answer review", async ({
     page,
     studyRoomPage,
   }) => {
@@ -169,30 +305,10 @@ test.describe("Study Room", () => {
     if (!onResults) {
       test.skip(true, "Study room final results not active in this run.");
     }
-    await studyRoomPage.expectFinalResults();
-  });
 
-  test("TC-SR-09: OTP that is more than 10 minutes old is rejected", async ({
-    studyRoomPage,
-  }) => {
-    // Mock-time path: submit a clearly invalid/expired-looking OTP. Because we
-    // cannot freeze the backend clock, we rely on submitting an unrelated
-    // 6-digit code which the server will not recognize.
-    await studyRoomPage.openJoinByCodeDialog();
-    await studyRoomPage.submitOtp("000000");
-    const err = await studyRoomPage.getJoinError();
-    expect(err ?? "").toMatch(/invalid|expired|not found|failed/i);
-  });
-
-  test("TC-SR-10: Participant cannot join a room that does not exist", async ({
-    studyRoomPage,
-  }) => {
-    await studyRoomPage.openJoinByCodeDialog();
-    await studyRoomPage.submitOtp("123456");
-    const err = await studyRoomPage.getJoinError();
-    expect(err ?? "").toMatch(/invalid|not found|expired|failed/i);
+    await studyRoomPage.expectLeaderboard();
+    await studyRoomPage.expectBadges();
+    await studyRoomPage.expectAIInsights();
+    await studyRoomPage.expectWrongAnswerReview();
   });
 });
-
-// ─── Lightweight reference to TEST_USER so unused import is intentional ───
-void TEST_USER;

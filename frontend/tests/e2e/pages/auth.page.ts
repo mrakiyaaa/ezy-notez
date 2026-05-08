@@ -46,7 +46,13 @@ export class AuthPage {
 
   async getErrorText(): Promise<string | null> {
     const err = this.page.locator("p.text-red-400, p.text-red-300").first();
-    if (await err.count() === 0) return null;
+    // Auth calls are async — wait up to 8 s for the error element to appear
+    // before concluding there is no error.
+    try {
+      await err.waitFor({ state: "visible", timeout: 8_000 });
+    } catch {
+      return null;
+    }
     return (await err.textContent())?.trim() ?? null;
   }
 

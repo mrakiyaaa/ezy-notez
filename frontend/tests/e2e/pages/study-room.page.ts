@@ -131,4 +131,134 @@ export class StudyRoomPage {
       this.page.getByText(/final|results|your score/i).first()
     ).toBeVisible({ timeout: 30_000 });
   }
+
+  // TODO: confirm selector for email invite method toggle in the create-room modal
+  async switchToEmailInviteMethod(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: /email invite|invite by email/i })
+      .first()
+      .click();
+  }
+
+  async fillInviteEmail(email: string): Promise<void> {
+    await this.page.getByPlaceholder(/email/i).last().fill(email);
+    await this.page.keyboard.press("Enter");
+  }
+
+  async expectEmailsSent(): Promise<void> {
+    // TODO: confirm success text after email invites are dispatched
+    await expect(
+      this.page.getByText(/invitation sent|email sent|invited/i).first()
+    ).toBeVisible({ timeout: 15_000 });
+  }
+
+  // TODO: confirm selector for OTP invite method toggle
+  async switchToOtpMethod(): Promise<void> {
+    const otpToggle = this.page
+      .getByRole("button", { name: /otp|join by code|code invite/i })
+      .first();
+    if (await otpToggle.count()) await otpToggle.click();
+  }
+
+  async expectParticipantInList(name: string): Promise<void> {
+    await expect(
+      this.page.getByText(name, { exact: false }).first()
+    ).toBeVisible({ timeout: 15_000 });
+  }
+
+  // TODO: confirm selector for the host-crown badge in the participant list
+  async expectHostCrown(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[class*="crown"], [class*="host-badge"], [data-role="host"]')
+        .first()
+    ).toBeVisible({ timeout: 10_000 });
+  }
+
+  // TODO: confirm selector for participant online/active indicator dot
+  async expectOnlineStatus(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[class*="online"], [class*="active-dot"], [data-status="online"]')
+        .first()
+    ).toBeVisible({ timeout: 10_000 });
+  }
+
+  async expectStartRoomDisabled(): Promise<void> {
+    const startBtn = this.page
+      .getByRole("button", { name: /start (room|quiz)/i })
+      .first();
+    await expect(startBtn).toBeDisabled();
+  }
+
+  // TODO: confirm tooltip selector — hover start button, tooltip should appear
+  async expectStartRoomTooltipVisible(): Promise<void> {
+    const startBtn = this.page
+      .getByRole("button", { name: /start (room|quiz)/i })
+      .first();
+    await startBtn.hover();
+    await expect(
+      this.page.locator('[role="tooltip"], [class*="tooltip"]').first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+
+  // TODO: confirm selector for participant "confirm/lock-in answer" button
+  async confirmAnswer(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: /confirm|lock in|submit answer/i })
+      .first()
+      .click();
+  }
+
+  // TODO: confirm selector for per-participant ready/confirmed status shown to the host
+  async expectParticipantReadyStatus(): Promise<void> {
+    await expect(
+      this.page
+        .locator('[class*="ready"], [class*="confirmed"], text=/ready|confirmed/i')
+        .first()
+    ).toBeVisible({ timeout: 15_000 });
+  }
+
+  async clickNextQuestion(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: /next question/i })
+      .first()
+      .click();
+  }
+
+  // TODO: confirm selector for the answer-reveal overlay/banner
+  async expectAnswerRevealedAndNextLoaded(): Promise<void> {
+    await expect(
+      this.page
+        .getByText(/correct answer|revealed|next question/i)
+        .first()
+    ).toBeVisible({ timeout: 15_000 });
+  }
+
+  async expectLeaderboard(): Promise<void> {
+    await expect(
+      this.page.getByText(/leaderboard/i).first()
+    ).toBeVisible({ timeout: 30_000 });
+  }
+
+  // TODO: confirm selector for achievement badges on the results screen
+  async expectBadges(): Promise<void> {
+    await expect(
+      this.page.locator('[class*="badge"], [class*="Badge"]').first()
+    ).toBeVisible({ timeout: 30_000 });
+  }
+
+  // TODO: confirm selector for AI insights section on the results screen
+  async expectAIInsights(): Promise<void> {
+    await expect(
+      this.page.getByText(/ai insights?|insights?/i).first()
+    ).toBeVisible({ timeout: 30_000 });
+  }
+
+  // TODO: confirm selector for wrong-answer review section on the results screen
+  async expectWrongAnswerReview(): Promise<void> {
+    await expect(
+      this.page.getByText(/wrong answers?|review answers?|incorrect answers?/i).first()
+    ).toBeVisible({ timeout: 30_000 });
+  }
 }
