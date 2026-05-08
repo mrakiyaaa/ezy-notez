@@ -21,9 +21,6 @@ on:
   pull_request:
     branches: [main]
 
-  push:
-    branches: [main]
-
   # Manual pre-deploy gate — run with run_slow=true to include AI-generation tests.
   workflow_dispatch:
     inputs:
@@ -38,7 +35,7 @@ on:
 
 # Cancel in-flight runs on the same ref/event so a new push supersedes old ones.
 concurrency:
-  group: e2e-${{ github.ref }}-${{ github.event_name }}
+  group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
