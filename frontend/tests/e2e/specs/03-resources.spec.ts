@@ -20,9 +20,10 @@ const PPTX_BYTES = Buffer.from("PKfake-pptx", "utf8");
 const AUDIO_BYTES = Buffer.from("ID3   fake-mp3", "utf8");
 
 async function openSeededWorkspace(page: import("@playwright/test").Page) {
-  await page.goto("/workspaces");
+  await page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+  await page.getByText("Loading workspaces...").waitFor({ state: "hidden", timeout: 30_000 });
   await page.getByText(TEST_WORKSPACE_NAME).first().click();
-  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 15_000 });
+  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 30_000, waitUntil: "commit" });
 }
 
 test.describe("Resources", () => {

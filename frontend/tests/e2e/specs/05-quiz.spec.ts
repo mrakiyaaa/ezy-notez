@@ -1,9 +1,10 @@
 import { test, expect, TEST_WORKSPACE_NAME } from "../fixtures/base";
 
 async function openSeededWorkspace(page: import("@playwright/test").Page) {
-  await page.goto("/workspaces");
+  await page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+  await page.getByText("Loading workspaces...").waitFor({ state: "hidden", timeout: 30_000 });
   await page.getByText(TEST_WORKSPACE_NAME).first().click();
-  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 15_000 });
+  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 30_000, waitUntil: "commit" });
 }
 
 test.describe("Quiz", () => {

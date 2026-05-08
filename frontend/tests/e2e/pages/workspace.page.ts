@@ -80,6 +80,24 @@ export class WorkspacePage {
     await this.page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 15_000 });
   }
 
+  // Navigates to the hub, waits for the workspace list API to resolve, then
+  // clicks the named workspace and waits for the dashboard URL to commit.
+  // Use this instead of bare page.goto in spec beforeEach hooks.
+  async gotoSeededWorkspace(workspaceName: string): Promise<void> {
+    await this.page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+    await this.page.waitForURL(/\/workspaces\/?$/, { timeout: 30_000 });
+    await this.page
+      .getByText("Loading workspaces...")
+      .waitFor({ state: "hidden", timeout: 30_000 });
+    await this.page.getByText(workspaceName).first().click();
+    // "commit" = URL changed and response started; we don't wait for "load"
+    // because the workspace dashboard keeps the network busy (WebGL + realtime).
+    await this.page.waitForURL(/\/workspaces\/[^/]+$/, {
+      timeout: 30_000,
+      waitUntil: "commit",
+    });
+  }
+
   async expectInsideWorkspace(): Promise<void> {
     await expect(this.page).toHaveURL(/\/workspaces\/[^/]+/);
   }

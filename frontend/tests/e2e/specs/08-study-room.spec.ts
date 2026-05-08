@@ -5,9 +5,10 @@ import { StudyRoomPage } from "../pages/study-room.page";
 const AUTH_FILE = path.join(__dirname, "..", "setup", ".auth-state.json");
 
 async function openSeededWorkspace(page: import("@playwright/test").Page) {
-  await page.goto("/workspaces");
+  await page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+  await page.getByText("Loading workspaces...").waitFor({ state: "hidden", timeout: 30_000 });
   await page.getByText(TEST_WORKSPACE_NAME).first().click();
-  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 15_000 });
+  await page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 30_000, waitUntil: "commit" });
 }
 
 test.describe("Study Room", () => {
