@@ -4,29 +4,40 @@ export class WorkspacePage {
   constructor(public readonly page: Page) {}
 
   async gotoHub(): Promise<void> {
-    await this.page.goto("/workspaces");
-    await this.page.waitForLoadState("networkidle");
+    await this.page.goto("/workspaces", { waitUntil: "domcontentloaded" });
+    await this.page.waitForURL(/\/workspaces\/?$/, { timeout: 30_000 });
+    // "Loading workspaces..." disappears once the API call resolves.
+    // waitFor("hidden") succeeds immediately when the element was never present
+    // (fast loads), so this is safe regardless of timing.
+    // We do NOT use networkidle — the page holds a Supabase realtime WebSocket
+    // and a WebGL canvas that keep the network perpetually open in CI.
+    await this.page
+      .getByText("Loading workspaces...")
+      .waitFor({ state: "hidden", timeout: 30_000 });
   }
 
   async openCreateModal(): Promise<void> {
-    const createBtn = this.page
-      .getByRole("button", { name: /create.*workspace|new workspace/i })
+    // CreateWorkspaceCard renders as the first grid tile with text "New workspace".
+    // waitFor("visible") before click prevents clicking mid-animation (Framer Motion
+    // stagger delays can leave the element in the DOM but not yet interactive).
+    const createCard = this.page
+      .getByRole("button", { name: /new workspace/i })
       .first();
-    if (await createBtn.count()) {
-      await createBtn.click();
+    if (await createCard.count()) {
+      await createCard.waitFor({ state: "visible", timeout: 15_000 });
+      await createCard.click();
       return;
     }
-    // Fallback: dashed/empty state card with a "+" or "Create your first workspace" text
-    const emptyCreate = this.page.getByText(/create your first workspace/i);
-    if (await emptyCreate.count()) {
-      await emptyCreate.click();
+    // Empty-state path: no workspaces yet — "Create your first workspace" button
+    const emptyBtn = this.page
+      .getByRole("button", { name: /create your first workspace/i })
+      .first();
+    if (await emptyBtn.count()) {
+      await emptyBtn.waitFor({ state: "visible", timeout: 15_000 });
+      await emptyBtn.click();
       return;
     }
-    // Final fallback: WorkspaceGrid contains a CreateWorkspaceCard rendered as a tile
-    await this.page
-      .locator('[class*="dashed"], [class*="border-dashed"]')
-      .first()
-      .click();
+    await this.page.locator('[class*="border-dashed"]').first().click();
   }
 
   async fillWorkspaceName(name: string): Promise<void> {
@@ -57,14 +68,11 @@ export class WorkspacePage {
   }
 
   async getWorkspaceCardCount(): Promise<number> {
-    const cards = this.page.locator('[class*="workspace-card"], [data-testid="workspace-card"]');
-    if (await cards.count() > 0) return cards.count();
-    // Fallback: count h3/h4 inside the workspaces grid section
-    const list = this.page
-      .locator("section")
-      .filter({ hasText: /your workspaces/i })
-      .locator("h3, h4");
-    return list.count();
+    // WorkspaceCard renders an h3 with the workspace name.
+    // CreateWorkspaceCard has no h3, so this count equals the number of user workspaces.
+    const section = this.page.locator("section").filter({ hasText: /your workspaces/i });
+    if (await section.count()) return section.locator("h3").count();
+    return 0;
   }
 
   async openWorkspaceByName(name: string): Promise<void> {
