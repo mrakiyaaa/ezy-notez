@@ -40,7 +40,8 @@
       "Bash(git -C \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\" show 5ae1d68:frontend/src/components/workspace/StudyRoomLobby.tsx)",
       "Bash(npx eslint *)",
       "Bash(Select-String -Pattern \"documents|\\\\.github\")",
-      "Bash(dir /B)"
+      "Bash(dir /B)",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\extra-pages\\\\diagram.html\" \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\frontend\\\\public\\\\diagram.html\")"
     ]
   },
   "enableAllProjectMcpServers": true,
