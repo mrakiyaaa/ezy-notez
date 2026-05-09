@@ -17,6 +17,8 @@ interface QuestionBroadcast {
 
 /**
  * Subscribe to the channel, send the event, then remove the channel.
+ * Uses ack:true so the channel is only torn down after the server confirms
+ * delivery. A 5 s timeout guards against a subscribe that never completes.
  * Never throws — errors are logged as warnings.
  */
 const send = (
@@ -24,7 +26,17 @@ const send = (
   event: string,
   payload: Record<string, unknown>,
 ): void => {
-  const ch = supabaseAdmin.channel(`study-room:${roomId}`);
+  const ch = supabaseAdmin.channel(`study-room:${roomId}`, {
+    config: { broadcast: { ack: true } },
+  });
+
+  const timeout = setTimeout(() => {
+    console.warn(
+      `[studyRoomRealtime] send timed out — room=${roomId} event=${event}`,
+    );
+    supabaseAdmin.removeChannel(ch).catch(() => undefined);
+  }, 5_000);
+
   ch.subscribe((status) => {
     if (status === "SUBSCRIBED") {
       ch
@@ -36,6 +48,7 @@ const send = (
           );
         })
         .finally(() => {
+          clearTimeout(timeout);
           supabaseAdmin.removeChannel(ch).catch(() => undefined);
         });
     }

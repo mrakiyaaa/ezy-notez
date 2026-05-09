@@ -128,6 +128,13 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
 
   const isHost = !!currentUserId && room.host_id === currentUserId;
 
+  // Track current question ID in a ref so the subscribe callback can compare
+  // without capturing a stale closure.
+  const currentQuestionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentQuestionIdRef.current = state.currentQuestion?.id ?? null;
+  }, [state.currentQuestion?.id]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
@@ -254,6 +261,23 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
           setChannelError("Lost connection to room. Please refresh the page.");
         } else if (status === "SUBSCRIBED") {
           setChannelError(null);
+          // Resync current question so events missed during the mount window
+          // don't leave the client stuck on a stale question.
+          getCurrentQuestion(room.id)
+            .then((q) => {
+              const normalised = normaliseQuestion(q);
+              if (normalised.id !== currentQuestionIdRef.current) {
+                dispatch({ type: "SET_QUESTION", question: normalised });
+              }
+            })
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : "";
+              if (msg.includes("not in progress") || msg.includes("completed")) {
+                goToResults();
+              } else {
+                console.error("[Quiz] SUBSCRIBED resync failed:", err);
+              }
+            });
         }
       });
 

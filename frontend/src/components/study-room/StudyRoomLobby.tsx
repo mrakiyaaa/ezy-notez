@@ -80,6 +80,28 @@ export default function StudyRoomLobby({
     channelRef.current = channel;
 
     channel
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "study_room_participants",
+          filter: `room_id=eq.${room.id}`,
+        },
+        () => {
+          getLobbyParticipants(room.id)
+            .then((fresh) =>
+              setParticipants((prev) => {
+                const existing = new Set(prev.map((p) => p.user_id));
+                const added = fresh.filter((p) => !existing.has(p.user_id));
+                return added.length > 0 ? [...prev, ...added] : prev;
+              }),
+            )
+            .catch((err) =>
+              console.error("[Lobby] participant INSERT resync failed:", err),
+            );
+        },
+      )
       .on("broadcast", { event: "participant:joined" }, (payload) => {
         try {
           const data = payload.payload as {
