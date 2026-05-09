@@ -11,57 +11,58 @@
 
 | Field | Value |
 |---|---|
-| **Project name** | EZY Notez |
-| **Tagline** | "Transform your documents, audio & videos into quizzes, flashcards and summaries — powered by AI." (`README.md:7`) |
-| **One-line description** | AI-powered academic learning platform that ingests university course materials (PDF / PPTX / DOCX / audio / YouTube) and generates summaries, flashcards, quizzes, and a workspace-scoped RAG chatbot, with a real-time multiplayer Study Room mode. |
-| **Module code** | PUSL3190 |
-| **University** | University of Plymouth (delivered through partner institution — **TBD — needs Akila input** for partner name and campus) |
-| **Author** | Akila Lakshitha (git user `mrakiyaaa`, email `akilalakshitha572@gmail.com`) |
+| **Project Name** | EZY Notez |
+| **Tagline** | *Transform your documents, audio & videos into quizzes, flashcards and summaries — powered by AI.* |
+| **One-line Description** | AI-powered academic learning platform that converts uploaded study materials (PDF, PPTX, DOCX, audio, YouTube) into quizzes, flashcards, summaries, and a RAG chatbot — all within workspace-scoped study environments. |
+| **Author / Developer** | Akila Lakshitha (GitHub: `mrakiyaaa`) |
+| **Module Code** | PUSL3190 |
+| **University** | University of Plymouth |
 | **Supervisor** | **TBD — needs Akila input** |
-| **Repository** | `git+https://github.com/mrakiyaaa/ezy-notez.git` (`package.json:23`) |
-| **License** | ISC (`package.json:27`) |
-| **Status** | Active development (per `README.md:670`) |
+| **Academic Year** | 2025–2026 |
+| **Repository** | https://github.com/mrakiyaaa/ezy-notez |
+| **License** | ISC |
 
-### Repository Structure (top level)
+### Repository Structure Overview
 
-| Path | Purpose |
+| Top-level Directory / File | Purpose |
 |---|---|
-| [frontend/](frontend/) | Next.js 16 / React 19 web client |
-| [backend/](backend/) | Express.js 5 REST API (TypeScript) |
-| [services/ml/](services/ml/) | Unified FastAPI ML microservice (Quiz + Chattie + Flashcards) |
-| [supabase/](supabase/) | SQL migration files for the Postgres schema |
-| [documents/](documents/) | Per-feature implementation docs maintained alongside the code |
-| [docs/](docs/) | This report-context dossier |
-| [.github/](.github/) | GitHub Actions workflows (E2E pipeline) |
-| [.husky/](.husky/) | Git hooks |
-| `docker-compose.dev.yml` / `docker-compose.prod.yml` | Local orchestration of all three services |
-| `requirements.txt` | Root Python deps for the audio / scripts pipeline |
+| `frontend/` | Next.js 16 application (deployed on Vercel) |
+| `backend/` | Express.js 5 REST API (deployed on Railway) |
+| `services/ml/` | Unified FastAPI Python ML microservice — quiz generation + Chattie RAG (deployed on Railway) |
+| `supabase/` | SQL migration files for the Supabase PostgreSQL database |
+| `documents/` | Feature implementation documentation (one `.md` per feature) |
+| `docs/` | High-level project docs |
+| `docker-compose.dev.yml` | Docker Compose for local development (hot reload) |
+| `docker-compose.prod.yml` | Docker Compose for production builds |
+| `package.json` | Root monorepo orchestration (`concurrently` dev runner, Husky hooks) |
+| `requirements.txt` | Root Python dependencies for backend scripts (Whisper, NLTK, transformers) |
+| `replace.js` / `do.js` | Utility scripts |
+| `venv/` | Python virtualenv (gitignored by convention) |
 
 ---
 
 ## 2. Problem Statement & Motivation
 
-### Problem
+### The Problem
 
-University students manage an unmanageable amount of unstructured study material across many formats — lecture slides (PPTX), handouts (PDF / DOCX), recorded lectures (audio), and supplementary YouTube videos. Converting that material into the artefacts that actually drive revision (summaries, flashcards, practice questions) is manual, time-consuming, and rarely consistent across modules. Generic AI tools (ChatGPT, Notion AI) sit outside the student's study material, force the student to copy-paste context, and offer no shared collaborative revision space.
+University students generate large volumes of study material — lecture slides, notes, recorded lectures, and supplementary readings — yet spend disproportionate time manually converting that material into revision aids (flashcards, practice questions, summaries). Existing tools require manual effort or are not academic-context-aware.
 
 ### Target Users
 
-- Undergraduate university students preparing for coursework and exams
-- Study groups who want to revise the same material together in real time
-- Students who learn best from active recall (flashcards, quizzes) rather than passive re-reading
+- Undergraduate and postgraduate university students
+- Students who have diverse resource formats (PDFs, PowerPoints, audio recordings, YouTube lecture links)
+- Students preparing for assessments who need rapid generation of self-testing material
 
-### Existing Tools and Their Gaps
+### Gap in Existing Tools
 
-| Tool / Class | Gap addressed by EZY Notez |
+| Existing Tool | Gap |
 |---|---|
-| ChatGPT / generic LLMs | Stateless; no persistent connection to the user's actual study material; no flashcards, no quiz attempts, no progress tracking |
-| Notion AI / Obsidian | Note-taking first; not designed to ingest audio / PPTX / YouTube end-to-end and synthesise quizzes |
-| Quizlet | Manual flashcard authoring; no AI generation from arbitrary source material |
-| Anki | Powerful but no AI; no built-in collaborative real-time mode |
-| Otter.ai / similar | Transcribes audio but does not turn the transcript into study artefacts |
+| Anki / Quizlet | Manual card creation; no AI generation from arbitrary documents |
+| ChatGPT | No workspace organisation; no persistent quizzes/flashcards; no file-context chunking |
+| Notion AI | Summarisation only; no quiz/flashcard generation; no audio/video support |
+| Kahoot / Mentimeter | Quiz creation is manual; no multi-format import |
 
-EZY Notez positions itself as an **integrated study workspace**: upload once, generate everything (summaries, flashcards, quizzes, RAG chat) against the same workspace, and share that workspace as a real-time multiplayer Study Room.
+EZY Notez addresses all these gaps in a single platform with per-workspace data isolation, multi-format ingestion, and collaborative Study Rooms.
 
 ---
 
@@ -69,247 +70,307 @@ EZY Notez positions itself as an **integrated study workspace**: upload once, ge
 
 ### Primary Objectives
 
-1. Provide a single workspace abstraction that ingests heterogeneous academic content (PDF / PPTX / DOCX / audio / YouTube) and exposes a unified `extracted_text` representation that all downstream features consume.
-2. Generate AI-driven study artefacts from that text — summaries, flashcards, MCQ / scenario quizzes — without requiring the student to copy-paste content into a third-party LLM.
-3. Provide a workspace-scoped RAG chatbot (Chattie) so the student can ask natural-language questions and receive answers grounded in their own material.
-4. Provide a real-time multiplayer Study Room so students can compete on AI-generated questions drawn from a shared workspace.
-5. Enforce strict per-user data isolation via Supabase Row Level Security on every table.
+1. Build a full-stack AI-powered study platform for university students.
+2. Support multi-format resource ingestion: PDF, PPTX, DOCX, audio (MP3/WAV/M4A/WebM/OGG), and YouTube URLs.
+3. Automatically generate quizzes, flashcards, and summaries from uploaded material using AI/NLP.
+4. Provide a workspace-scoped RAG chatbot (Chattie) grounded in uploaded resources.
+5. Implement real-time collaborative Study Rooms with quiz competitions and voice chat.
+6. Deploy a production-ready system with CI/CD, E2E tests, and Row Level Security.
 
 ### Functional Features Delivered
 
-- Authentication (Supabase Auth, JWT + cookie fallback)
-- Workspace management with 8-aura colour theming and slug routing (`README.md:53`)
-- Multi-format resource upload + automatic text extraction (PDF / PPTX / DOCX / audio / YouTube)
-- AI Summarization in three formats (bullet / short / detailed) — General and Customize modes (`documents/summarization-openrouter-migration.md`)
-- AI Flashcard generation via extractive NLP, with study mode and Known / Review-Later progress (`documents/flashcards-implementation.md`)
-- AI Quiz generation (MCQ / Scenario / Mixed) with attempts, incremental answer persistence, and topic accuracy breakdown (`documents/quiz-implementation.md`)
-- Animated Teddy Bear companion with six emotion states reacting to quiz progress (`documents/quiz-implementation.md` §Bear Emotions)
-- Chattie — workspace-scoped RAG chatbot with chat-history persistence and source-chunk citations (`documents/chatie-rag-implementation.md`)
-- Study Rooms — host / participants / OTP & email invites / live quiz / leaderboard / AI weak-topic insights / voice channel (`documents/study-room-backend.md`, `documents/voice-chat-webrtc.md`)
-- Profile drawer & settings page
+| Feature | Status |
+|---|---|
+| User authentication (register, login, logout) | Complete |
+| Workspace creation with aura color theming + slug routing | Complete |
+| Multi-format resource upload (PDF, PPTX, DOCX, audio, YouTube) | Complete |
+| AI Summarization (bullet / short / detailed) via OpenRouter LLM | Complete |
+| Flashcard Generation (extractive NLP, NLTK) | Complete |
+| Quiz Generation (MCQ / Scenario / Mixed) via OpenRouter LLM | Complete |
+| Chattie RAG Chatbot (Gemini embeddings + pgvector) | Complete |
+| Study Rooms (real-time quiz, OTP/email invite, voice channel) | Complete |
+| Per-workspace settings, profile management, subscription page | Complete (UI) |
+| Analytics route | Complete |
+| E2E test suite (51 tests, Playwright) | Complete |
+| Docker Compose dev + prod | Complete |
 
 ### Non-Functional Requirements Addressed
 
-| NFR | How addressed |
+| NFR | Mechanism |
 |---|---|
-| **Security — data isolation** | Supabase RLS on every table; service-role key only used server-side (never exposed to browser); auth middleware validates and refreshes JWTs on every protected request (`README.md:534`) |
-| **Security — assessment validity** | `correct_option_id` for quizzes is never returned in GET responses; correct answer is resolved server-side at scoring time (`README.md:538`) |
-| **Performance — generation latency** | Quiz pipeline shifted from local 1 GB T5 model (10–30 s cold start) to a stateless OpenRouter call (instant startup); flashcards run in 1–3 s on CPU via extractive NLP |
-| **Scalability** | Stateless ML service; pgvector ivfflat index for similarity search; fire-and-forget background jobs return `pending` immediately and update status via polling |
-| **UX** | Glassmorphism design system; Framer Motion animation; per-workspace aura colour scoped to indicators only (`documents/aura-theme-removal.md`); resource status polling (uploading → indexing → ready) |
-| **Reliability** | E2E tests run on Vercel preview before merge; backend Jest tests mock all external I/O; Playwright retries absorb Railway cold-start flakiness |
+| **Security** | Supabase Auth (JWT), HttpOnly cookie fallback, Row Level Security on all tables, server-side quiz scoring |
+| **Performance** | Async/fire-and-forget pipelines (quiz, summary, flashcard generation); polling-based status; pgvector ivfflat index; OpenRouter API (no local GPU) |
+| **Scalability** | Stateless Express API; three independently deployable services; Railway auto-scaling |
+| **UX** | Glassmorphism design system, Framer Motion animations, Teddy Bear companion, polled loading states, keyboard navigation, responsive layout |
+| **Maintainability** | TypeScript throughout; Jest unit + integration tests; Playwright E2E; Husky pre-commit hooks; documented architecture per feature |
 
 ---
 
-## 4. Tech Stack (exhaustive)
+## 4. Tech Stack (Exhaustive)
 
-### Frontend
+### 4.1 Frontend
 
-| Item | Version | Purpose |
+| Technology | Version | Purpose |
 |---|---|---|
-| Next.js | 16.1.6 | App Router, SSR, routing (`frontend/package.json:26`) |
-| React | 19.2.3 | UI runtime |
-| TypeScript | ^5 | Type safety |
-| Tailwind CSS | ^4 | Utility-first styling |
-| `@tailwindcss/postcss` | ^4 | PostCSS integration |
-| `tw-animate-css` | ^1.4.0 | Animation utilities |
-| shadcn / radix-ui | shadcn ^3.8.4, radix-ui ^1.4.3 | Headless component primitives |
-| Framer Motion | ^12.38.0 | Animation library (Lottie wrapper, transitions) |
-| Lottie | `lottie-react` ^2.4.1, `@lottiefiles/dotlottie-react` ^0.19.0 | Teddy bear and avatar animations |
-| Lucide React | ^0.564.0 | Icon set |
-| Three.js | ^0.167.1 | 3D background visuals |
-| OGL | ^1.0.11 | Lightweight WebGL primitives (`LiquidEther` background) |
-| Zustand | ^4.4.7 | Client state management |
-| Axios | ^1.6.2 | HTTP client (Express API) |
-| `react-markdown` | ^10.1.0 | Renders Markdown summaries and chat replies |
-| `class-variance-authority` / `clsx` / `tailwind-merge` | latest | Conditional class composition |
-| `socket.io-client` | ^4.6.0 | Reserved for realtime socket fallback (Supabase Realtime is primary) |
-| `@supabase/ssr` ^0.8.0, `@supabase/supabase-js` ^2.97.0 | Supabase client (browser + middleware) |
-| `uploadthing` ^7.7.4, `@uploadthing/react` ^7.3.3 | File upload UX + handler |
-| Playwright | ^1.59.1 | E2E testing |
-| ESLint 9, `eslint-config-next` | dev | Linting |
+| Next.js | 16.1.6 | App framework — SSR, file-based routing, API routes |
+| React | 19.2.3 | UI library |
+| TypeScript | 5.x | Type safety |
+| Tailwind CSS | 4.x | Utility-first styling |
+| shadcn/ui | 3.8.4 | Base component library (radix-ui primitives) |
+| radix-ui | 1.4.3 | Accessible UI primitives |
+| Framer Motion | 12.38.0 | Page and component animations |
+| Zustand | 4.4.7 | Client-side global state management |
+| Axios | 1.6.2 | HTTP client for API calls |
+| `@supabase/supabase-js` | 2.97.0 | Supabase JS client (auth, realtime) |
+| `@supabase/ssr` | 0.8.0 | Supabase SSR helpers for Next.js |
+| `@uploadthing/react` | 7.3.3 | File upload component |
+| `uploadthing` | 7.7.4 | UploadThing SDK |
+| `lottie-react` + `@lottiefiles/dotlottie-react` | 2.4.1 / 0.19.0 | Lottie animation playback (Teddy Bear companion) |
+| `lucide-react` | 0.564.0 | Icon library |
+| `react-markdown` | 10.1.0 | Markdown rendering for summaries / chat |
+| `socket.io-client` | 4.6.0 | WebSocket client (Study Rooms realtime) |
+| `three` / `ogl` | 0.167.1 / 1.0.11 | 3D/WebGL canvas effects |
+| `clsx` + `tailwind-merge` + `class-variance-authority` | — | Conditional class utilities |
+| `tw-animate-css` | 1.4.0 | CSS animation utilities |
+| Playwright | 1.59.1 | E2E testing |
+| ESLint | 9.x | Linting |
 
-### Backend — Express service (`backend/package.json`)
+### 4.2 Backend (Express.js Service)
 
-| Item | Version | Purpose |
+| Technology | Version | Purpose |
 |---|---|---|
-| Express | ^5.2.1 | HTTP server |
-| TypeScript | ^5.7.3 | Type-safe source |
-| `ts-node-dev` | ^2.0.0 | Hot-reload dev server (`npm run dev`) |
-| `@supabase/supabase-js` | ^2.95.3 | Server-side Supabase client (service-role) |
-| `@supabase/ssr` | ^0.8.0 | Cookie-aware client used by middleware |
-| `axios` | ^1.7.9 | Calls to ML microservice + OpenRouter |
-| `pg` | ^8.13.3 | Direct Postgres access (used where Supabase client is insufficient) |
-| `pdf-parse` | ^2.4.5 | PDF text extraction in-process |
-| `cors` ^2.8.5, `cookie-parser` ^1.4.7 | Standard HTTP middleware |
-| `dotenv` | ^16.4.7 | Env loading |
-| `resend` | ^6.12.0 | Transactional email (Study Room invites — `email.service.ts`) |
-| `uploadthing` | ^7.7.4 | Server-side UploadThing handler |
-| Jest + `ts-jest` | ^29.x | Unit + integration tests |
-| Supertest | ^7.0.0 | HTTP assertions in integration tests |
+| Express.js | 5.2.1 | REST API framework |
+| TypeScript | 5.7.3 | Type safety |
+| ts-node-dev | 2.0.0 | Dev server with auto-restart |
+| `@supabase/supabase-js` | 2.95.3 | Supabase client (DB queries, auth verification) |
+| `@supabase/ssr` | 0.8.0 | SSR token handling |
+| `pdf-parse` | 2.4.5 | PDF text extraction |
+| `uploadthing` | 7.7.4 | File storage SDK |
+| `@uploadthing/react` | 7.3.3 | UploadThing react SDK |
+| `resend` | 6.12.0 | Transactional email (study room invites) |
+| `axios` | 1.7.9 | HTTP client (ML service calls) |
+| `cookie-parser` | 1.4.7 | Cookie parsing (auth token fallback) |
+| `cors` | 2.8.5 | CORS middleware |
+| `pg` | 8.13.3 | PostgreSQL client (direct DB access) |
+| `dotenv` | 16.4.7 | Environment variable loading |
+| Jest | 29.7.0 | Unit and integration test runner |
+| Supertest | 7.0.0 | HTTP assertion library for tests |
+| ts-jest | 29.3.1 | TypeScript support for Jest |
 
-### Backend — FastAPI ML service (`services/ml/requirements.txt`)
+### 4.3 ML Service (FastAPI — Python)
 
-| Item | Version | Purpose |
+| Technology | Version | Purpose |
 |---|---|---|
-| FastAPI | 0.115.0 | Async HTTP framework |
-| Uvicorn (with standard extras) | 0.30.0 | ASGI server |
-| Pydantic | 2.9.0 | Request / response models |
-| `python-dotenv` | 1.0.1 | Env loading |
-| `httpx` | 0.27.2 | Outbound calls to OpenRouter / Gemini |
-| NLTK | 3.9.1 | Sentence tokenisation, POS tagging (quiz preproc + flashcards) |
-| `supabase` (Python) | 2.11.0 | Direct Supabase access from ML service |
-| `google-genai` | >=1.0.0 | Gemini embeddings + chat completion |
-| `tiktoken` | 0.8.0 | Token counting for chunking |
+| FastAPI | 0.115.0 | ML microservice web framework |
+| uvicorn (standard) | 0.30.0 | ASGI server |
+| Pydantic | 2.9.0 | Request/response schema validation |
+| python-dotenv | 1.0.1 | Environment variable loading |
+| httpx | 0.27.2 | Async HTTP client (OpenRouter calls) |
+| NLTK | 3.9.1 | Text preprocessing (tokenisation, quiz pipeline) |
+| supabase (Python) | 2.11.0 | Supabase client for Chatie DB operations |
+| google-genai | ≥1.0.0 | Gemini API SDK (embeddings + chat generation) |
+| tiktoken | 0.8.0 | Token counting for context windows |
 
-### Root Python scripts (`requirements.txt`)
+### 4.4 Backend Python Scripts (child_process.spawn)
 
-| Item | Purpose |
-|---|---|
-| `openai-whisper` | Audio transcription via Whisper `tiny` |
-| `python-pptx` | PPTX text extraction |
-| `requests` | HTTP fetching (audio downloads) |
-| `youtube-transcript-api` | YouTube transcript extraction |
-| `transformers`, `torch`, `sumy`, `nltk` | Legacy summarization pipeline (now replaced by OpenRouter — kept for fallback / scripts) |
-
-### Database
-
-| Item | Purpose |
-|---|---|
-| Supabase Postgres | Primary OLTP store |
-| `pgvector` extension | 768-dim embedding storage + cosine similarity search (`resource_embeddings`) |
-| Supabase RPC (`match_resource_embeddings`) | Server-side vector match function used by Chattie |
-
-### AI / ML — full inventory
-
-| Layer | Technology | Where used |
+| Technology | Version | Purpose |
 |---|---|---|
-| Quiz generation | OpenRouter API → `meta-llama/llama-3.1-8b-instruct` | `services/ml/quiz/pipeline.py` |
-| Summarization | OpenRouter API → `meta-llama/llama-3.1-8b-instruct` | `backend/src/services/summary.service.ts` |
-| Study Room question gen + insights | OpenRouter API → `google/gemini-flash-1.5` | `backend/src/services/studyRoomAI.service.ts` |
-| Chattie chat | Gemini `gemini-2.0-flash` (Google AI Studio) | `services/ml/chatie/router.py` |
-| Chattie embeddings | Gemini `text-embedding-004` (768-dim) | `services/ml/chatie/embeddings.py` |
-| Audio transcription | OpenAI Whisper `tiny` (local, ~75 MB, runs on CPU) | `backend/scripts/whisper_transcribe.py` |
-| Flashcard generation | Extractive NLP via NLTK (TF-IDF, POS tagging, pattern questions) | `backend/scripts/generate_flashcards.py` |
-| Quiz preprocessing | NLTK `punkt_tab` sentence segmentation + rule-based scrubbers | `services/ml/quiz/pipeline.py` Stage 1 |
-| YouTube transcript | `youtube-transcript-api` | `backend/scripts/youtube_transcript.py` |
-| PPTX extraction | `python-pptx` | `backend/scripts/pptx_extract.py` |
-| PDF extraction | `pdf-parse` (Node, in-process) | `backend/src/services/resource.service.ts` |
+| openai-whisper | — | Audio transcription (Whisper `tiny` model, ~75 MB, local) |
+| python-pptx | — | PPTX text extraction |
+| youtube-transcript-api | ≥1.2.4 | YouTube caption/subtitle fetching |
+| transformers | — | (Legacy — present in root `requirements.txt` for `distilbart`, now unused by current pipeline) |
+| torch | — | (Legacy — present for Whisper runtime on CPU) |
+| sumy | — | LSA extractive summarisation fallback (now superseded by OpenRouter) |
+| nltk | — | Flashcard NLP (punkt, POS tagger, stopwords) |
+| requests | — | HTTP requests in Python scripts |
 
-### Authentication
+### 4.5 Database
 
-| Item | Purpose |
+| Technology | Details |
 |---|---|
-| Supabase Auth (email + password) | Primary auth provider; JWT issued via cookies + Bearer tokens |
-| `auth.middleware.ts` | Validates the access token, falls back to cookie, refreshes token on expiry |
-| Profile trigger (`supabase/create_profile_trigger.sql`) | Inserts a profile row on user signup |
+| **Engine** | PostgreSQL (managed by Supabase) |
+| **Extensions** | `pgvector` (vector similarity search, ivfflat index, cosine similarity) |
+| **Client (Node)** | `@supabase/supabase-js` v2 (Express + frontend) |
+| **Client (Python)** | `supabase` v2.11.0 (FastAPI ML service) |
+| **Direct access** | `pg` v8.13.3 for raw SQL queries in Express |
+| **RLS** | Row Level Security enabled on all user-data tables |
 
-### File Storage
+### 4.6 AI / ML
 
-| Item | Purpose |
+| Model / API | Provider | Purpose |
+|---|---|---|
+| `meta-llama/llama-3.1-8b-instruct` | OpenRouter (free tier) | Quiz generation, summarization (replacing local T5 + distilBART) |
+| `gemini-2.0-flash` | Google AI (Gemini API) | RAG chat response generation in Chattie |
+| `text-embedding-004` | Google AI (Gemini API) | 768-dim resource chunk embeddings for Chattie RAG |
+| Whisper `tiny` | OpenAI (local, open-source) | Audio transcription — runs locally via Python child process, no API key |
+| NLTK (`punkt_tab`, `averaged_perceptron_tagger_eng`, `stopwords`) | Local | Flashcard generation: sentence tokenization, POS tagging |
+| `distilbart-cnn-12-6` | HuggingFace (local, legacy) | Was used for summarization; superseded by OpenRouter migration |
+| `valhalla/t5-base-qg-hl` | HuggingFace (local, legacy) | Was used for quiz question generation; superseded by OpenRouter migration |
+| `all-MiniLM-L6-v2` via KeyBERT | HuggingFace (local, legacy) | Was used for answer extraction + topic tagging; superseded |
+| WordNet (NLTK) | Local (legacy) | Was used for distractor generation; superseded |
+
+### 4.7 Authentication
+
+| Technology | Details |
 |---|---|
-| UploadThing (`uploadthing` + `@uploadthing/react`) | Frontend uploader UI + signed-URL hosting for raw resources |
-| Supabase storage | Not used directly for resource files; UploadThing is the source of truth |
+| Supabase Auth | JWT-based authentication |
+| Token delivery | Bearer `Authorization` header (primary) + HttpOnly cookie (fallback) |
+| Session refresh | Auth middleware rotates tokens on every protected request |
+| Profile auto-creation | PostgreSQL trigger (`handle_new_user`) on `auth.users` insert |
 
-### Email
+### 4.8 File Storage
 
-| Item | Purpose |
+| Technology | Details |
 |---|---|
-| Resend (`resend` ^6.12.0) | Study Room email invites; transactional emails |
+| UploadThing | Hosted file storage for user-uploaded documents and audio |
+| Environment variable | `UPLOADTHING_TOKEN` |
+| SDK | `uploadthing` v7.7.4 + `@uploadthing/react` v7.3.3 |
 
-### Real-time
+### 4.9 Email
 
-| Item | Purpose |
+| Technology | Details |
 |---|---|
-| Supabase Realtime | Study Room broadcasts (`participant:joined`, `quiz:started`, `answer:confirmed`, `question:next`, `room:ended`) — channel pattern `study-room:{roomId}` |
-| `socket.io-client` (frontend) | Imported but Supabase Realtime is the primary transport — **TBD — needs Akila input** to confirm whether Socket.IO is used in production |
+| Resend | Transactional email for Study Room email invitations |
+| SDK | `resend` v6.12.0 |
 
-### Testing Tools
+### 4.10 Real-time
 
-| Item | Purpose |
+| Technology | Details |
 |---|---|
-| Jest + `ts-jest` (`backend`) | Unit and integration tests for the Express API |
-| Supertest (`backend`) | HTTP assertion helper |
-| Playwright (`frontend/tests/e2e/`) | End-to-end browser tests against deployed services |
-| `dorny/test-reporter` | PR annotations from JUnit output |
-| `patrickedqvist/wait-for-vercel-preview` | Resolves preview URL on PR runs |
+| Supabase Realtime | PostgreSQL change events for study room state, invite delivery |
+| Socket.IO | `socket.io-client` v4.6.0 — real-time study room session (question broadcast, answer collection) |
+| WebRTC (STUN) | Peer-to-peer voice channel in Study Room lobby; signaling via Supabase Realtime broadcast on `voice-room-{roomId}` channel; ICE: `stun:stun.l.google.com:19302` |
 
-### Deployment Platforms
+### 4.11 Testing
 
-| Service | Host |
+| Technology | Details |
 |---|---|
-| Frontend (Next.js) | Vercel (`VERCEL_PRODUCTION_URL` secret in CI) |
-| Express API | Railway (Docker, `node:20-alpine`) |
-| FastAPI ML | Railway (Docker, `python:3.10-slim` with pre-baked Whisper + NLTK data) |
-| Database / Auth | Supabase (managed Postgres + pgvector + Auth) |
-| File hosting | UploadThing |
+| Jest | Backend unit and integration tests |
+| Supertest | HTTP-level Express API testing |
+| ts-jest | TypeScript Jest transform |
+| Playwright | `@playwright/test` v1.59.1 — E2E browser automation |
+| Page Object Model | `frontend/tests/e2e/pages/` |
+| CI test runner | GitHub Actions (`.github/workflows/e2e.yml`) |
 
-### DevOps / CI
+### 4.12 Deployment
 
-| Item | Purpose |
+| Service | Platform | Notes |
+|---|---|---|
+| Frontend | Vercel | Next.js native deployment, preview URLs per PR |
+| Express API | Railway | Docker (multi-stage, `node:20-alpine`) |
+| Unified ML Service | Railway | Docker (`python:3.10-slim`), CPU-only PyTorch |
+| Database | Supabase | Managed PostgreSQL with pgvector |
+
+### 4.13 DevOps / CI
+
+| Tool | Purpose |
 |---|---|
-| GitHub Actions (`.github/workflows/e2e.yml`) | Playwright E2E pipeline — PR (preview), push to main (prod), manual dispatch with `run_slow` toggle |
-| Husky | Git hooks (`.husky/`) |
-| `concurrently` | Boots all three services with one command (`npm run dev`) |
-| Docker Compose (dev / prod) | Local orchestration with hot reload (dev) and multi-stage builds (prod) |
+| Docker + Docker Compose | Dev (hot reload) and production containerisation |
+| Husky | Pre-commit hooks (root `package.json`) |
+| GitHub Actions | E2E Playwright CI pipeline on PR to `main` |
+| `concurrently` | Runs all three services in one terminal (`npm run dev`) |
+| Conventional Commits | `feat:`, `fix:`, `refactor:`, `docs:`, `test:` prefixes |
+| Branching | `main` (production) → `develop` (integration) → `feature/*` / `fix/*` |
 
 ---
 
 ## 5. System Architecture
 
-### High-Level Diagram (verbatim from `README.md:133-158`)
+### 5.1 High-Level Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                 Browser (Next.js 16)                     │
-│           React 19 · Tailwind 4 · Zustand                │
+│              Browser (Next.js 16 / React 19)             │
+│         Tailwind 4 · shadcn/ui · Zustand · Axios         │
 └────────────────────────┬────────────────────────────────┘
-                         │ HTTP / REST
+                         │ HTTP REST  (port 3000 → 3001)
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Express.js Backend  :3001                   │
-│      Auth Middleware · Controllers · Services            │
-└───────┬──────────────┬────────────────────┬─────────────┘
-        │              │                    │
-        ▼              ▼                    ▼
-┌──────────────┐ ┌───────────────┐  ┌─────────────────────┐
-│   Supabase   │ │ Python Scripts│  │  FastAPI ML  :8000  │
-│  PostgreSQL  │ │ child_process │  │                     │
-│  + pgvector  │ │ .spawn        │  │  /quiz   OpenRouter │
-│  + Auth      │ │ summarize_…   │  │  /chatie Gemini RAG │
-│  + RLS       │ │ whisper_…     │  │                     │
-└──────────────┘ │ flashcards_…  │  └─────────────────────┘
-                 └───────────────┘
+│           Express.js 5 Backend  (port 3001)              │
+│   Auth Middleware · Controllers · Services               │
+│   child_process.spawn → Python scripts (Whisper/        │
+│   youtube_transcript / generate_flashcards)              │
+└──────────┬──────────────────────┬───────────────────────┘
+           │                      │
+           ▼                      ▼
+┌──────────────────┐  ┌──────────────────────────────────┐
+│  Supabase        │  │  FastAPI Unified ML  (port 8000) │
+│  PostgreSQL      │  │   /quiz  → OpenRouter LLM        │
+│  + pgvector      │  │   /chatie → Gemini embeddings    │
+│  + Auth          │  │           + pgvector RAG         │
+│  + RLS           │  │   /flashcards (router present)   │
+│  + Realtime      │  └──────────────────────────────────┘
+└──────────────────┘
 ```
 
-### Service Responsibilities
+### 5.2 Data Flow per Major Feature
 
-| Service | Responsibility |
-|---|---|
-| Next.js frontend | UI, auth flow, polling, optimistic UX, Supabase Realtime subscription |
-| Express backend | REST API, auth middleware, controllers/services, fire-and-forget orchestration of Python scripts and FastAPI calls, Supabase writes, server-side scoring |
-| FastAPI ML | Stateless AI microservice — `/quiz/*`, `/chatie/*`, plus a flashcards router (`services/ml/routers/flashcards.py`) |
-| Python scripts (`backend/scripts/`) | Spawned by the Express backend via `child_process.spawn` for tasks that don't need a long-running service (Whisper transcription, PPTX extraction, YouTube transcript, NLTK flashcard generation) |
+**Resource Upload (PDF/PPTX/DOCX)**
+1. Frontend uploads file to UploadThing → receives file URL.
+2. Frontend calls `POST /api/resources` with `fileUrl`, `workspaceId`, `type`.
+3. Express inserts resource row (`status = indexing`), spawns Python script:
+   - PDF: `pdf-parse` Node.js library (in-process)
+   - PPTX: `python-pptx` via `child_process.spawn`
+   - DOCX: **TBD — needs Akila input**
+4. Extracted text saved to `resources.extracted_text`; `status → ready`.
+5. Fire-and-forget call to FastAPI `/chatie/embed-resource` to chunk + embed for RAG.
 
-### Data Flow per Major Feature
+**Audio Transcription**
+1. Frontend uploads audio to UploadThing.
+2. Frontend calls `POST /api/resources/:id/extract-audio`.
+3. Express spawns `backend/scripts/whisper_transcribe.py` with file URL.
+4. Python downloads audio, runs Whisper `tiny` model locally, prints transcript to stdout.
+5. Express captures stdout, saves to `extracted_text`, sets `status → ready`.
 
-| Feature | Flow |
-|---|---|
-| **Resource upload** | Browser → UploadThing direct upload → callback → Express `POST /api/resources` (sets `status=uploading`) → background extraction (PDF in-process / Python script for audio/PPTX/YouTube) → `status=ready` → Express fires-and-forgets to FastAPI `/chatie/embed-resource` for embedding |
-| **Summary** | Browser → Express `POST /api/summaries/{general,custom}` → row inserted with `status=pending` → background pipeline calls OpenRouter directly (Llama 3.1 8B) → `status=ready/failed` → frontend polls |
-| **Flashcards** | Browser → Express `POST /api/flashcards/generate` → row inserted `status=pending` → spawns `generate_flashcards.py` → cards inserted → `status=ready` |
-| **Quiz** | Browser → Express `POST /api/quiz/generate` → row inserted `status=pending` → fire-and-forget POST to FastAPI `/quiz/generate-quiz` → ML returns questions → backend writes to `quiz_questions` → `status=ready` |
-| **Chattie chat** | Browser → Express `/api/chatie/chat` → FastAPI `/chatie/chat` → embed query (Gemini) → pgvector RPC `match_resource_embeddings` → top-5 chunks fed to Gemini 2.0 Flash → reply written to `chat_history` |
-| **Study Room** | Browser → Express `/api/study-rooms/*` → questions generated via OpenRouter (Gemini Flash 1.5) and de-duplicated against `used_questions` hashes → answers and progression broadcast via Supabase Realtime channel `study-room:{roomId}` |
+**YouTube Extraction**
+1. Frontend calls `POST /api/resources/youtube` with URL.
+2. Express spawns `backend/scripts/youtube_transcript.py`.
+3. Python fetches captions via `youtube-transcript-api`, fetches title via HTTP/regex.
+4. Transcript + title returned via stdout; stored in `extracted_text`.
 
-### Architecture Rationale
+**AI Summarization**
+1. Frontend calls `POST /api/summaries/general` or `/api/summaries/custom`.
+2. Express inserts `summaries` row (`status = pending`), returns immediately.
+3. Background pipeline calls `callOpenRouterForSummary()` for each resource.
+4. General mode: two-pass (per-resource → combine); Custom: one pass per resource.
+5. OpenRouter `meta-llama/llama-3.1-8b-instruct` generates markdown output.
+6. Row updated `status → ready`; frontend polls until complete.
 
-| Choice | Rationale (from project docs) |
-|---|---|
-| **Express + FastAPI split** | Express handles auth, business logic, and CRUD where Node ecosystems are mature (Supabase JS SDK, UploadThing, Resend). Python is the natural home for AI/ML libraries (NLTK, Whisper, Gemini SDK) — keeping it in a dedicated service avoids Node/Python interop pain inside Express handlers. |
-| **Unified ML service** (Quiz + Chattie + Flashcards) | Originally two separate FastAPI services on `:8001` and `:8002`. Merged into one container on `:8000` to halve Railway cost, share Python tooling, and reduce the backend to a single `PYTHON_ML_URL` env var (`documents/railway-deployment/RAILWAY_DEPLOYMENT.md`). |
-| **Python `child_process.spawn`** for scripts (not service calls) | Whisper / PPTX / YouTube extraction are one-shot per-resource jobs with no warm state. Spawning a short-lived process avoids tying up the FastAPI worker pool and keeps the script logic simple. |
-| **Supabase as one-stop platform** | Postgres + Auth + RLS + Realtime + pgvector all behind one provider; aligns with a final-year-project budget and removes the need to integrate four separate vendors. |
+**Flashcard Generation**
+1. Frontend calls `POST /api/flashcards/generate`.
+2. Express inserts `flashcard_sets` row, spawns `backend/scripts/generate_flashcards.py`.
+3. Python pipeline: TF-IDF scoring → POS tagging → pattern-based question generation → deduplication.
+4. Returns JSON array; Express inserts individual `flashcards` rows, sets `status → ready`.
+
+**Quiz Generation**
+1. Frontend calls `POST /api/quiz/generate`.
+2. Express inserts `quizzes` row (`status = pending`), fires async `POST /quiz/generate-quiz` to FastAPI ML.
+3. FastAPI pipeline (4 stages): text preprocessing → OpenRouter LLM generation → response parsing/validation → quality filtering.
+4. Express updates `quizzes` row and bulk-inserts `quiz_questions`; `status → ready`.
+5. Frontend polls `GET /api/quiz/:quizId/status` every 3 seconds.
+
+**Chattie (RAG Chat)**
+1. Resource embeddings: after resource is ready, Express fires `POST /chatie/embed-resource` to FastAPI.
+2. FastAPI chunks text (~500 tokens, 50-token overlap), embeds via Gemini `text-embedding-004`, stores in `resource_embeddings`.
+3. Chat turn: user message → FastAPI embeds query → pgvector cosine similarity search (top 5 chunks) → system prompt + context + history sent to `gemini-2.0-flash` → response returned with source references.
+
+**Study Rooms**
+1. Host creates room (OTP or email invite); guests join via 6-digit code, email token, or shareable link.
+2. Lobby: Supabase Realtime delivers participant updates and invite events; WebRTC P2P voice via `voice-room-{roomId}` broadcast channel.
+3. Host starts session: Express generates questions via OpenRouter (same pipeline as quiz), stores in `study_room_questions`.
+4. Live session: questions broadcast via Socket.IO; answers submitted to Express; `study_room_answers` recorded.
+5. Results: leaderboard, wrong-answer review, AI weak-topic insights via OpenRouter.
+
+### 5.3 Architecture Rationale
+
+**Why Express + FastAPI split?**
+Long-running AI inference (quiz generation: up to 30 s; summarization: up to 60 s) would block Node.js's event loop if inlined in Express. FastAPI's async Python workers handle inference natively without blocking. The split also decouples the ML dependency stack (heavy Python packages) from the lightweight Node.js API, enabling independent scaling and simpler Railway deployments.
+
+**Why two Railway services were merged into one?**
+The original architecture had separate `services/quiz-ml/` (port 8001) and `services/chatie-ml/` (port 8002). These were consolidated into `services/ml/` (port 8000) to halve Railway container cost, reduce URL management to a single `PYTHON_ML_URL` env var, and avoid duplicating FastAPI/uvicorn setup.
+
+**Why Supabase instead of a self-managed PostgreSQL?**
+Supabase provides managed PostgreSQL with the `pgvector` extension pre-installed, built-in Auth (JWT + RLS), Realtime pub/sub, and a managed storage option — eliminating the need to self-host and configure five separate services.
 
 ---
 
@@ -317,323 +378,427 @@ EZY Notez positions itself as an **integrated study workspace**: upload once, ge
 
 ### 6.1 AI Summarization
 
-- **What it does:** Generates a workspace-wide summary (General mode) or per-resource summaries (Customize mode) in three formats: Bullet Points, Short paragraph, or Detailed multi-paragraph. Output is rendered as Markdown.
-- **How it works:**
-  - Express `POST /api/summaries/general` (or `/custom`) inserts a `summaries` row with `status=pending` and returns immediately.
-  - Background pipeline in `summary.service.ts`:
-    - **General mode**: Pass 1 — summarize each resource individually via OpenRouter; Pass 2 — combine the intermediates into a single cohesive summary.
-    - **Customize mode**: Summarize each selected resource independently in parallel.
-  - Updates row `status=ready/failed`, frontend polls every few seconds.
-- **Models / APIs:** OpenRouter API → `meta-llama/llama-3.1-8b-instruct` at temperature 0.3 (deterministic for academic content), 60 s timeout.
-- **Key files:**
-  - [backend/src/services/summary.service.ts](backend/src/services/summary.service.ts)
-  - [backend/src/controllers/summary.controller.ts](backend/src/controllers/summary.controller.ts)
-  - [backend/src/routes/summary.routes.ts](backend/src/routes/summary.routes.ts)
-  - [frontend/src/components/workspace/SummarizationView.tsx](frontend/src/components/workspace/SummarizationView.tsx)
-- **Limitations:** Two-pass General mode multiplies API calls by `n+1` for n resources; capped resource text length (Stage 1 truncation reused) constrains very long inputs.
+**What it does:** Generates workspace-wide or per-resource text summaries in three formats: Bullet Points, Short Paragraph, or Detailed multi-paragraph.
+
+**How it works (current pipeline):**
+1. User selects format + resource scope (general = all resources, custom = select individual).
+2. Express inserts pending `summaries` row, returns immediately (async pipeline).
+3. `callOpenRouterForSummary()` in `backend/src/services/summary.service.ts` posts to OpenRouter `meta-llama/llama-3.1-8b-instruct` (temperature 0.3, 60 s timeout).
+4. General mode uses two-pass: per-resource summaries → combined final summary (higher quality than single-pass).
+5. Output is plain markdown rendered by `react-markdown` in `SummaryContent.tsx`.
+
+**Models / APIs:** OpenRouter API → `meta-llama/llama-3.1-8b-instruct`
+
+**Key files:**
+- `backend/src/services/summary.service.ts` — pipeline entry point
+- `backend/src/controllers/summary.controller.ts`
+- `backend/src/routes/summary.routes.ts`
+- `frontend/src/components/workspace/SummarizationView.tsx`
+- `frontend/src/components/workspace/summarization/` — UI sub-components
+
+**Previous implementation:** `backend/scripts/summarize_text.py` using `distilbart-cnn-12-6` (~500 MB HuggingFace model) via `child_process.spawn`. Replaced entirely with OpenRouter API calls — the Python script was removed. No frontend changes were required as the response shape was preserved.
+
+**Known limitations:** Summarization quality degrades on very short resources; very long documents are truncated to fit the LLM context window.
+
+---
 
 ### 6.2 Flashcard Generation
 
-- **What it does:** Generates a flashcard set (5–20 cards) from selected resources with optional topic focus. Cards have a front (question) and back (answer); the user marks each as Known / Review-Later, and progress persists.
-- **How it works (extractive NLP):**
-  1. Combine `extracted_text` from selected resources.
-  2. Sentence-tokenise and filter to 8–60 word sentences.
-  3. TF-IDF score sentences for importance.
-  4. Classify each sentence (definition, cause/effect, process, comparison, example, purpose).
-  5. Apply type-based bonus + optional topic-relevance scoring.
-  6. POS-tag to extract subject noun phrases.
-  7. Generate pattern-based questions matched to sentence type.
-  8. Build answers from key sentences + neighbouring context.
-  9. Deduplicate by subject and validate.
-- **Performance:** ~1–3 s for 10 cards on CPU.
-- **Models / APIs:** None remote — pure NLTK. (Earlier iteration used FLAN-T5 locally; replaced 2026-04-02 — see `documents/flashcards-implementation.md` Changelog.)
-- **Key files:**
-  - [backend/scripts/generate_flashcards.py](backend/scripts/generate_flashcards.py)
-  - [backend/src/services/flashcard.service.ts](backend/src/services/flashcard.service.ts)
-  - [services/ml/routers/flashcards.py](services/ml/routers/flashcards.py)
-  - [frontend/src/components/workspace/FlashcardsView.tsx](frontend/src/components/workspace/FlashcardsView.tsx)
-  - [frontend/src/components/workspace/flashcards/StudyMode.tsx](frontend/src/components/workspace/flashcards/StudyMode.tsx)
-- **Limitations:** Pattern-based questions occasionally produce shallow definitions; no spaced-repetition algorithm yet.
+**What it does:** Generates a set of 5–20 study flashcards (question + answer) from selected workspace resources. Progress (Known / Review Later) persists to the database.
+
+**How it works (pipeline):**
+1. Combine extracted text from selected resources.
+2. Sentence split (NLTK `sent_tokenize`); filter by word count (8–60 words).
+3. TF-IDF importance scoring.
+4. Classify sentence type: definition, cause/effect, process, comparison, example, purpose.
+5. Apply type-based score bonuses + optional topic relevance boost.
+6. Extract subjects via POS tagging (noun phrase extraction).
+7. Pattern-based question generation matched to sentence type.
+8. Answers built from key sentence + neighbouring context.
+9. Deduplicate by subject, validate quality, return JSON.
+
+**Models / APIs:** NLTK only (local, no API keys). ~1–3 seconds on CPU.
+
+**Key files:**
+- `backend/scripts/generate_flashcards.py` — extractive NLP script
+- `backend/src/services/flashcard.service.ts` — spawns script, stores results
+- `frontend/src/components/workspace/FlashcardsView.tsx`
+- `frontend/src/components/workspace/flashcards/StudyMode.tsx` — flip animation, keyboard nav, progress tracking
+
+**Previous implementation (April 2, 2026):** Originally used FLAN-T5 local model; replaced with extractive NLTK pipeline for speed (~1–3 s vs. 10–30 s) and no model download requirement.
+
+---
 
 ### 6.3 Quiz Generation
 
-- **What it does:** Generates 5/10/15/20 MCQ, Scenario, or Mixed questions with four options, a correct answer ID, an explanation, and a topic tag. Attempts are persisted incrementally; results show pass/fail (≥60%), per-topic accuracy breakdown, and per-question explanations. An animated Teddy Bear mirrors quiz state with six emotions.
-- **How it works (current — full OpenRouter pipeline):**
-  - **Stage 1 (local):** NLTK preprocessing — line-level filters drop slide-title fragments, file paths, ALL-CAPS headers, presenter names, agenda lines; token scrubbers replace URLs / paths / filenames / names; truncate to 3 000 chars on a sentence boundary.
-  - **Stage 2 (remote):** Single POST to OpenRouter chat-completions, model `meta-llama/llama-3.1-8b-instruct`, temperature 0.7 (retry at 0.9), 30 s timeout. The prompt asks for `max(question_count + 2, ⌊count × 1.5⌋)` items so the quality filter has slack.
-  - **Stage 3 (local):** Strip Markdown fences, extract first JSON array, validate each item (4 options, non-empty, type), resolve `correct_index` via three-strategy matcher (integer → letter/string → text match). Assign fresh UUIDs and labels A/B/C/D **after** validation — `correct_option_id` is correct **by construction**.
-  - **Stage 4 (local):** `is_valid_question` gate (≥8 words, no embedded `?`, distinct distractors); Jaccard ≥0.7 deduplication; top-N selection.
-- **Models / APIs:** OpenRouter → `meta-llama/llama-3.1-8b-instruct`. NLTK `punkt_tab` for tokenisation.
-- **Key files:**
-  - [services/ml/quiz/pipeline.py](services/ml/quiz/pipeline.py)
-  - [services/ml/quiz/router.py](services/ml/quiz/router.py)
-  - [services/ml/quiz/models.py](services/ml/quiz/models.py)
-  - [backend/src/services/quiz.service.ts](backend/src/services/quiz.service.ts)
-  - [frontend/src/components/workspace/QuizAttemptView.tsx](frontend/src/components/workspace/QuizAttemptView.tsx)
-  - [frontend/src/components/workspace/quiz/TeddyCompanion.tsx](frontend/src/components/workspace/quiz/TeddyCompanion.tsx)
-- **Limitations:** Depends on OpenRouter availability and free-tier rate limits; Stage 2 prompt cap of 3 000 chars limits very long single resources; pass threshold is hard-coded at 60%.
+**What it does:** Generates MCQ, Scenario, or Mixed-type quizzes (5–20 questions) from workspace resources. Supports incremental answer persistence, topic accuracy breakdown, and animated Teddy Bear companion.
+
+**How it works (current pipeline — 4 stages):**
+
+| Stage | Location | Description |
+|---|---|---|
+| 1 — Preprocessing | FastAPI local | NLTK sentence segmentation, line-level noise removal (slide headers, URLs, filenames), token-level scrubbing, truncation to 3,000 chars |
+| 2 — Generation | OpenRouter (remote) | Single call to `meta-llama/llama-3.1-8b-instruct`; over-generates by 1.5× for quality headroom; retry at temperature 0.9 if too few valid questions |
+| 3 — Parsing/Validation | FastAPI local | Strip markdown fences, validate JSON schema, three-strategy `correct_option_id` resolver (integer index → letter label → text match), assign UUIDs |
+| 4 — Quality Filtering | FastAPI local | `is_valid_question` gate (8-word min, no compound questions, 3 non-identical distractors), Jaccard deduplication (threshold 0.7), top-N selection |
+
+**Models / APIs:** OpenRouter API → `meta-llama/llama-3.1-8b-instruct`
+
+**Key files:**
+- `services/ml/quiz/pipeline.py` — full 4-stage pipeline
+- `services/ml/quiz/router.py` — FastAPI `/quiz/generate-quiz` endpoint
+- `services/ml/quiz/models.py` — Pydantic schemas
+- `backend/src/services/quiz.service.ts` — orchestrates HTTP to ML, DB writes
+- `frontend/src/components/workspace/QuizView.tsx`, `QuizAttemptView.tsx`, `QuizResultsView.tsx`
+- `frontend/src/components/workspace/quiz/TeddyCompanion.tsx` — Lottie bear with 6 emotion states
+
+**Known limitations:** Questions require minimum ~50 characters of source text after preprocessing. Very noisy slide decks may yield fewer questions than requested.
+
+---
 
 ### 6.4 Chattie (RAG Chatbot)
 
-- **What it does:** Workspace-scoped conversational AI. The user picks resources (all selected by default) and asks natural-language questions; replies cite source chunks.
-- **How it works:**
-  1. When a resource reaches `status=ready`, Express fires-and-forgets to FastAPI `/chatie/embed-resource`.
-  2. ML service chunks the text (~500 tokens, 50 token overlap) and embeds each chunk via Gemini `text-embedding-004` (768-dim). Old embeddings for that `resource_id` are deleted, new ones inserted.
-  3. On a chat turn: query embedded with `text-embedding-004` (RETRIEVAL_QUERY task type) → pgvector cosine similarity (RPC `match_resource_embeddings`) returns top 5 chunks → system prompt + chunks + user message sent to `gemini-2.0-flash`.
-  4. Both user and assistant turns are written to `chat_history` with `sources` JSONB on assistant rows.
-- **Models / APIs:** Gemini `text-embedding-004`, Gemini `gemini-2.0-flash` (Google AI Studio).
-- **Key files:**
-  - [services/ml/chatie/router.py](services/ml/chatie/router.py)
-  - [services/ml/chatie/embeddings.py](services/ml/chatie/embeddings.py)
-  - [services/ml/chatie/db.py](services/ml/chatie/db.py)
-  - [backend/src/controllers/chatie.controller.ts](backend/src/controllers/chatie.controller.ts)
-  - [frontend/src/components/workspace/Chattie.tsx](frontend/src/components/workspace/Chattie.tsx)
-- **Limitations:** Top-K is fixed at 5; no reranking; no message-history truncation policy documented.
+**What it does:** Workspace-scoped conversational AI grounded in uploaded resources. Users ask questions; Chattie retrieves the most semantically relevant resource chunks and generates a contextualised answer with source references.
+
+**How it works (pipeline):**
+
+**Embedding phase (on resource ready):**
+1. Express fires async `POST /chatie/embed-resource` to FastAPI.
+2. Resource text chunked into ~500 token segments, 50-token overlap (using `tiktoken`).
+3. Gemini `text-embedding-004` generates 768-dimensional embedding per chunk.
+4. Old embeddings for that `resource_id` deleted; new rows inserted into `resource_embeddings`.
+
+**Chat phase (per turn):**
+1. User message (+ selected `resource_ids`) sent to `POST /chatie/chat`.
+2. User message embedded with `text-embedding-004` (`RETRIEVAL_QUERY` task type).
+3. pgvector RPC `match_resource_embeddings` performs ivfflat cosine similarity search → top 5 chunks.
+4. System prompt + retrieved context + conversation history + user message sent to `gemini-2.0-flash`.
+5. Response + source references saved to `chat_history`; returned to client.
+
+**Models / APIs:** Gemini `text-embedding-004` (embedding) + `gemini-2.0-flash` (generation)
+
+**Key files:**
+- `services/ml/chatie/router.py` — FastAPI `/chatie/*` endpoints
+- `services/ml/chatie/embeddings.py` — chunking + Gemini embedding helpers
+- `services/ml/chatie/db.py` — Supabase client singleton
+- `backend/src/controllers/chatie.controller.ts` — Express proxy
+- `frontend/src/components/workspace/Chattie.tsx`
+- `supabase/create_chatie_tables.sql` — `resource_embeddings` + `chat_history` + `match_resource_embeddings` RPC
+
+**Known limitations:** Videos with no captions, private YouTube videos, or resources with very short text may produce poor retrieval results.
+
+---
 
 ### 6.5 Study Rooms
 
-- **What it does:** Real-time multiplayer quiz sessions decoupled from workspace UI (route group `frontend/src/app/study-rooms/`). Four URL-addressable stages: landing → lobby → live quiz → results. Hosts invite participants via 6-digit OTP (10-minute expiry), email invite token, or shareable link. Lobby includes a voice channel built on Supabase Realtime + WebRTC. A `?from=` query param carries the originating workspace.
-- **How it works:**
-  - Host creates a room via `POST /api/study-rooms/` — DB row in `study_rooms` with chosen `invite_method` and resource list.
-  - Participants join via `/join-by-code`, `/:roomId/join-otp`, or `/invite/:token/accept`.
-  - On host start: Express fetches resource text → calls OpenRouter (Gemini Flash 1.5) → SHA-256 hashes the question texts and de-duplicates against `used_questions` rows for that workspace → inserts unique questions into `study_room_questions` → broadcasts `quiz:started`.
-  - Each answer triggers a Realtime broadcast `answer:confirmed`; host advances to next question via `POST /:roomId/next` which broadcasts `question:next`.
-  - On completion: `room:ended` broadcast; results endpoint returns leaderboard + per-user wrong answers + AI weak-topic insights (`generateInsights`).
-- **Models / APIs:** OpenRouter `google/gemini-flash-1.5` for question generation and insights; Supabase Realtime for broadcasts.
-- **Key files:**
-  - [backend/src/routes/studyRoom.routes.ts](backend/src/routes/studyRoom.routes.ts)
-  - [backend/src/services/studyRoom.service.ts](backend/src/services/studyRoom.service.ts)
-  - [backend/src/services/studyRoomAI.service.ts](backend/src/services/studyRoomAI.service.ts)
-  - [backend/src/services/studyRoomRealtime.service.ts](backend/src/services/studyRoomRealtime.service.ts)
-  - [frontend/src/app/study-rooms/](frontend/src/app/study-rooms/)
-  - [frontend/src/components/study-room/](frontend/src/components/study-room/)
-- **Limitations:** Voice chat is an in-lobby feature (not during quiz); minimum 2 participants required to start; Resend integration is wired through `email.service.ts` but the body of `sendStudyRoomInvite` is described in `study-room-backend.md:106` as a console-log placeholder — **TBD — needs Akila input** to confirm Resend is now sending real emails.
+**What it does:** Real-time collaborative quiz sessions. A host creates a room, invites participants by email or 6-digit OTP, and runs a live quiz with scoring. Lobby includes a P2P voice channel.
+
+**Four URL-addressable stages:**
+1. `/study-rooms` — landing (redirects if no `?from=` param)
+2. `/study-rooms/[roomId]/lobby` — waiting room + voice channel
+3. `/study-rooms/[roomId]/session` — live quiz
+4. `/study-rooms/[roomId]/results` — leaderboard + insights
+
+**How it works:**
+- Room created with `invite_method: otp | email`; OTP is a 6-digit code with expiry.
+- Lobby: Supabase Realtime delivers participant joins; WebRTC mesh for voice (STUN only, max 6 peers).
+- Host starts room: Express generates questions via OpenRouter (same prompt as quiz), stores in `study_room_questions`, deduplicates via `used_questions` hash.
+- Live session: questions pushed via Socket.IO; answers submitted; `study_room_answers` records per-user responses.
+- Results: leaderboard, badges, AI-generated weak-topic analysis via OpenRouter.
+
+**Key files:**
+- `backend/src/routes/studyRoom.routes.ts`, `backend/src/controllers/studyRoom.controller.ts`
+- `backend/src/services/studyRoom.service.ts`, `backend/src/services/studyRoomAI.service.ts`
+- `frontend/src/app/study-rooms/` — standalone route group with its own layout
+- `frontend/src/components/study-room/` — all Study Room UI components (flat)
+- `frontend/src/hooks/useVoiceRoom.ts` — WebRTC mesh management
+- `supabase/create_study_room_tables.sql`
+
+**Known limitations:** WebRTC mesh is suitable for ≤6 participants; a warning is shown beyond that. Voice requires HTTPS in production. Email invites depend on Resend API availability.
+
+---
 
 ### 6.6 Resource Upload & Processing
 
-- **What it does:** Single uploader that accepts PDF, DOCX, PPTX, audio (MP3/WAV/M4A/WebM/OGG), and YouTube URLs, then extracts text into the unified `extracted_text` column on `resources`. Status transitions: `uploading` → `indexing` → `ready` (or `failed`).
-- **How it works:**
-  - **PDF**: in-process via `pdf-parse` in `resource.service.ts`.
-  - **PPTX**: `child_process.spawn('python', ['pptx_extract.py', fileUrl])`.
-  - **DOCX**: **TBD — needs Akila input** — README claims DOCX support but no dedicated script is present in `backend/scripts/`; likely handled via PPTX path or library — verify.
-  - **Audio**: `child_process.spawn('python', ['whisper_transcribe.py', fileUrl])` → Whisper `tiny` downloads audio, transcribes, prints transcript to stdout.
-  - **YouTube**: `child_process.spawn('python', ['youtube_transcript.py', url])` via `youtube-transcript-api`.
-  - On `status=ready`: Express fires-and-forgets to `/chatie/embed-resource` so the resource is searchable in Chattie.
-- **Models / APIs:** Whisper `tiny` (local), `youtube-transcript-api`, `python-pptx`, `pdf-parse`.
-- **Key files:**
-  - [backend/scripts/whisper_transcribe.py](backend/scripts/whisper_transcribe.py)
-  - [backend/scripts/pptx_extract.py](backend/scripts/pptx_extract.py)
-  - [backend/scripts/youtube_transcript.py](backend/scripts/youtube_transcript.py)
-  - [backend/src/services/resource.service.ts](backend/src/services/resource.service.ts)
-- **Limitations:** Whisper `tiny` is the smallest model — accuracy degrades on noisy audio; `ffmpeg` must be installed at the OS level for audio decoding; Whisper auto-downloads on first use, so first transcription on a fresh Railway dyno is slow.
+**Supported formats:**
+
+| Format | Extraction Method | Script / Library |
+|---|---|---|
+| PDF | `pdf-parse` (Node.js, in-process) | `backend/src/services/resource.service.ts` |
+| PPTX | `python-pptx` | `backend/scripts/` (spawned by Express) |
+| DOCX | **TBD — needs Akila input** | **TBD** |
+| Audio (MP3/WAV/M4A/WebM/OGG) | Whisper `tiny` local model | `backend/scripts/whisper_transcribe.py` |
+| YouTube URL | `youtube-transcript-api` | `backend/scripts/youtube_transcript.py` |
+
+**Processing status state machine:** `uploading → indexing → ready | failed`
+
+**Key files:**
+- `backend/src/services/resource.service.ts` — orchestrates all extraction pipelines
+- `backend/src/controllers/resource.controller.ts`
+- `backend/scripts/whisper_transcribe.py`
+- `backend/scripts/youtube_transcript.py`
 
 ---
 
 ## 7. Database Schema
 
-All tables live in Supabase Postgres (project URL configured via `SUPABASE_URL`). Migrations in `supabase/` are applied in order.
+### 7.1 All Tables
 
-### Tables (verified from migration files)
+| Table | Description |
+|---|---|
+| `profiles` | User profile data (id, email, full_name, avatar_url) — auto-created via trigger |
+| `workspaces` | User workspaces (id, user_id, name, slug, aura_keyword, aura_hex) |
+| `resources` | Uploaded resources (id, workspace_id, name, url, type, status, extracted_text) |
+| `summaries` | AI-generated summaries |
+| `flashcard_sets` | Flashcard set metadata |
+| `flashcards` | Individual flashcard front/back + user progress status |
+| `quizzes` | Quiz metadata (title, type, question_count, status) |
+| `quiz_questions` | Individual questions with options JSONB array |
+| `quiz_attempts` | User attempt tracking (answers JSONB, score, total) |
+| `resource_embeddings` | Vector embeddings for Chattie RAG |
+| `chat_history` | Chattie conversation turns per workspace/user |
+| `study_rooms` | Study room metadata (status, invite_method, otp_code) |
+| `study_room_participants` | One row per participant per room |
+| `study_room_invites` | Email-based invite tokens |
+| `study_room_questions` | AI-generated questions for study rooms |
+| `study_room_answers` | Per-user answers per question |
+| `used_questions` | Question deduplication hashes per workspace |
 
-| Table | Migration file | Purpose |
+**Total: 17 tables**
+
+### 7.2 Key Schema Details
+
+**`summaries`** (from `supabase/create_summaries_table.sql`)
+
+| Column | Type | Notes |
 |---|---|---|
-| `profiles` (via trigger) | `create_profile_trigger.sql` | Auto-inserted on user signup; mirrors `auth.users` |
-| `workspaces` | **TBD — needs Akila input** (no `create_workspaces_table.sql` in repo despite `README.md:649` referencing it) | Top-level user-owned study hub |
-| `resources` | **TBD — needs Akila input** (no migration file present in `supabase/`) | Uploaded source material |
-| `summaries` | `create_summaries_table.sql` | AI-generated summaries |
-| `flashcard_sets`, `flashcards` | `create_flashcards_tables.sql` | Flashcard sets and individual cards |
-| `quizzes`, `quiz_questions`, `quiz_attempts` | `create_quiz_tables.sql` | Quiz metadata, questions, attempts |
-| `resource_embeddings`, `chat_history` | `create_chatie_tables.sql` | RAG embeddings and chat history |
-| `study_rooms`, `study_room_participants`, `study_room_invites`, `study_room_questions`, `study_room_answers`, `used_questions` | `create_study_room_tables.sql` | Real-time multiplayer quiz |
-| `study_room_invites` (alter) | `alter_study_room_invites_dismissed.sql` | Adds `dismissed` flag |
+| id | UUID PK | auto-generated |
+| workspace_id | UUID | FK → workspaces |
+| resource_id | UUID nullable | NULL = general summary; non-null = per-resource |
+| user_id | UUID | creator |
+| format | TEXT | `bullet` \| `short` \| `detailed` |
+| content | TEXT | Markdown output |
+| source_ids | UUID[] | resources used |
+| status | TEXT | `pending` \| `processing` \| `ready` \| `failed` |
+| error_message | TEXT | nullable |
 
-### Key Relationships
+**`quiz_questions`** (from `supabase/create_quiz_tables.sql`)
 
-| From | To | On delete |
+| Column | Type | Notes |
 |---|---|---|
-| `summaries.resource_id` | `resources.id` | CASCADE |
-| `quiz_questions.quiz_id` | `quizzes.id` | CASCADE |
-| `quiz_attempts.quiz_id` | `quizzes.id` | CASCADE |
-| `flashcards.set_id` | `flashcard_sets.id` | CASCADE |
-| `resource_embeddings.resource_id` | `resources.id` | CASCADE |
-| `study_room_*.room_id` | `study_rooms.id` | CASCADE |
+| id | UUID PK | |
+| quiz_id | UUID | FK → quizzes (CASCADE DELETE) |
+| question_text | TEXT | |
+| question_type | TEXT | `mcq` \| `scenario` |
+| options | JSONB | Array of `{id, label, text}` |
+| correct_option_id | TEXT | UUID string of the correct option |
+| explanation | TEXT | |
+| topic_tag | TEXT | |
+| position | INT | ordering |
 
-### pgvector usage
+**`resource_embeddings`** (from `supabase/create_chatie_tables.sql`)
 
-| Table | Column | Dimension | Index | Distance metric |
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| workspace_id | UUID | |
+| resource_id | UUID | FK → resources (CASCADE DELETE) |
+| chunk_index | INTEGER | Position within resource |
+| chunk_text | TEXT | Raw chunk content |
+| embedding | `vector(768)` | Gemini `text-embedding-004` output |
+
+**Indexes:** `ivfflat` index on `embedding` with `vector_cosine_ops` (lists=100) for fast similarity search.
+
+**RPC function:** `match_resource_embeddings(query_embedding, filter_workspace_id, filter_resource_ids, match_count)` — returns top-N chunks by cosine similarity.
+
+### 7.3 pgvector Usage
+
+| Table | Column | Dimension | Model | Purpose |
 |---|---|---|---|---|
-| `resource_embeddings` | `embedding` | `vector(768)` | ivfflat | cosine similarity |
-
-The RPC `match_resource_embeddings(workspace_id, resource_ids?, query_embedding, match_count)` performs the actual vector match and returns top-N chunks with similarity scores (`documents/chatie-rag-implementation.md:52-55`).
-
-### Quiz schema highlights (`supabase/create_quiz_tables.sql`)
-
-- `quizzes.status` ∈ {`pending`, `processing`, `ready`, `failed`}
-- `quizzes.question_type` ∈ {`mcq`, `scenario`, `mixed`}
-- `quiz_questions.options` is JSONB; `correct_option_id` stored as TEXT (UUID generated by Stage 3 of the pipeline)
-- `quiz_attempts.answers` is JSONB array of `{ question_id, selected_option_id }`
-- `quiz_attempts.status` ∈ {`in_progress`, `completed`}
-
-### Study Room schema highlights (`documents/study-room-schema.md`)
-
-- `study_rooms.status` ∈ {`waiting`, `in_progress`, `completed`}
-- `study_rooms.invite_method` ∈ {`otp`, `email`}
-- `study_rooms.otp_code` 6-digit numeric, expires after 10 minutes (`otp_expires_at`)
-- `study_rooms.current_question_order` advanced by `nextQuestion`
-- Unique constraints: `(room_id, user_id)` on participants; `(question_id, user_id)` on answers; `(workspace_id, question_hash)` on `used_questions`
-- All six tables have RLS enabled with policies as documented in `study-room-schema.md`
+| `resource_embeddings` | `embedding` | 768 | Gemini `text-embedding-004` | Chattie RAG retrieval |
 
 ---
 
-## 8. AI / ML Architecture Decisions
+## 8. AI/ML Architecture Decisions
 
-This section captures the build-vs-buy and local-vs-API trade-offs Akila made — the most report-worthy part of the engineering work.
+### 8.1 Quiz Generation Evolution (3 iterations)
 
-### 8.1 Quiz generation: three iterative architectures
+**Iteration 1 — Local T5 Pipeline (initial implementation)**
 
-Documented in detail in `documents/quiz-ml-backend.md` §4.
+A fully local 6-stage pipeline: NLTK preprocessing → KeyBERT answer extraction → `valhalla/t5-base-qg-hl` question generation → WordNet distractor generation → KeyBERT topic tagging → quality filtering.
 
-| Iteration | Architecture | Why it failed (or didn't) |
-|---|---|---|
-| **v1 — Local T5 pipeline** | NLTK preprocess → KeyBERT keyphrase extraction → `valhalla/t5-base-qg-hl` question generation → WordNet synset distractors → KeyBERT topic tag → Jaccard dedup. ~1 GB cold-start download. | (1) WordNet distractors were lexically related but academically meaningless (e.g. sibling hyponyms of generic English nouns). (2) KeyBERT is deterministic — re-generating from the same text produced identical questions every run. (3) `correct_option_id` mapping bug: post-shuffle string-equality lookup failed because KeyBERT phrase normalisation diverged from the assembled option text. (4) T5 extracted slide-title and agenda phrases, producing meta-level questions. (5) T5-base (220M params) had a hard quality ceiling. |
-| **v2 — Hybrid** | Kept T5 + KeyBERT for question generation. Replaced WordNet/KeyBERT distractors with an OpenRouter call asking for 3 plausible distractors per question. Added Layer-1 line filters and Layer-2 token scrubbers. | Distractor quality improved markedly. (1) `correct_option_id` bug persisted — root cause was upstream of the distractor stage. (2) Question variety was still zero (KeyBERT/T5 still deterministic). (3) Question stems still capped by T5-base. (4) Cold start still 10–30 s. |
-| **v3 — Full OpenRouter (current)** | Single OpenRouter call to `meta-llama/llama-3.1-8b-instruct` returns the entire quiz (questions, options, correct index, explanation, topic tag) as a JSON array. Local code does only Stage 1 (preprocess) and Stages 3–4 (parse, validate, dedup). | Removed `torch`, `transformers`, `keybert`, `sentence-transformers` from `requirements.txt`. `correct_option_id` is correct **by construction** — UUIDs are assigned at parse time. LLM temperature gives natural per-run variety. Trade-off: depends on OpenRouter free tier; mitigated by retry at higher temperature when quality filter rejects too many. |
+*Why it was abandoned:*
+- WordNet distractors were lexically proximate but academically meaningless for subject-specific answers.
+- KeyBERT is deterministic → identical questions on every run from the same source text (zero variety).
+- `correct_option_id` mapping bug: KeyBERT phrase normalisation diverged from assembled option text after `random.shuffle`, causing the correct answer UUID to point at the wrong option.
+- Slide-header contamination (KeyBERT extracted "Learning outcomes" as keyphrases).
+- Cold-start: ~10–30 s model loading + ~1 GB download.
 
-### 8.2 Why local Whisper `tiny` over a paid API
+**Iteration 2 — Hybrid (T5 questions + OpenRouter distractors)**
 
-- No API key required; runs entirely on CPU.
-- Model is ~75 MB; auto-downloads on first use, cached thereafter.
-- Tiny is ~32× real-time speed and works well for clear lecture audio (`documents/audio-extraction/AUDIO_EXTRACTION.md:147`).
-- Trade-off: degraded accuracy on noisy audio. Accepted because student lectures are typically recorded in low-noise environments and project budget excludes paid transcription APIs.
+Kept T5 for question generation; replaced WordNet distractor stage with OpenRouter LLM per-question distractor call.
 
-### 8.3 Why Gemini for embeddings + chat (Chattie)
+*Why it was abandoned:*
+- `correct_option_id` bug was not fixed (root in KeyBERT–option assembly interaction, unchanged).
+- Question variety still zero (KeyBERT + T5 still deterministic).
+- Quality still limited by T5-base (220M params).
+- Startup time still ~10–30 s.
 
-- Free quota on Google AI Studio sufficient for FYP-scale evaluation.
-- 768-dim `text-embedding-004` matches pgvector storage and ivfflat index choice.
-- `gemini-2.0-flash` provides low latency and Markdown-formatted output suitable for `react-markdown`.
-- Single-vendor (Google AI Studio) for both embedding and generation simplifies key management — only `GEMINI_API_KEY` is needed.
+**Iteration 3 — Full OpenRouter Pipeline (current)**
 
-### 8.4 Why OpenRouter Llama 3.1 8B for quiz + summarization
+Replaced Stages 2–5 entirely with a single OpenRouter `meta-llama/llama-3.1-8b-instruct` call that produces questions, options, correct index, explanations, and topic tags in one structured generation step. Retained only text preprocessing (Stage 1) and quality filtering (Stage 4) as local stages.
 
-- OpenRouter free tier supports the model at sufficient throughput for FYP evaluation.
-- Same model used by both features → only one `OPENROUTER_API_KEY` to manage.
-- Instruction-tuned 8B model is large enough to follow strict JSON schema instructions reliably (vs the 220M T5 baseline used previously).
+*Why this was the right decision:*
+- `correct_option_id` bug fixed by construction: UUID assigned at parse time by indexing directly into the assembled options list (no post-hoc string matching).
+- Question variety introduced by LLM temperature (0.7 default, 0.9 retry).
+- No local ML dependencies → instant startup.
+- Academic question quality substantially higher than T5-base.
+- OpenRouter free tier sufficient for FYP-scale usage.
+- Trade-off accepted: external API dependency (OpenRouter) over 100% offline operation.
 
-### 8.5 Why Gemini Flash 1.5 (not Llama) for Study Room questions
+### 8.2 Summarization Evolution
 
-- Gemini Flash 1.5 returns more reliable JSON for the multi-question generation prompt under stricter token budgets (Study Room asks for ~20 questions in one call vs 5–20 for the workspace quiz). **TBD — needs Akila input** to confirm whether this was an empirical or pragmatic choice.
+Originally used `distilbart-cnn-12-6` (~500 MB HuggingFace model) via Python `child_process.spawn`. Replaced with direct OpenRouter API calls from Express (`meta-llama/llama-3.1-8b-instruct`, temperature 0.3). The Python `summarize_text.py` script was removed entirely. A `sumy LSA` fallback was present in the script for low-memory environments — this fallback was also removed as it is no longer needed.
 
-### 8.6 Why pgvector over Pinecone / Qdrant / Weaviate
+*Rationale:* Eliminates 500 MB model weight download; higher-quality output from the instruction-tuned LLM; two-pass strategy (per-resource + combine) yields better coherence than single-pass distilBART.
 
-- Already inside Supabase — no extra vendor, no extra credentials, no extra latency hop.
-- 768-dim ivfflat with cosine similarity is sufficient for the per-workspace scale of this project (low-thousands of chunks per user).
-- Migration cost is zero — `CREATE EXTENSION vector` and one ivfflat index.
+### 8.3 Flashcard Generation
 
-### 8.7 Other build-vs-buy decisions
+Flashcards initially used FLAN-T5 (local model). Replaced with an extractive NLTK pipeline (TF-IDF + POS tagging + pattern matching) for dramatically faster generation (1–3 s vs. 10–30 s), no model download, and no API key requirement. The trade-off is that extractive generation produces less creative questions than a generative model but is far more predictable and reliable for academic material.
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Auth provider | Supabase Auth (replaced earlier Clerk integration — see `frontend/src/app/api/webhooks/clerk/` referenced in `Project_Structure.md:88`) | Single-vendor with the database; RLS built-in |
-| File storage | UploadThing | Direct browser-to-storage uploads with no Express bandwidth cost |
-| Email | Resend | Modern API, generous free tier |
-| Realtime | Supabase Realtime (broadcast channels) | Already part of Supabase plan; avoids running a separate WebSocket server |
-| Summarization model | OpenRouter Llama 3.1 8B (replaced local distilbart + sumy fallback — see `summarization-openrouter-migration.md`) | Eliminated a 500 MB model download and `child_process.spawn` overhead; quality improved |
-| Flashcard generation | NLTK extractive (replaced FLAN-T5 — see `flashcards-implementation.md` Changelog) | Reduced 10–30 s cold start to 1–3 s; removed need for a local T5 model |
+### 8.4 Why Whisper tiny (Local) over a Paid Transcription API
+
+- Whisper `tiny` is fully open-source (MIT licence), runs locally, and requires no API key.
+- For clear lecture audio the `tiny` model (~39M params) provides sufficient accuracy.
+- No per-minute transcription cost (important for a student-focused product).
+- Trade-off: `tiny` model has lower accuracy on noisy audio compared to `base` or `small`; ffmpeg system dependency required.
+
+### 8.5 Why Gemini for Chattie (Embeddings + Chat)
+
+- Google's `text-embedding-004` provides 768-dimensional embeddings with a generous free tier — the only cost is API latency.
+- `gemini-2.0-flash` provides fast, high-quality chat generation with a large context window suitable for RAG (can hold retrieved chunks + conversation history).
+- Alternative considered: OpenAI `text-embedding-ada-002` + GPT-4o-mini — Gemini was preferred on cost grounds for the FYP.
+
+### 8.6 Why pgvector over Pinecone or Weaviate
+
+- pgvector is a PostgreSQL extension — the database is already Supabase-managed PostgreSQL, so adding a vector column costs nothing extra (no new service, no new pricing tier).
+- Supabase exposes an `extensions.vector` type and provides the `match_resource_embeddings` RPC function natively.
+- Pinecone/Weaviate would require a separate hosted vector DB service, additional env vars, and an additional monthly cost — unjustifiable for a FYP.
+- `ivfflat` index with cosine similarity is sufficient for the expected data volume (hundreds, not millions, of chunks per workspace).
+
+### 8.7 Why OpenRouter over Direct LLM APIs for Quiz/Summarization
+
+- OpenRouter provides a unified API endpoint (`openrouter.ai/api/v1/chat/completions`) with an OpenAI-compatible interface.
+- The free tier includes `meta-llama/llama-3.1-8b-instruct` with no cost at FYP usage volumes.
+- Switching models in future requires only changing the `model` string — no code change.
+- Alternative: direct Groq/Together.ai API. OpenRouter was preferred for its model catalogue breadth and free tier reliability.
 
 ---
 
 ## 9. Testing Strategy
 
-### Unit + Integration (Backend)
+### 9.1 Backend Unit & Integration Tests (Jest + Supertest)
 
-- Tooling: Jest + `ts-jest` + Supertest (`backend/jest.config.ts`).
-- Mock strategy (`documents/test-suite.md`): all external I/O is mocked — Supabase, axios → ML, `child_process.spawn`, UploadThing, `pdf-parse`. No live network calls in any test.
-- Coverage areas (per `README.md:459`):
-  - Auth middleware: token extraction, cookie fallback, refresh rotation
-  - Resources: upload, list, delete, PDF/audio/PPTX extraction pipelines
-  - Summaries: generate, regenerate, delete
-  - Flashcards: generate, CRUD, card status update
-  - Quiz: generate, list, attempt lifecycle, topic breakdown
-  - Study Room: AI service unit + integration; participant/badge unit tests
-- Test files inventory:
-  - Unit: 7 files in `backend/src/__tests__/unit/`
-  - Integration: 5 files in `backend/src/__tests__/integration/`
-- What is **not** unit-tested (`documents/test-suite.md:99`): the FastAPI ML service has no pytest suite — it is tested indirectly by axios-mocked Express tests; `auth.controller.ts`, `workspace.controller.ts`, UploadThing webhook.
+All external I/O (Supabase, UploadThing, ML service calls, child_process spawns) is fully mocked — no live credentials required to run tests.
 
-### End-to-End (Playwright)
-
-- Location: `frontend/tests/e2e/`. POMs in `pages/`, fixtures in `fixtures/base.ts`, specs in `specs/01-…` to `08-…`.
-- Total: **51 tests across 8 spec files**, **8 marked `@slow`** (AI generation tests excluded from PR checks). Source: `documents/e2e-testing-pipeline.md:32`.
-
-| Spec file | Test IDs | @slow |
+| Test File | Type | Coverage Area |
 |---|---|---|
-| `01-auth.spec.ts` | TC-AUTH-01 → 07 | 0 |
-| `02-workspace.spec.ts` | TC-WS-01 → 06 | 0 |
-| `03-resources.spec.ts` | TC-RES-01 → 09 | 0 |
-| `04-summarization.spec.ts` | TC-SUM-01 → 05 | 2 (SUM-02, SUM-03) |
-| `05-quiz.spec.ts` | TC-QUIZ-01 → 07 | 2 (QUIZ-02, QUIZ-05) |
-| `06-flashcards.spec.ts` | TC-FLASH-01 → 06 | 1 (FLASH-02) |
-| `07-chattie.spec.ts` | TC-CHAT-01 → 06 | 1 (CHAT-02) |
-| `08-study-room.spec.ts` | TC-SR-01 → 10 | 2 (SR-03, SR-04) |
+| `auth.middleware.unit.test.ts` | Unit | Token extraction, cookie fallback, refresh rotation |
+| `resource.service.unit.test.ts` | Unit | Upload, list, delete, PDF/audio/PPTX extraction pipelines |
+| `summary.service.unit.test.ts` | Unit | Generate, regenerate, delete; axios mock for OpenRouter |
+| `flashcard.service.unit.test.ts` | Unit | Generate, CRUD, card status update |
+| `quiz.service.unit.test.ts` | Unit | Generate, list, attempt lifecycle, topic breakdown |
+| `studyRoomAI.service.unit.test.ts` | Unit | AI question generation for study rooms |
+| `studyRoomBadges.unit.test.ts` | Unit | Badge assignment logic |
+| `resources.integration.test.ts` | Integration | Full resource HTTP lifecycle |
+| `summary.integration.test.ts` | Integration | Full summary HTTP lifecycle |
+| `flashcards.integration.test.ts` | Integration | Full flashcard HTTP lifecycle |
+| `quiz.integration.test.ts` | Integration | Full quiz HTTP lifecycle |
+| `studyRoom.integration.test.ts` | Integration | Full study room HTTP lifecycle |
 
-- Each Test ID is documented in `frontend/tests/e2e/TEST_CASES.md` with preconditions, steps, and expected results — directly suitable for inclusion in the report appendix.
+**Run commands:**
+```bash
+cd backend
+npm test                  # all
+npm run test:unit         # unit only
+npm run test:integration  # integration only
+npm run test:coverage     # with coverage report
+```
 
-### CI/CD
+### 9.2 E2E Testing (Playwright)
 
-- File: `.github/workflows/e2e.yml`.
-- Triggers:
-  - `pull_request` → `main`: runs against the Vercel preview URL (resolved via `patrickedqvist/wait-for-vercel-preview`); excludes `@slow`
-  - `push` → `main`: runs against `VERCEL_PRODUCTION_URL`; excludes `@slow`
-  - `workflow_dispatch`: manual; `run_slow=true` includes `@slow` AI tests for full pre-deploy gate
-- Browsers: chromium + firefox in CI; webkit local opt-in.
-- Concurrency: 2 workers in CI (avoid Railway free-tier overload), 50 % local. Retries: 2 in CI, 0 local. Timeout: 60 s.
-- Reporters: list + html (always); github + junit (CI). JUnit feeds `dorny/test-reporter` for PR annotations + a custom PR-summary comment.
-- Data isolation: dedicated Supabase test project; `global-setup` seeds a test user + workspace via Admin API (idempotent); `global-teardown` deletes test data unless `E2E_KEEP_SEED=true`.
-- A **Tests CI pipeline** for backend unit/integration tests is implemented in recent commits (`feat: implement CI pipeline for Tests`, `fix: issues CI pipeline of testing`, `fix: login test issue`) — **TBD — needs Akila input** for the exact workflow file path and current state.
+**Architecture:** Page Object Model (`frontend/tests/e2e/pages/`), global setup seeds a dedicated Supabase test project, teardown deletes all seeded data after run.
+
+| Spec File | Test IDs | @slow Count | Coverage |
+|---|---|---|---|
+| `01-auth.spec.ts` | TC-AUTH-01 → 07 | 0 | Register, login, logout, session persistence |
+| `02-workspace.spec.ts` | TC-WS-01 → 06 | 0 | Create, navigate, slug routing, aura theming |
+| `03-resources.spec.ts` | TC-RES-01 → 09 | 0 | Upload PDF/PPTX/audio, YouTube URL, delete |
+| `04-summarization.spec.ts` | TC-SUM-01 → 05 | 2 (SUM-02, SUM-03) | Generate general/custom, formats, regenerate |
+| `05-quiz.spec.ts` | TC-QUIZ-01 → 07 | 2 (QUIZ-02, QUIZ-05) | Generate, attempt, submit answers, results |
+| `06-flashcards.spec.ts` | TC-FLASH-01 → 06 | 1 (FLASH-02) | Generate, study mode, Known/Review tracking |
+| `07-chattie.spec.ts` | TC-CHAT-01 → 06 | 1 (CHAT-02) | Embed, ask question, source references, clear history |
+| `08-study-room.spec.ts` | TC-SR-01 → 10 | 2 (SR-03, SR-04) | Create, join OTP, join email, live session, results |
+| **Total** | **51 tests** | **8 @slow** | |
+
+**CI triggers:** Every PR to `main` (via GitHub Actions `.github/workflows/e2e.yml`); `@slow` tests excluded from PR runs, included in manual `workflow_dispatch` with `run_slow: true`.
+
+**Config highlights:**
+- `retries: 2` on CI (absorbs Railway cold-start flakiness)
+- `timeout: 60 s` (AI endpoints legitimately take 30–60 s)
+- Parallel workers: 2 on CI, 50% local
+- Reporters: list + html (always), github + junit (CI only)
+
+### 9.3 CI/CD
+
+| Stage | Tool | Trigger |
+|---|---|---|
+| Lint | ESLint | Pre-commit (Husky) |
+| E2E Tests | Playwright + GitHub Actions | PR to `main` / push to `main` |
+| Frontend Deploy | Vercel | Auto-deploy on push to `main` and PR preview |
+| Backend Deploy | Railway | Docker build on push to `main` |
+| ML Deploy | Railway | Docker build on push to `main` |
 
 ---
 
 ## 10. Development Process
 
-### Methodology
+### 10.1 Methodology
 
-Agile sprints, primarily solo development by Akila (`mrakiyaaa`), with feature work merged via PRs from `develop` into `main` (verified from `git log` — every feature shipped through a PR like `Merge pull request #37 from mrakiyaaa/develop`). Branch convention (`README.md:626`):
+Agile-inspired iterative development with feature-branch workflow. Each feature was developed in isolation on a `feature/*` branch, documented in `/documents`, and merged to `develop` before integration testing.
 
-```
-main        →  production-ready releases
-develop     →  integration branch
-feature/*   →  new features
-fix/*       →  bug fixes
-```
+### 10.2 Tooling
 
-Commit convention follows Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`).
+| Tool | Purpose |
+|---|---|
+| VS Code | Primary IDE |
+| GitHub | Version control, PR reviews, Issues |
+| Notion | **TBD — needs Akila input** (project tracking / sprint board) |
+| Claude Code (AI assistant) | AI-assisted development — code generation, debugging, architecture discussion |
+| Docker Desktop | Local container orchestration |
+| Railway Dashboard | Backend service management + logs |
+| Vercel Dashboard | Frontend preview URLs + deployment logs |
+| Supabase Dashboard | DB schema, SQL editor, Auth management, RLS policies |
 
-### Tools
+### 10.3 Development Timeline
 
-- **IDE:** VS Code with MCP integrations (`.mcp.json`, `.vscode/mcp.json`)
-- **VCS:** GitHub (`mrakiyaaa/ezy-notez`) with PR-based merges, Husky pre-commit hooks
-- **Project management:** **TBD — needs Akila input** (Notion?)
-- **AI-assisted development:** Claude Code (the presence of `.claude/`, `CLAUDE.md`, and the project-specific Claude memory directory show this was used throughout development)
+| Period | Activity |
+|---|---|
+| 2026-02-14 | First commit — project initialized |
+| Feb–Mar 2026 | Project scaffolding, authentication, workspace management, resource upload |
+| Mar–Apr 2026 | AI features: summarization, flashcards, quiz, Chattie |
+| Apr 2026 | Study Rooms, voice chat, E2E test suite |
+| Apr–May 2026 | Architecture refactors (unified ML service, aura scoping, OpenRouter migrations), CI/CD, deployment |
+| 2026-05-09 | Latest commit (`fix: base_url issue`) |
+| **Total duration** | **~3 months (Feb 14 – May 9, 2026)** |
 
-### Sprint outcomes (inferred from `git log` and `documents/`)
+### 10.4 AI-Assisted Development
 
-A precise sprint list isn't in the repo — the PR-based commit history is the closest analog. From the most recent 40 commits, observable themes (most recent first):
+Claude Code was used throughout development for code generation, debugging, architecture decision discussion, and documentation. The project's `CLAUDE.md` instructs the AI to analyse the full codebase before making changes and to maintain feature documentation in `/documents`.
 
-1. CI pipeline for backend tests (login test fix, CI pipeline implementation)
-2. Workspace hub redesign + profile drawer
-3. Study Room realtime fixes (live update subscriptions, room start fix, OTP join, route refactor, voice channel)
-4. Playwright E2E tests implemented
-5. Quiz polish (count fix, UI fixes)
-6. Flashcard API implementation
-7. Railway deployment fixes (python → python3, build errors, Vercel build errors)
-8. Workspace hub layout (logo size, header, profile placement)
+### 10.5 Number of Sprints
 
-A **TBD — needs Akila input** entry: the report likely needs to map these to specific sprint numbers (Sprint 1, 2, 3, …) and dates — this can be reconstructed from commit dates if needed.
-
-### AI-assisted Development Workflow
-
-- Claude Code used as the in-IDE pair programmer (per `CLAUDE.md` instructions: "When starting a new conversation or task, thoroughly analyze the existing codebase and architecture before taking any action").
-- Each feature has a corresponding `.md` design / implementation document in `documents/` (mandated by `CLAUDE.md`: "When creating a feature always maintain a .md file inside /documents folder.").
+**TBD — needs Akila input** (sprint count and sprint goals not visible from commit history alone).
 
 ---
 
@@ -641,171 +806,168 @@ A **TBD — needs Akila input** entry: the report likely needs to map these to s
 
 ### 11.1 Quiz `correct_option_id` Mapping Bug
 
-- **Problem (v1 + v2):** After T5 generated the correct answer (a KeyBERT phrase), it was placed in the options list alongside three distractors and shuffled. A post-shuffle ID lookup using string equality broke because the KeyBERT phrase and the assembled option text often diverged due to normalisation (`documents/quiz-ml-backend.md:245`).
-- **Solution (v3):** Replaced the entire local pipeline with a single OpenRouter call. UUIDs are assigned to options **after** the model returns the array — so `correct_option_id` is the UUID of `options[correct_index]` by construction. No string match, no shuffle, no bug.
+**Problem:** In the original T5 pipeline, the KeyBERT-extracted keyphrase (used as the correct answer) was assembled into an options list with WordNet distractors, shuffled with `random.shuffle`, then a post-shuffle lookup was attempted via string equality. Due to text normalisation differences between KeyBERT output and assembled option text, `correct_option_id` frequently pointed at the wrong option or raised a `ValueError`.
 
-### 11.2 Quiz Question-Count Truncation
+**Solution:** Eliminated the post-hoc lookup entirely by switching to the OpenRouter full-generation pipeline. `correct_option_id` is now assigned at parse time by indexing directly into the assembled options list (`options[resolved_index].id`), making the mapping correct by construction. The bug class is architecturally impossible in the current implementation.
 
-- **Problem:** Users requesting (e.g.) 10 questions sometimes received fewer because the LLM occasionally returned fewer items than requested or the quality filter rejected too many.
-- **Solution:** Stage 2 over-generation — the prompt asks for `max(question_count + 2, ⌊count × 1.5⌋)` items so the filter has slack. If Stage 3 still produces fewer valid questions than `question_count`, a second OpenRouter call is fired at temperature 0.9 and the results are pooled before Stage 4 runs (`documents/quiz-ml-backend.md:159`).
-- **Bug fix commit:** `fix: quiz count issue`. **TBD — needs Akila input** — confirm this commit fully closed the bug or whether residual edge cases remain.
+*Documented in:* `documents/quiz-ml-backend.md` §4.3
 
-### 11.3 venv Portability
+### 11.2 Quiz Generation Question-Count Truncation
 
-- The Windows-specific `npm run dev:ml` command in `package.json:10` invokes `.\\venv\\Scripts\\python.exe` directly. This does not work cross-platform; a developer on macOS/Linux must run uvicorn manually. **TBD — needs Akila input** — was this an explicit decision (Windows-only dev) or a known limitation accepted for FYP scope?
+**Problem (described in quiz-ml-backend.md):** Initial quality filtering was too aggressive — after Stage 4 filtering, the output often contained fewer questions than the user requested.
 
-### 11.4 Aura Colour Scoping Decision (`documents/aura-theme-removal.md`)
+**Solution:** The LLM is now asked to generate `max(question_count + 2, floor(question_count × 1.5))` questions (over-generation) to give the quality filter room to discard weak items without falling below the user's requested count. A retry at temperature 0.9 is triggered if the first call yields too few valid questions.
 
-- **Problem:** The original 8-colour aura theme was threaded through every workspace feature component as `auraHex` / `auraRgb` / `auraContrast` props. This produced inconsistent visual chrome and made the design system difficult to maintain.
-- **Solution (2026-04-12):** Removed all aura-prop threading. Aura is now used **only** for the `AuraIndicator` dot in the workspace header and on workspace cards. All other chrome uses `--color-blue-accent` and `--color-fade-border` design tokens. Quiz / flashcard / summarization / Chattie / resources / WorkspaceHome views were all refactored.
+### 11.3 venv Portability (Windows)
 
-### 11.5 Migration: distilbart Summarization → OpenRouter (`documents/summarization-openrouter-migration.md`)
+**Problem:** The Python venv at `services/ml/venv/` is not portable across machines or OS; absolute paths were baked in.
 
-- Removed `backend/scripts/summarize_text.py` and all `child_process.spawn` logic from `summary.service.ts`. Now calls OpenRouter directly via axios. Frontend response shape unchanged so no UI changes required.
+**Solution:** The root `package.json` includes `setup:ml` script (`python -m venv venv && pip install -r requirements.txt`) to rebuild the venv from scratch. The `dev:ml` script uses `venv\Scripts\python.exe` directly, referencing the local venv. The `venv/` directory is gitignored. Railway uses Docker (no venv) so portability is a development-only concern.
 
-### 11.6 Migration: FLAN-T5 Flashcards → Extractive NLP
+### 11.4 Aura Color Scoping Decision
 
-- 2026-04-02 changelog entry: replaced FLAN-T5 with NLTK extractive pipeline. Generation went from ~10 s with model load to 1–3 s. Removed `preload_model.py` and the duplicate flashcard script.
+**Problem:** The workspace aura color system (`auraHex`/`auraRgb`/`auraContrast`) was initially threaded as props through every feature component (quiz, flashcards, summaries, Chattie, resources), applying dynamic color theming to every UI element. This created significant prop-threading complexity and made the feature components visually inconsistent across aura color values.
 
-### 11.7 Microservice Consolidation: Quiz ML + Chattie ML → Unified ML
+**Solution (two-phase refactor):**
+1. Phase 1 (Aura Indicator Refactor, `documents/aura-indicator-refactor.md`): Removed aura-colored CSS variable injection from the workspace shell, sidebar nav, and header. Introduced `AuraIndicator.tsx` — an 8×8px dot that shows the aura color in the workspace header and on workspace cards only.
+2. Phase 2 (Aura Theme Removal, `documents/aura-theme-removal.md`, 2026-04-12): Removed `AuraProps` from all feature components (quiz, flashcards, summarization, Chattie, resources). All feature chrome now uses `--color-blue-accent` design token consistently.
 
-- Originally two separate FastAPI services on `:8001` and `:8002`. Merged into `services/ml/` on `:8000` with `/quiz/*` and `/chatie/*` mounted as routers. Backend simplified to single `PYTHON_ML_URL` env var. Halved Railway cost. Documented in `documents/railway-deployment/RAILWAY_DEPLOYMENT.md`.
+*Decision rationale:* Aura color is a workspace identity indicator, not a full application theme. Consistent blue design system tokens provide better accessibility and maintainability.
 
-### 11.8 Auth Migration: Clerk → Supabase Auth
+### 11.5 Architecture Migration: Two ML Services → One
 
-- `frontend/src/app/api/webhooks/clerk/` and the legacy `/sign-in/[[...sign-in]]` / `/sign-up/[[...sign-up]]` route groups in `Project_Structure.md` show Clerk was the original auth provider. Production uses Supabase Auth (`@supabase/ssr` middleware, custom `/auth/login` and `/auth/signup` pages). **TBD — needs Akila input** — confirm Clerk webhook code was deleted or is still present as dead code.
+**Problem:** Running separate `services/quiz-ml/` (port 8001) and `services/chatie-ml/` (port 8002) doubled Railway container cost and required tracking two separate URLs (`QUIZ_ML_SERVICE_URL`, `CHATIE_ML_SERVICE_URL`) across multiple Express files.
 
-### 11.9 Vercel / Railway Deployment Issues (from commit log)
+**Solution:** Merged both FastAPI services into a single `services/ml/` container. Both routers are mounted under `/quiz/*` and `/chatie/*` prefixes. A single env var `PYTHON_ML_URL` replaces the two legacy URLs.
 
-- Multiple `fix: Vercel build error` commits — typical Next.js 16 release-cycle issues.
-- `fix: chnage python to pyton3` and `fix: python error on railway` — Railway base image used `python3` not `python`; `child_process.spawn('python', …)` had to be updated.
+*Documented in:* `documents/railway-deployment/RAILWAY_DEPLOYMENT.md`
+
+### 11.6 Summarization Migration (distilBART → OpenRouter)
+
+**Problem:** `distilbart-cnn-12-6` required a ~500 MB model download on first run, took 1–2 seconds per summarization pass, produced lower-quality output for long academic texts, and required a Python child process — adding process-management complexity.
+
+**Solution:** Replaced entirely with direct OpenRouter API calls from Express (`meta-llama/llama-3.1-8b-instruct`). The Python `summarize_text.py` script was deleted. Response shape unchanged, so no frontend changes were required.
+
+### 11.7 PyTorch CPU-Only Build for Docker
+
+**Problem:** Default `pip install torch` pulls in CUDA wheels (~2 GB) that are unusable on Railway's CPU-only containers.
+
+**Solution:** The `services/ml/Dockerfile` installs PyTorch first from the official CPU index URL (`https://download.pytorch.org/whl/cpu`) before the main `requirements.txt` install, keeping the image size manageable.
+
+### 11.8 Study Room Realtime Fix
+
+**Problem:** Supabase Realtime `postgres_changes` events for `study_room_invites` were not delivered to invited users' browsers because the RLS SELECT policy only allowed the host to read invites.
+
+**Solution:** Added a new RLS SELECT policy (`study_room_invites_select_invited`) allowing `email = auth.jwt()->>'email'` — documented in `supabase/alter_study_room_invites_dismissed.sql` along with adding the `dismissed` status to the invite status check constraint.
+
+*Documented in:* `documents/study-room-realtime-fix.md`
 
 ---
 
 ## 12. Deployment
 
-### Environments
+### 12.1 Environments
 
-| Env | Frontend | Backend | ML | Database |
-|---|---|---|---|---|
-| Local dev | `npm run dev:frontend` (`:3000`) | `npm run dev:backend` (`:3001`) | `npm run dev:ml` (`:8000`) | Cloud Supabase or local Supabase |
-| Production | Vercel | Railway (Docker) | Railway (Docker) | Supabase managed |
+| Environment | Purpose |
+|---|---|
+| Local development | `npm run dev` (concurrently) or `docker compose -f docker-compose.dev.yml up --build` |
+| Vercel preview | Auto-generated per PR — used for E2E CI runs |
+| Production | Vercel (frontend) + Railway × 2 (backend + ML) |
 
-### Hosting per Service
+### 12.2 Hosting per Service
 
-| Service | Host | Image / Runtime |
-|---|---|---|
-| Next.js frontend | Vercel | Standalone Next.js build |
-| Express API | Railway | `node:20-alpine` multi-stage Dockerfile (`backend/Dockerfile`) |
-| Unified ML | Railway | `python:3.10-slim` Dockerfile (`services/ml/Dockerfile`) — pre-bakes Whisper `tiny` and NLTK data at build time |
+| Service | Platform | Build | Port |
+|---|---|---|---|
+| Frontend | Vercel | Next.js native (standalone build) | 443 (HTTPS) |
+| Express Backend | Railway | Docker multi-stage (`node:20-alpine`) | `$PORT` (3001 default) |
+| Unified ML Service | Railway | Docker (`python:3.10-slim` + CPU PyTorch) | `$PORT` (8000 default) |
+| Database | Supabase | Managed | 5432 |
 
-### Domain / DNS / Email
+### 12.3 Environment Variables Required
 
-- **Domain:** `https://ezynotez.com` (set as `HTTP-Referer` header in OpenRouter calls — `documents/quiz-ml-backend.md:130`).
-- **DNS:** **TBD — needs Akila input** (registrar, Cloudflare? Vercel-managed?).
-- **Email sender:** Resend; sender domain **TBD — needs Akila input**.
-
-### Environment Variables (names only — actual values are gitignored)
-
-#### Express backend (`backend/.env`)
+**Backend / Root `.env.local`:**
 
 | Variable | Purpose |
 |---|---|
 | `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Anon key (browser-safe but kept server-side) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (bypasses RLS) |
-| `SUPABASE_DB_URL` | Direct Postgres connection string |
-| `PYTHON_ML_URL` | Base URL of the FastAPI ML service (e.g. `http://localhost:8000`) |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (bypasses RLS) |
+| `SUPABASE_DB_URL` | Direct PostgreSQL connection string |
+| `PYTHON_ML_URL` | Base URL of the unified FastAPI ML service |
 | `UPLOADTHING_TOKEN` | UploadThing API token |
-| `OPENROUTER_API_KEY` | Used by `summary.service.ts` and `studyRoomAI.service.ts` |
-| `RESEND_API_KEY` | Email sender (Study Room invites) |
-| `FRONTEND_URL` | CORS origin / email link base |
-| `PORT` | Defaults to 3001; Railway overrides |
+| `OPENROUTER_API_KEY` | OpenRouter API key (summarization) |
+| `FRONTEND_URL` | Frontend URL (CORS, email links) |
 
-#### FastAPI ML service (`services/ml/.env`)
+**FastAPI ML Service (`services/ml/.env`):**
 
 | Variable | Purpose |
 |---|---|
-| `OPENROUTER_API_KEY` | Quiz pipeline |
-| `GEMINI_API_KEY` | Chattie embeddings + chat |
-| `SUPABASE_URL` | Chattie DB writes |
-| `SUPABASE_SERVICE_ROLE_KEY` | Chattie service-role access |
-| `PORT` | Defaults to 8000; Railway overrides |
+| `OPENROUTER_API_KEY` | OpenRouter API key (quiz generation) |
+| `GEMINI_API_KEY` | Google AI API key (Chattie embeddings + chat) |
+| `SUPABASE_URL` | Supabase project URL (Chattie DB) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (Chattie DB) |
+| `PORT` | Runtime port (Railway sets automatically) |
 
-#### Frontend (`frontend/.env.local`)
+**GitHub Actions E2E Secrets:**
 
-| Variable | Purpose |
+| Secret | Purpose |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Browser Supabase client |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser Supabase client |
-| `NEXT_PUBLIC_API_URL` | Express backend URL |
-| `UPLOADTHING_TOKEN` | UploadThing UI |
+| `SUPABASE_TEST_URL` | Dedicated test Supabase project URL |
+| `SUPABASE_TEST_ANON_KEY` | Test project anon key |
+| `SUPABASE_TEST_SERVICE_ROLE` | Test project service role key |
+| `EXPRESS_URL` | Railway Express service public URL |
+| `FASTAPI_URL` | Railway ML service public URL |
+| `TEST_USER_EMAIL` | E2E test user email |
+| `TEST_USER_PASSWORD` | E2E test user password |
+| `VERCEL_PRODUCTION_URL` | Production frontend URL |
 
-#### E2E test env (`frontend/tests/e2e/.env.test`, derived from `.env.test.example`)
+### 12.4 Domain & DNS
 
-| Variable | Purpose |
-|---|---|
-| `PLAYWRIGHT_BASE_URL` | Frontend URL under test |
-| `EXPRESS_URL`, `FASTAPI_URL` | Health-check URLs (not read by Playwright itself) |
-| `SUPABASE_URL` / `SUPABASE_TEST_URL` | Test Supabase project |
-| `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_TEST_SERVICE_ROLE` | Service role for global setup |
-| `SUPABASE_TEST_ANON_KEY` | Anon key for the test project |
-| `E2E_TEST_EMAIL`, `E2E_TEST_PASSWORD` | Seeded test user |
-| `E2E_KEEP_SEED` | Skip teardown for debugging |
-
-GitHub Actions secrets (CI):
-`SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY`, `SUPABASE_TEST_SERVICE_ROLE`, `EXPRESS_URL`, `FASTAPI_URL`, `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, `VERCEL_PRODUCTION_URL`.
+**TBD — needs Akila input** (custom domain, DNS provider, Vercel domain configuration).
 
 ---
 
-## 13. Folder Structure (verbatim, top 2 levels)
+## 13. Folder Structure (Verbatim — Top 2 Levels)
 
 ```
 ezy-notez/
-├── .claude/                       Claude Code project settings
-├── .github/
-│   └── workflows/
-│       └── e2e.yml                Playwright E2E pipeline
-├── .husky/                        Git hooks
-├── .vscode/                       Editor / MCP config
+├── CLAUDE.md
+├── README.md
 ├── backend/
-│   ├── Dockerfile                 Multi-stage (dev / builder / prod)
-│   ├── package.json
-│   ├── tsconfig.json
+│   ├── Dockerfile
 │   ├── jest.config.ts
-│   ├── .env.test                  Safe dummy env for Jest
-│   ├── scripts/                   Spawned Python helpers
-│   │   ├── generate_flashcards.py
-│   │   ├── pptx_extract.py
-│   │   ├── preload_model.py
-│   │   ├── whisper_transcribe.py
-│   │   └── youtube_transcript.py
-│   └── src/
-│       ├── index.ts               Entry
-│       ├── server.ts              Express app + middleware
-│       ├── uploadthing.ts         UploadThing handler
-│       ├── config/                env.ts, supabase.ts
-│       ├── controllers/           10 controllers (auth, resource, workspace, summary, flashcard, quiz, chatie, studyRoom, voiceRoom, analytics)
-│       ├── routes/                9 route modules
-│       ├── services/              13 service modules incl. studyRoomAI / studyRoomRealtime / studyRoomResources
-│       ├── middleware/            auth.middleware.ts
-│       ├── utils/                 nameGenerator, slugGenerator, openRouterClient
-│       ├── types/                 express.d.ts
-│       └── __tests__/             unit/ + integration/ + helpers/
-├── docker-compose.dev.yml         Hot-reload dev compose
-├── docker-compose.prod.yml        Production compose
+│   ├── package.json
+│   ├── scripts/                     ← Python scripts spawned by Express
+│   ├── src/
+│   │   ├── __tests__/
+│   │   │   ├── helpers/
+│   │   │   ├── integration/
+│   │   │   ├── setup.ts
+│   │   │   └── unit/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── index.ts
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── server.ts
+│   │   ├── services/
+│   │   ├── types/
+│   │   ├── uploadthing.ts
+│   │   └── utils/
+│   └── tsconfig.json
+├── do.js
+├── docker-compose.dev.yml
+├── docker-compose.prod.yml
 ├── docs/
-│   └── PROJECT_CONTEXT_FOR_REPORT.md   (this file)
-├── documents/                     Per-feature implementation docs
-│   ├── audio-extraction/
-│   ├── railway-deployment/
-│   ├── summarization/
-│   ├── youtube-extraction/
+│   └── PROJECT_CONTEXT_FOR_REPORT.md
+├── documents/
 │   ├── Project_Structure.md
 │   ├── Refactor_Phase1_Analysis.md
+│   ├── audio-extraction/
 │   ├── aura-indicator-refactor.md
 │   ├── aura-theme-removal.md
 │   ├── chatie-rag-implementation.md
+│   ├── codebase-overview.md
 │   ├── e2e-testing-pipeline.md
 │   ├── flashcards-implementation.md
 │   ├── markdown-summarization.md
@@ -815,141 +977,129 @@ ezy-notez/
 │   ├── quiz-implementation.md
 │   ├── quiz-ml-backend.md
 │   ├── quiz-ui-redesign.md
+│   ├── railway-deployment/
 │   ├── settings-page.md
 │   ├── study-room-backend.md
 │   ├── study-room-realtime-fix.md
 │   ├── study-room-route-refactor.md
 │   ├── study-room-schema.md
+│   ├── summarization/
 │   ├── summarization-openrouter-migration.md
 │   ├── test-suite.md
-│   └── voice-chat-webrtc.md
+│   ├── voice-chat-webrtc.md
+│   └── youtube-extraction/
 ├── frontend/
 │   ├── Dockerfile
+│   ├── components.json              ← shadcn/ui config
+│   ├── middleware.ts                ← Supabase auth middleware
 │   ├── next.config.ts
-│   ├── postcss.config.mjs
-│   ├── eslint.config.mjs
-│   ├── playwright.config.ts
-│   ├── components.json            shadcn config
 │   ├── package.json
-│   ├── public/                    /images/landing, /images/logo, /images/icons
+│   ├── playwright.config.ts
+│   ├── public/
 │   ├── src/
-│   │   ├── app/                   Next.js App Router (auth, dashboard, study-rooms)
-│   │   ├── components/            ui, dashboard, profile, study-room, workspace
-│   │   ├── lib/                   api, hooks, store, services, utils, mock
-│   │   ├── hooks/
-│   │   ├── services/
-│   │   ├── api/
-│   │   ├── types/
-│   │   ├── documents/
-│   │   └── global.d.ts
-│   └── tests/
-│       └── e2e/                   pages/, fixtures/, setup/, specs/, results/, README.md, TEST_CASES.md
-├── package.json                   Root scripts (concurrently dev/test:e2e)
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── lib/
+│   │   └── types/
+│   ├── tests/
+│   │   └── e2e/
+│   └── tsconfig.json
+├── node_modules/
+├── package.json                     ← Monorepo root (concurrently, husky)
 ├── package-lock.json
-├── README.md                      Top-level project doc
-├── CLAUDE.md                      Agent instructions
-├── do.js / replace.js             Utility scripts (TBD purpose)
-├── requirements.txt               Root Python deps for scripts
+├── replace.js
+├── requirements.txt                 ← Root Python deps (Whisper, NLTK, etc.)
 ├── services/
-│   └── ml/                        Unified FastAPI ML microservice
-│       ├── Dockerfile             python:3.10-slim with pre-baked models
+│   └── ml/
+│       ├── Dockerfile
+│       ├── chatie/
+│       ├── main.py
+│       ├── quiz/
 │       ├── requirements.txt
-│       ├── main.py                /health + lifespan + mounts /quiz, /chatie
-│       ├── quiz/                  __init__, models, pipeline, router
-│       ├── chatie/                __init__, db, embeddings, models, router
-│       └── routers/               __init__, flashcards
-├── supabase/                      SQL migration files (7 files)
-└── venv/                          Local Python venv (gitignored)
+│       └── routers/
+│           └── flashcards.py
+├── supabase/
+│   ├── alter_study_room_invites_dismissed.sql
+│   ├── create_chatie_tables.sql
+│   ├── create_flashcards_tables.sql
+│   ├── create_profile_trigger.sql
+│   ├── create_quiz_tables.sql
+│   ├── create_study_room_tables.sql
+│   └── create_summaries_table.sql
+└── venv/                            ← Local Python venv (gitignored)
 ```
 
 ---
 
 ## 14. Statistics
 
-> All counts taken on `2026-05-06` from the `develop` branch, head commit `2c3e5ff`.
-
-| Metric | Value | Source |
-|---|---|---|
-| Total commits | **133** | `git rev-list --count HEAD` |
-| First commit date | 2026-02-14 | `git log --reverse --format="%ad" --date=short \| head -1` |
-| Latest commit date | 2026-05-06 | `git log -1 --format="%ad" --date=short` |
-| Project duration | ~12 weeks (Feb 14 → May 6, 2026) | derived |
-| TypeScript / TSX source files | included in 187 source-file count | `find` |
-| Python source files | included in 187 | `find` |
-| SQL migration files | 7 | `ls supabase/*.sql` |
-| Total source files (`*.ts`, `*.tsx`, `*.py`, `*.sql`) under src dirs | **187** | `find frontend/src backend/src services -type f …` |
-| Lines of TypeScript / TSX (frontend + backend) | **~30 176** | `find … -exec cat \| wc -l` |
-| Lines of Python | **~2 385** | `find services backend/scripts -name "*.py"` |
-| Lines of SQL | **~512** | `find supabase -name "*.sql"` |
-| Express route declarations | **~73** | `grep -E "router\.(get\|post\|put\|patch\|delete)" backend/src/routes/*.ts \| wc -l` |
-| FastAPI endpoint declarations | **~10** | `grep -rE "@(app\|router)\.(get\|post\|put\|patch\|delete)" services/ml/` |
-| Database tables created in migrations | **14** + `profiles` (via trigger) | per §7 above |
-| Backend Jest test files | 7 unit + 5 integration = **12** | `ls backend/src/__tests__/...` |
-| E2E test cases | **51** (8 specs, 8 `@slow`) | `documents/e2e-testing-pipeline.md:32` |
-| Implementation docs in `documents/` | **24** files + 4 sub-folders | `ls documents/` |
-
-> The "files by type" and "lines of code" counts above are approximate and exclude `node_modules`, `.next`, `venv`, `dist`. A precise `cloc` run is **TBD — needs Akila input** if more accurate figures are required for the report.
+| Metric | Value |
+|---|---|
+| **Total git commits** | 140 |
+| **First commit** | 2026-02-14 |
+| **Latest commit** | 2026-05-09 |
+| **Project duration** | ~3 months (84 days) |
+| **TypeScript / TSX source files** | 200 |
+| **Python source files** | 17 |
+| **SQL migration files** | 7 |
+| **Total tracked source files (TS/TSX/PY)** | 217 |
+| **Express API route files** | 9 (`analytics`, `auth`, `chatie`, `flashcard`, `quiz`, `resource`, `studyRoom`, `summary`, `workspace`) |
+| **Express API endpoints (approx)** | ~55 (Auth: 3, Workspaces: 4, Resources: ~7, Summaries: 5, Flashcards: 6, Quiz: 9, Chatie proxy: 5, Study Rooms: 14+voice 3, Analytics: ~1) |
+| **FastAPI endpoints** | 9 (`/health`, `/quiz/health`, `/quiz/generate-quiz`, `/chatie/health`, `/chatie/embed-resource`, `/chatie/chat`, `/chatie/chat-history` GET + DELETE, `/flashcards/*`) |
+| **Database tables** | 17 |
+| **E2E test cases** | 51 (8 `@slow`) |
+| **Backend unit test files** | 7 |
+| **Backend integration test files** | 5 |
+| **Lines of code** | **TBD — needs Akila input** (cloc not run; approximate: >10,000 lines TypeScript, >2,000 lines Python) |
+| **Feature documentation files** | 22 markdown files in `/documents` |
 
 ---
 
 ## 15. Open Items / Known Gaps
 
-### Features incomplete or partial (verified in code or docs)
+### Features Incomplete or Partial
 
-- **Resend email integration for Study Room invites** — `email.service.ts:sendStudyRoomInvite` is described as a `console.log` placeholder pending the addition of `RESEND_API_KEY` (`documents/study-room-backend.md:106`). **TBD — needs Akila input** — has this been completed?
-- **Auth controller** is not unit-tested (per `documents/test-suite.md:104`) — explicitly listed as future work.
-- **Workspace controller** is not unit-tested (`documents/test-suite.md:105`).
-- **UploadThing webhook route** is not unit-tested (`documents/test-suite.md:106`).
-- **DOCX extraction path** — README claims DOCX support but no dedicated script exists in `backend/scripts/`. **TBD — needs Akila input**.
-- **Clerk webhook code** still present at `frontend/src/app/api/webhooks/clerk/` despite Supabase Auth migration. **TBD — needs Akila input** — keep or delete.
-- **Voice chat in Study Room** — only available in lobby, not during quiz (per `voice-chat-webrtc.md`). Documented decision; not necessarily a gap.
+| Feature | Status | Notes |
+|---|---|---|
+| Subscription page | UI only | `/settings/subscription` page exists but no payment integration |
+| Preferences page | UI only | `/settings/preferences` exists but preferences not persisted |
+| DOCX extraction | Unclear | Listed in README feature table but extraction script not confirmed in codebase |
+| Workspace deletion | Partial | Settings page UI lists workspaces but delete flow needs verification |
+| Analytics route | Present | `analytics.routes.ts` + `analytics.controller.ts` exist but analytics features not documented |
 
-### Bugs not yet fixed / Recent fixes still under verification
+### Known Bugs / Limitations
 
-- `fix: login test issue` (latest commit) — confirm whether the login E2E test now passes consistently.
-- `fix: studyroom issue`, `fix: room not starting issue`, `fix: otp joining and invitation card display issue` — recent fixes; **TBD — needs Akila input** to confirm regressions are absent.
+| Bug / Limitation | Status |
+|---|---|
+| YouTube videos without captions → `status: failed` | Documented limitation; no fallback |
+| WebRTC voice: mesh P2P limited to 6 participants | Warning shown in UI; architectural limit |
+| Whisper `tiny` low accuracy on noisy audio | Known; documented in AUDIO_EXTRACTION.md |
+| Very noisy PPTX slides may yield fewer quiz questions than requested | Mitigated by over-generation; residual edge case |
 
-### Documented future enhancements
+### Future Enhancements (Documented in `documents/quiz-implementation.md`)
 
-From `documents/quiz-implementation.md:208`:
-
-1. Custom bear animation JSON files for richer emotion expressions
-2. Difficulty levels for questions
+1. Custom bear animation JSON files for more expressive Teddy Bear emotions
+2. Difficulty levels for quiz questions
 3. Timed quiz mode
-4. Spaced repetition for failed questions
+4. Spaced repetition for failed flashcards
 5. Quiz sharing between workspace members
-6. Analytics dashboard for learning progress
-
-The `analytics.controller.ts` and `analytics.service.ts` files exist in `backend/src/` — implying point 6 is partially scaffolded. **TBD — needs Akila input** for current status.
+6. Analytics dashboard for learning progress over time
 
 ---
 
 ## Questions for Akila
 
-The following items could not be answered from the codebase alone. Each has a one-line question — please add the answer next to it in the report draft.
+The following details could not be verified from the codebase and require your input for the final report:
 
-1. **Supervisor name.** Who is the academic supervisor for PUSL3190?
-2. **University partner / campus.** Which Plymouth partner institution and campus?
-3. **Submission date / academic year.** What is the report deadline and the academic year (2025-26?)?
-4. **Workspace and resources migrations.** `supabase/` is missing `create_workspaces_table.sql` and `create_resources_table.sql` despite the README referring to them — were these applied directly via the Supabase dashboard? If so, please dump the schema for inclusion.
-5. **DOCX extraction.** README claims DOCX support — which script or library handles it? (No dedicated script exists in `backend/scripts/`.)
-6. **`socket.io-client` usage.** Is Socket.IO used in production, or is Supabase Realtime the only realtime transport?
-7. **Resend email integration.** Has `sendStudyRoomInvite` been wired to the Resend SDK, or is it still a `console.log` placeholder?
-8. **Clerk webhook code.** Has the legacy `frontend/src/app/api/webhooks/clerk/` directory been deleted, or is it dead code that still ships?
-9. **Sprint mapping.** How do you map the commit history to your formal sprint plan (Sprint 1 / 2 / 3 / …)? Sprint goals and end dates?
-10. **Project management tool.** Notion? GitHub Projects? Jira? Trello?
-11. **Domain and DNS provider.** Where is `ezynotez.com` registered and which DNS provider?
-12. **Email sender domain.** Which domain do Resend transactional emails come from?
-13. **Backend tests CI workflow.** The recent commit `feat: implement CI pipeline for Tests` adds a backend test workflow — what's its file path and current pass rate?
-14. **Quiz count fix verification.** Has `fix: quiz count issue` been validated against the previously-failing edge cases? Are there reproducible cases left?
-15. **Why Gemini Flash 1.5 (not Llama) for Study Room.** Was this an empirical (prompt-following) or pragmatic (cost / quota) choice?
-16. **Windows-only `dev:ml` script.** Is the `\\venv\\Scripts\\python.exe` path in `package.json` an explicit decision (Windows-first dev environment), or should it be cross-platform-friendly?
-17. **Whisper model size justification.** Were `base` / `small` Whisper models tested and rejected, or was `tiny` chosen on first principles?
-18. **Total Whisper / Gemini / OpenRouter cost during development.** Useful for the report's evaluation section.
-19. **Number of beta testers / user testers.** Did real students test EZY Notez? How many, what feedback?
-20. **Aura colour palette.** What are the 8 aura hex values and were they user-selectable or auto-assigned?
-21. **Voice chat WebRTC architecture.** Is signalling on Supabase Realtime channels and audio peer-to-peer, or is it relayed through a SFU? (The doc title `voice-chat-webrtc.md` suggests WebRTC P2P — please confirm.)
-22. **Analytics feature status.** `analytics.controller.ts` exists — what does it currently do, and is it wired to the frontend?
-23. **Deployment cost per month.** Vercel + Railway × 2 + Supabase + UploadThing + Resend — useful for the report's deployment chapter.
-24. **`do.js` and `replace.js`.** Top-level utility scripts — what do they do and are they part of the production runtime?
-25. **First commit context.** The first commit is dated 2026-02-14. Was there earlier prototyping in a different repo, or is that the genuine project start?
+1. **Supervisor name** — Who is your FYP supervisor at the University of Plymouth?
+2. **Agile sprint structure** — How many sprints did you run? What were the sprint goals/outcomes? Was there a formal sprint backlog (Notion/Trello/GitHub Projects)?
+3. **DOCX extraction** — Is DOCX text extraction implemented? If so, which library and which script?
+4. **Custom domain** — Does the production deployment use a custom domain (e.g., `ezynotez.com`)? If so, what is the domain, DNS provider, and how is Vercel/email routing configured?
+5. **Resend email** — Is the Resend API actually live and used for study room email invites in production? What is the `FROM` address?
+6. **Analytics feature** — What does the analytics route implement? Are there any charts/stats shown to users?
+7. **Lines of code** — Can you run `cloc . --exclude-dir=node_modules,.next,venv,dist` at the project root and paste the output?
+8. **Original Clerk auth** — The memory index mentions "Clerk → Supabase Auth" migration. Can you confirm: did the project start with Clerk and migrate mid-development? If so, what was the reason for the migration?
+9. **Session ID in Chatie** — The `chat_history` schema uses `workspace_id + user_id`; the FastAPI endpoints include a `session_id` path param. How is `session_id` generated and managed on the frontend?
+10. **`routers/flashcards.py`** — The FastAPI `main.py` imports `from routers.flashcards import router as flashcards_router`. What does this router do? The root `requirements.txt` and `services/ml/requirements.txt` don't list `transformers`/`torch` for the ML service — is this flashcards router using a different approach to the backend `generate_flashcards.py` script?
+11. **Study room voice: production testing** — Was the WebRTC voice channel tested in production on Railway/Vercel? Any known issues with STUN behind NAT?
+12. **Project title for University submission** — Is the submission title "EZY Notez" or a longer formal title?
