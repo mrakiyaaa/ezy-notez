@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EZY Notez — Project Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbfaf7;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-faint: #8a8a8a;
+    --rule: #e6e3dc;
+    --rule-strong: #2a2a2a;
+    --accent: #c2410c;
+    --accent-soft: #fef3ec;
+    --tag-bg: #f3f0e8;
+    --good: #166534;
+    --good-soft: #dcfce7;
+    --warn: #854d0e;
+    --warn-soft: #fef9c3;
+    --info: #1e40af;
+    --info-soft: #dbeafe;
+    --done: #166534;
+    --active: #c2410c;
+    --planned: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Geist', -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Subtle paper grain */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(0,0,0,0.015) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(194,65,12,0.02) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ============ HEADER ============ */
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding: 32px 0 24px;
+    position: sticky;
+    top: 0;
+    background: rgba(251, 250, 247, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .brand-mark em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .brand-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .doc-info {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    line-height: 1.7;
+  }
+
+  .doc-info strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ============ TABS ============ */
+  nav.tabs {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    margin: 0 -24px;
+    padding: 0 24px;
+  }
+
+  nav.tabs::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    font-family: 'Geist', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-faint);
+    padding: 12px 18px 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tab-btn .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    opacity: 0.7;
+  }
+
+  .tab-btn:hover {
+    color: var(--ink);
+  }
+
+  .tab-btn.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-btn.active .num {
+    color: var(--accent);
+    opacity: 1;
+  }
+
+  /* ============ MAIN ============ */
+  main {
+    padding: 56px 0 96px;
+    min-height: 70vh;
+  }
+
+  .panel {
+    display: none;
+    animation: fadeIn 0.4s ease;
+  }
+
+  .panel.active {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-header {
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 24px;
+  }
+
+  .panel-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .panel-title {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    margin-bottom: 16px;
+  }
+
+  .panel-title em {
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .panel-desc {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 640px;
+    line-height: 1.6;
+  }
+
+  /* ============ ER DIAGRAM ============ */
+  .er-canvas {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 24px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+
+  .er-svg-wrap {
+    min-width: 900px;
+  }
+
+  .er-legend {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  .er-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .er-legend-line {
+    display: inline-block;
+    width: 28px;
+    height: 1px;
+    background: var(--ink);
+  }
+
+  .er-legend-line.dashed {
+    background: repeating-linear-gradient(to right, var(--ink), var(--ink) 4px, transparent 4px, transparent 7px);
+  }
+
+  /* Entity tables list */
+  .entity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 32px;
+  }
+
+  .entity-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .entity-card h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    padding: 14px 18px;
+    background: var(--tag-bg);
+    border-bottom: 1px solid var(--rule);
+    letter-spacing: -0.01em;
+  }
+
+  .entity-card ul {
+    list-style: none;
+    padding: 8px 0;
+  }
+
+  .entity-card li {
+    padding: 6px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dashed transparent;
+  }
+
+  .entity-card li.pk {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .entity-card li.fk {
+    color: var(--info);
+  }
+
+  .entity-card li .type-tag {
+    color: var(--ink-faint);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ============ USE CASE ============ */
+  .usecase-canvas {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 32px 24px;
+    overflow-x: auto;
+  }
+
+  .usecase-svg-wrap {
+    min-width: 1040px;
+  }
+
+  /* ============ ARCHITECTURE ============ */
+  .arch-canvas {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 32px 24px;
+    overflow-x: auto;
+  }
+
+  .arch-svg-wrap {
+    min-width: 920px;
+  }
+
+  .arch-stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 32px;
+  }
+
+  .arch-tier {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 16px 18px;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .arch-tier h5 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .arch-tier p {
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .arch-tier small {
+    font-size: 12px;
+    color: var(--ink-soft);
+    display: block;
+    line-height: 1.5;
+  }
+
+  /* ============ SPRINT PLANNER ============ */
+  .sprint-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+
+  .sprint-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px 22px;
+    position: relative;
+    transition: all 0.2s ease;
+  }
+
+  .sprint-card:hover {
+    border-color: var(--ink);
+    transform: translateY(-2px);
+  }
+
+  .sprint-card.done { border-left: 3px solid var(--done); }
+  .sprint-card.active { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+  .sprint-card.planned { border-left: 3px solid var(--planned); }
+
+  .sprint-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .sprint-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sprint-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .sprint-status.done { background: var(--good-soft); color: var(--good); }
+  .sprint-status.active { background: var(--accent); color: white; }
+  .sprint-status.planned { background: var(--tag-bg); color: var(--ink-soft); }
+
+  .sprint-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .sprint-dates {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-bottom: 14px;
+  }
+
+  .sprint-tasks {
+    list-style: none;
+  }
+
+  .sprint-tasks li {
+    font-size: 13px;
+    color: var(--ink-soft);
+    padding: 4px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.45;
+  }
+
+  .sprint-tasks li::before {
+    content: "—";
+    color: var(--accent);
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .sprint-deliverable {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .sprint-deliverable b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ============ GANTT ============ */
+  .gantt-wrap {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px;
+    overflow-x: auto;
+  }
+
+  .gantt-table {
+    min-width: 880px;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .gantt-table th, .gantt-table td {
+    text-align: left;
+    padding: 0;
+    vertical-align: middle;
+  }
+
+  .gantt-table thead th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    font-weight: 500;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .gantt-table thead th:first-child {
+    width: 220px;
+    text-align: left;
+  }
+
+  .gantt-table thead .month-th {
+    text-align: center;
+    border-left: 1px solid var(--rule);
+  }
+
+  .gantt-row {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .gantt-label {
+    padding: 14px 12px;
+    font-family: 'Geist', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .gantt-label small {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    font-weight: 400;
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+
+  .gantt-track {
+    position: relative;
+    height: 36px;
+  }
+
+  .gantt-bar {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 18px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: white;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    cursor: default;
+  }
+
+  .gantt-bar:hover {
+    transform: translateY(-50%) scale(1.02);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    z-index: 5;
+  }
+
+  .gantt-bar.done { background: var(--done); }
+  .gantt-bar.active {
+    background: var(--accent);
+    box-shadow: 0 0 0 2px rgba(194,65,12,0.18);
+  }
+  .gantt-bar.planned {
+    background: white;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    border-style: dashed;
+  }
+
+  .today-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--accent);
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .today-marker::before {
+    content: "TODAY · MAY 9";
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--accent);
+    background: var(--paper);
+    padding: 2px 6px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .today-marker::after {
+    content: "";
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .gantt-summary {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+  }
+
+  .gantt-stat {
+    padding: 14px 16px;
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+  }
+
+  .gantt-stat-num {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .gantt-stat-num em {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  .gantt-stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Legend strip */
+  .legend-strip {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  .legend-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-pill .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+  }
+
+  /* ============ FOOTER ============ */
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 28px 0;
+    margin-top: 64px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 640px) {
+    .container { padding: 0 18px; }
+    header { padding: 20px 0 14px; }
+    .brand-mark { font-size: 22px; }
+    .doc-info { text-align: left; font-size: 10px; }
+    .header-top { gap: 12px; }
+    main { padding: 32px 0 64px; }
+    .panel-header { margin-bottom: 28px; padding-bottom: 18px; }
+    .panel-title { font-size: 32px; }
+    .panel-desc { font-size: 14px; }
+    .tab-btn { padding: 10px 14px 12px; font-size: 12px; }
+    .tab-btn .num { display: none; }
+    .er-canvas, .usecase-canvas, .arch-canvas { padding: 14px; }
+    .sprint-card { padding: 16px 18px; }
+    .sprint-title { font-size: 19px; }
+    .gantt-wrap { padding: 12px; }
+    .gantt-stat-num { font-size: 26px; }
+    footer { margin-top: 40px; padding: 20px 0; }
+    .footer-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  }
+
+  /* SVG entity styles */
+  .svg-entity-rect { fill: white; stroke: #1a1a1a; stroke-width: 1; }
+  .svg-entity-header { fill: #f3f0e8; }
+  .svg-entity-title { font-family: 'Fraunces', serif; font-size: 13px; font-weight: 600; fill: #1a1a1a; }
+  .svg-entity-attr { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #4a4a4a; }
+  .svg-entity-pk { fill: #c2410c; font-weight: 600; }
+  .svg-rel-line { stroke: #1a1a1a; stroke-width: 1; fill: none; }
+  .svg-rel-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #4a4a4a; }
+
+  /* SVG use case */
+  .uc-actor { fill: none; stroke: #1a1a1a; stroke-width: 1.4; }
+  .uc-actor-label { font-family: 'Fraunces', serif; font-size: 13px; font-weight: 500; fill: #1a1a1a; text-anchor: middle; }
+  .uc-system-rect { fill: #fafaf6; stroke: #1a1a1a; stroke-width: 1; stroke-dasharray: 4 3; }
+  .uc-system-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #4a4a4a; letter-spacing: 0.08em; }
+  .uc-case { fill: white; stroke: #1a1a1a; stroke-width: 1; }
+  .uc-case-shared { fill: #fef3ec; stroke: #c2410c; }
+  .uc-case-label { font-family: 'Geist', sans-serif; font-size: 11px; fill: #1a1a1a; text-anchor: middle; }
+  .uc-link { stroke: #4a4a4a; stroke-width: 0.8; fill: none; }
+  .uc-link-host { stroke: #c2410c; }
+
+  /* SVG architecture */
+  .arch-layer { fill: white; stroke: #1a1a1a; stroke-width: 1; }
+  .arch-layer-bg { fill: #fafaf6; stroke: #1a1a1a; stroke-width: 1; stroke-dasharray: 4 3; }
+  .arch-layer-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #4a4a4a; letter-spacing: 0.08em; }
+  .arch-svc { fill: white; stroke: #1a1a1a; stroke-width: 1; }
+  .arch-svc-accent { fill: #fef3ec; stroke: #c2410c; }
+  .arch-svc-title { font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; fill: #1a1a1a; text-anchor: middle; }
+  .arch-svc-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #4a4a4a; text-anchor: middle; }
+  .arch-flow { stroke: #1a1a1a; stroke-width: 1; fill: none; }
+  .arch-flow-accent { stroke: #c2410c; stroke-width: 1.2; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-mark">EZY <em>Notez</em></div>
+        <div class="brand-meta">PUSL3190 · FYP DOSSIER</div>
+      </div>
+      <div class="doc-info">
+        <strong>Akila Lakshitha</strong> · 10952552<br>
+        University of Plymouth · Supervised by Ms. Dulanjali Wijesekara
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="er"><span class="num">01</span>ER Diagram</button>
+      <button class="tab-btn" data-tab="usecase"><span class="num">02</span>Use Case</button>
+      <button class="tab-btn" data-tab="arch"><span class="num">03</span>Architecture</button>
+      <button class="tab-btn" data-tab="sprints"><span class="num">04</span>Sprint Planner</button>
+      <button class="tab-btn" data-tab="gantt"><span class="num">05</span>Gantt Chart</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+
+    <!-- ============== ER DIAGRAM ============== -->
+    <section class="panel active" id="er" role="tabpanel">
+      <div class="panel-header">
+        <div class="panel-eyebrow">Section 01 · Data Model</div>
+        <h1 class="panel-title">Entity <em>Relationship</em></h1>
+        <p class="panel-desc">Eight core entities forming the academic workspace data model. Each Student owns multiple Workspaces; each Workspace isolates its Resources, AI artifacts and collaborative sessions.</p>
+      </div>
+
+      <div class="er-canvas">
+        <div class="er-svg-wrap">
+          <svg viewBox="0 0 980 720" xmlns="http://www.w3.org/2000/svg" width="100%">
+            <!-- Student -->
+            <g transform="translate(40,40)">
+              <rect class="svg-entity-rect" width="170" height="110" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="170" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">Student</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62">name : string</text>
+              <text class="svg-entity-attr" x="14" y="78">email : string</text>
+              <text class="svg-entity-attr" x="14" y="94">created_at : ts</text>
+            </g>
+
+            <!-- Workspace -->
+            <g transform="translate(330,40)">
+              <rect class="svg-entity-rect" width="180" height="125" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="180" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">Workspace</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ student_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78">name : string</text>
+              <text class="svg-entity-attr" x="14" y="94">aura_color : string</text>
+              <text class="svg-entity-attr" x="14" y="110">created_at : ts</text>
+            </g>
+
+            <!-- Resource -->
+            <g transform="translate(620,40)">
+              <rect class="svg-entity-rect" width="180" height="140" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="180" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">Resource</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ workspace_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78">type : enum</text>
+              <text class="svg-entity-attr" x="14" y="94">file_url : string</text>
+              <text class="svg-entity-attr" x="14" y="110">extracted_text : text</text>
+              <text class="svg-entity-attr" x="14" y="126">status : enum</text>
+            </g>
+
+            <!-- Summary -->
+            <g transform="translate(40,220)">
+              <rect class="svg-entity-rect" width="170" height="125" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="170" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">Summary</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ resource_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78">format : enum</text>
+              <text class="svg-entity-attr" x="14" y="94">content : text</text>
+              <text class="svg-entity-attr" x="14" y="110">created_at : ts</text>
+            </g>
+
+            <!-- Flashcard -->
+            <g transform="translate(265,220)">
+              <rect class="svg-entity-rect" width="170" height="125" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="170" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">Flashcard</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ resource_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78">question : text</text>
+              <text class="svg-entity-attr" x="14" y="94">answer : text</text>
+              <text class="svg-entity-attr" x="14" y="110">status : enum</text>
+            </g>
+
+            <!-- Quiz -->
+            <g transform="translate(490,220)">
+              <rect class="svg-entity-rect" width="170" height="140" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="170" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">Quiz</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ workspace_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78">title : string</text>
+              <text class="svg-entity-attr" x="14" y="94">questions : jsonb</text>
+              <text class="svg-entity-attr" x="14" y="110">type : enum</text>
+              <text class="svg-entity-attr" x="14" y="126">created_at : ts</text>
+            </g>
+
+            <!-- StudyRoom -->
+            <g transform="translate(715,220)">
+              <rect class="svg-entity-rect" width="180" height="155" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="180" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">StudyRoom</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ host_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78" style="fill:#1e40af">▸ quiz_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="94">title : string</text>
+              <text class="svg-entity-attr" x="14" y="110">invitees : jsonb</text>
+              <text class="svg-entity-attr" x="14" y="126">status : enum</text>
+              <text class="svg-entity-attr" x="14" y="142">started_at : ts</text>
+            </g>
+
+            <!-- ChatMessage -->
+            <g transform="translate(380,440)">
+              <rect class="svg-entity-rect" width="200" height="140" rx="2"/>
+              <rect class="svg-entity-rect svg-entity-header" width="200" height="26" rx="2"/>
+              <text class="svg-entity-title" x="14" y="18">ChatMessage</text>
+              <text class="svg-entity-attr svg-entity-pk" x="14" y="46">◆ id : uuid</text>
+              <text class="svg-entity-attr" x="14" y="62" style="fill:#1e40af">▸ workspace_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="78" style="fill:#1e40af">▸ student_id : fk</text>
+              <text class="svg-entity-attr" x="14" y="94">role : enum</text>
+              <text class="svg-entity-attr" x="14" y="110">content : text</text>
+              <text class="svg-entity-attr" x="14" y="126">sources : jsonb</text>
+            </g>
+
+            <!-- Relationships -->
+            <!-- Student → Workspace (1:N) -->
+            <path class="svg-rel-line" d="M 210 95 L 330 102"/>
+            <text class="svg-rel-label" x="225" y="85">1</text>
+            <text class="svg-rel-label" x="310" y="93">N</text>
+            <text class="svg-rel-label" x="240" y="115">owns</text>
+
+            <!-- Workspace → Resource (1:N) -->
+            <path class="svg-rel-line" d="M 510 102 L 620 110"/>
+            <text class="svg-rel-label" x="525" y="95">1</text>
+            <text class="svg-rel-label" x="600" y="100">N</text>
+            <text class="svg-rel-label" x="540" y="124">contains</text>
+
+            <!-- Resource → Summary -->
+            <path class="svg-rel-line" d="M 710 180 Q 710 200 125 220"/>
+            <text class="svg-rel-label" x="700" y="195">1</text>
+            <text class="svg-rel-label" x="135" y="215">N</text>
+
+            <!-- Resource → Flashcard -->
+            <path class="svg-rel-line" d="M 710 180 Q 600 200 350 220"/>
+            <text class="svg-rel-label" x="690" y="200">1</text>
+            <text class="svg-rel-label" x="360" y="215">N</text>
+
+            <!-- Workspace → Quiz -->
+            <path class="svg-rel-line" d="M 420 165 L 540 220"/>
+            <text class="svg-rel-label" x="430" y="180">1</text>
+            <text class="svg-rel-label" x="525" y="215">N</text>
+            <text class="svg-rel-label" x="465" y="200">generates</text>
+
+            <!-- Quiz → StudyRoom -->
+            <path class="svg-rel-line" d="M 660 290 L 715 290"/>
+            <text class="svg-rel-label" x="668" y="282">1</text>
+            <text class="svg-rel-label" x="700" y="282">N</text>
+
+            <!-- Student → StudyRoom (host) -->
+            <path class="svg-rel-line" d="M 125 150 Q 400 380 760 220"/>
+            <text class="svg-rel-label" x="135" y="165">1</text>
+            <text class="svg-rel-label" x="745" y="215">N</text>
+            <text class="svg-rel-label" x="445" y="335" style="fill:#c2410c">hosts</text>
+
+            <!-- Workspace → ChatMessage -->
+            <path class="svg-rel-line" d="M 420 165 Q 420 300 460 440"/>
+            <text class="svg-rel-label" x="430" y="180">1</text>
+            <text class="svg-rel-label" x="445" y="435">N</text>
+
+            <!-- Student → ChatMessage -->
+            <path class="svg-rel-line" d="M 125 150 Q 200 350 380 510"/>
+            <text class="svg-rel-label" x="135" y="170">1</text>
+            <text class="svg-rel-label" x="380" y="505">N</text>
+          </svg>
+        </div>
+
+        <div class="er-legend">
+          <div class="er-legend-item"><span style="color:#c2410c;font-weight:600">◆</span> Primary key</div>
+          <div class="er-legend-item"><span style="color:#1e40af;font-weight:600">▸</span> Foreign key</div>
+          <div class="er-legend-item"><span class="er-legend-line"></span> 1 : N relationship</div>
+          <div class="er-legend-item"><span style="color:#c2410c">— hosts —</span> Host relationship</div>
+        </div>
+      </div>
+
+      <div class="entity-grid">
+        <div class="entity-card">
+          <h4>Student</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li><span>name</span><span class="type-tag">string</span></li>
+            <li><span>email</span><span class="type-tag">unique</span></li>
+            <li><span>created_at</span><span class="type-tag">timestamp</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>Workspace</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>student_id</span><span class="type-tag">FK</span></li>
+            <li><span>name</span><span class="type-tag">string</span></li>
+            <li><span>aura_color</span><span class="type-tag">string</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>Resource</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>workspace_id</span><span class="type-tag">FK</span></li>
+            <li><span>type</span><span class="type-tag">enum</span></li>
+            <li><span>file_url</span><span class="type-tag">string</span></li>
+            <li><span>extracted_text</span><span class="type-tag">text</span></li>
+            <li><span>status</span><span class="type-tag">enum</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>Summary</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>resource_id</span><span class="type-tag">FK</span></li>
+            <li><span>format</span><span class="type-tag">enum</span></li>
+            <li><span>content</span><span class="type-tag">text</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>Flashcard</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>resource_id</span><span class="type-tag">FK</span></li>
+            <li><span>question</span><span class="type-tag">text</span></li>
+            <li><span>answer</span><span class="type-tag">text</span></li>
+            <li><span>status</span><span class="type-tag">enum</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>Quiz</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>workspace_id</span><span class="type-tag">FK</span></li>
+            <li><span>title</span><span class="type-tag">string</span></li>
+            <li><span>questions</span><span class="type-tag">jsonb</span></li>
+            <li><span>type</span><span class="type-tag">enum</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>StudyRoom</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>host_id</span><span class="type-tag">FK</span></li>
+            <li class="fk"><span>quiz_id</span><span class="type-tag">FK</span></li>
+            <li><span>invitees</span><span class="type-tag">jsonb</span></li>
+            <li><span>status</span><span class="type-tag">enum</span></li>
+          </ul>
+        </div>
+        <div class="entity-card">
+          <h4>ChatMessage</h4>
+          <ul>
+            <li class="pk"><span>id</span><span class="type-tag">UUID PK</span></li>
+            <li class="fk"><span>workspace_id</span><span class="type-tag">FK</span></li>
+            <li class="fk"><span>student_id</span><span class="type-tag">FK</span></li>
+            <li><span>role</span><span class="type-tag">user / ai</span></li>
+            <li><span>sources</span><span class="type-tag">jsonb</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== USE CASE ============== -->
+    <section class="panel" id="usecase" role="tabpanel">
+      <div class="panel-header">
+        <div class="panel-eyebrow">Section 02 · Behaviour</div>
+        <h1 class="panel-title">Use <em>Case</em> Diagram</h1>
+        <p class="panel-desc">Two actors operate the system. The Student performs personal study activities; the Host (a Student who initiates a session) drives Study Room collaboration. Shared cases sit between them.</p>
+      </div>
+
+      <div class="usecase-canvas">
+        <div class="usecase-svg-wrap">
+          <svg viewBox="0 0 1080 760" xmlns="http://www.w3.org/2000/svg" width="100%">
+            <!-- System boundary -->
+            <rect class="uc-system-rect" x="180" y="60" width="780" height="640" rx="2"/>
+            <text class="uc-system-label" x="195" y="48">EZY NOTEZ — SYSTEM BOUNDARY</text>
+
+            <!-- Column header dividers -->
+            <line x1="430" y1="60" x2="430" y2="700" stroke="#e6e3dc" stroke-width="1" stroke-dasharray="2 4"/>
+            <line x1="700" y1="60" x2="700" y2="700" stroke="#e6e3dc" stroke-width="1" stroke-dasharray="2 4"/>
+
+            <!-- Column section labels -->
+            <text class="uc-system-label" x="305" y="88" text-anchor="middle">AUTH &amp; RESOURCES</text>
+            <text class="uc-system-label" x="565" y="88" text-anchor="middle">AI FEATURES</text>
+            <text class="uc-system-label" x="830" y="88" text-anchor="middle">STUDY ROOM</text>
+
+            <!-- Student actor (left) -->
+            <g transform="translate(50,330)">
+              <circle class="uc-actor" cx="30" cy="0" r="16"/>
+              <line class="uc-actor" x1="30" y1="16" x2="30" y2="68"/>
+              <line class="uc-actor" x1="30" y1="30" x2="6" y2="52"/>
+              <line class="uc-actor" x1="30" y1="30" x2="54" y2="52"/>
+              <line class="uc-actor" x1="30" y1="68" x2="10" y2="98"/>
+              <line class="uc-actor" x1="30" y1="68" x2="50" y2="98"/>
+              <text class="uc-actor-label" x="30" y="124">Student</text>
+            </g>
+
+            <!-- Host actor (right) -->
+            <g transform="translate(1000,330)">
+              <circle class="uc-actor" cx="30" cy="0" r="16" style="stroke:#c2410c"/>
+              <line class="uc-actor" style="stroke:#c2410c" x1="30" y1="16" x2="30" y2="68"/>
+              <line class="uc-actor" style="stroke:#c2410c" x1="30" y1="30" x2="6" y2="52"/>
+              <line class="uc-actor" style="stroke:#c2410c" x1="30" y1="30" x2="54" y2="52"/>
+              <line class="uc-actor" style="stroke:#c2410c" x1="30" y1="68" x2="10" y2="98"/>
+              <line class="uc-actor" style="stroke:#c2410c" x1="30" y1="68" x2="50" y2="98"/>
+              <text class="uc-actor-label" x="30" y="124" style="fill:#c2410c">Host</text>
+            </g>
+
+            <!-- =========== HUB-AND-SPOKE LINES (drawn first so ellipses sit on top) =========== -->
+            <!-- Student trunk: from actor torso to a hub point on system boundary, then branch -->
+            <line class="uc-link" x1="100" y1="330" x2="170" y2="330"/>
+
+            <!-- Branches from Student hub (170, 330) to each ellipse left edge -->
+            <line class="uc-link" x1="170" y1="330" x2="220" y2="140"/>
+            <line class="uc-link" x1="170" y1="330" x2="220" y2="220"/>
+            <line class="uc-link" x1="170" y1="330" x2="220" y2="300"/>
+            <line class="uc-link" x1="170" y1="330" x2="220" y2="380"/>
+            <line class="uc-link" x1="170" y1="330" x2="220" y2="460"/>
+
+            <!-- Student → AI Features (longer branches but cleanly routed) -->
+            <line class="uc-link" x1="170" y1="330" x2="478" y2="180"/>
+            <line class="uc-link" x1="170" y1="330" x2="478" y2="270"/>
+            <line class="uc-link" x1="170" y1="330" x2="478" y2="360"/>
+            <line class="uc-link" x1="170" y1="330" x2="478" y2="450"/>
+
+            <!-- Student → Study Room shared cases -->
+            <line class="uc-link" x1="170" y1="330" x2="748" y2="270"/>
+            <line class="uc-link" x1="170" y1="330" x2="748" y2="360"/>
+            <line class="uc-link" x1="170" y1="330" x2="748" y2="450"/>
+
+            <!-- Host trunk -->
+            <line class="uc-link uc-link-host" x1="1000" y1="330" x2="970" y2="330"/>
+
+            <!-- Host branches to Study Room column -->
+            <line class="uc-link uc-link-host" x1="970" y1="330" x2="912" y2="140"/>
+            <line class="uc-link uc-link-host" x1="970" y1="330" x2="912" y2="220"/>
+            <line class="uc-link uc-link-host" x1="970" y1="330" x2="912" y2="300"/>
+            <line class="uc-link uc-link-host" x1="970" y1="330" x2="912" y2="390"/>
+            <line class="uc-link uc-link-host" x1="970" y1="330" x2="912" y2="480"/>
+            <line class="uc-link uc-link-host" x1="970" y1="330" x2="912" y2="570"/>
+
+            <!-- Hub dots for visual clarity -->
+            <circle cx="170" cy="330" r="3" fill="#1a1a1a"/>
+            <circle cx="970" cy="330" r="3" fill="#c2410c"/>
+
+            <!-- =========== USE CASE ELLIPSES (drawn after lines) =========== -->
+
+            <!-- Column 1: Auth & Resources -->
+            <g><ellipse class="uc-case" cx="305" cy="140" rx="78" ry="22"/><text class="uc-case-label" x="305" y="144">Register / Login</text></g>
+            <g><ellipse class="uc-case" cx="305" cy="220" rx="78" ry="22"/><text class="uc-case-label" x="305" y="224">Create Workspace</text></g>
+            <g><ellipse class="uc-case" cx="305" cy="300" rx="78" ry="22"/><text class="uc-case-label" x="305" y="304">Upload Resources</text></g>
+            <g><ellipse class="uc-case" cx="305" cy="380" rx="78" ry="22"/><text class="uc-case-label" x="305" y="384">View Resources</text></g>
+            <g><ellipse class="uc-case" cx="305" cy="460" rx="78" ry="22"/><text class="uc-case-label" x="305" y="464">Manage Profile</text></g>
+
+            <!-- Column 2: AI Features -->
+            <g><ellipse class="uc-case" cx="565" cy="180" rx="82" ry="22"/><text class="uc-case-label" x="565" y="184">Generate Summary</text></g>
+            <g><ellipse class="uc-case" cx="565" cy="270" rx="82" ry="22"/><text class="uc-case-label" x="565" y="274">Generate Flashcards</text></g>
+            <g><ellipse class="uc-case" cx="565" cy="360" rx="82" ry="22"/><text class="uc-case-label" x="565" y="364">Generate Quiz</text></g>
+            <g><ellipse class="uc-case" cx="565" cy="450" rx="82" ry="22"/><text class="uc-case-label" x="565" y="454">Chat with Chattie</text></g>
+
+            <!-- Column 3: Study Room -->
+            <g><ellipse class="uc-case" cx="830" cy="140" rx="82" ry="22" style="stroke:#c2410c;fill:#fef3ec"/><text class="uc-case-label" x="830" y="144" style="fill:#c2410c">Create Study Room</text></g>
+            <g><ellipse class="uc-case" cx="830" cy="220" rx="82" ry="22" style="stroke:#c2410c;fill:#fef3ec"/><text class="uc-case-label" x="830" y="224" style="fill:#c2410c">Invite Participants</text></g>
+            <g><ellipse class="uc-case uc-case-shared" cx="830" cy="300" rx="82" ry="22"/><text class="uc-case-label" x="830" y="304">Join Study Room</text></g>
+            <g><ellipse class="uc-case uc-case-shared" cx="830" cy="390" rx="82" ry="22"/><text class="uc-case-label" x="830" y="394">Answer Questions</text></g>
+            <g><ellipse class="uc-case uc-case-shared" cx="830" cy="480" rx="82" ry="22"/><text class="uc-case-label" x="830" y="484">View Leaderboard</text></g>
+            <g><ellipse class="uc-case" cx="830" cy="570" rx="82" ry="22" style="stroke:#c2410c;fill:#fef3ec"/><text class="uc-case-label" x="830" y="574" style="fill:#c2410c">Submit Final Answer</text></g>
+
+            <!-- Legend -->
+            <g transform="translate(195,720)">
+              <ellipse cx="12" cy="-2" rx="14" ry="8" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+              <text class="uc-system-label" x="34" y="2">STUDENT-ONLY</text>
+
+              <ellipse cx="180" cy="-2" rx="14" ry="8" fill="white" stroke="#1a1a1a" stroke-width="1" style="stroke:#c2410c;fill:none"/>
+              <text class="uc-system-label" x="202" y="2" style="fill:#c2410c">SHARED (BOTH ACTORS)</text>
+
+              <ellipse cx="420" cy="-2" rx="14" ry="8" fill="#fef3ec" stroke="#c2410c" stroke-width="1"/>
+              <text class="uc-system-label" x="442" y="2" style="fill:#c2410c">HOST-ONLY</text>
+            </g>
+
+            <!-- Inheritance note -->
+            <g transform="translate(540,742)">
+              <text class="uc-system-label" x="0" y="0" style="fill:#c2410c" text-anchor="middle">▸ HOST EXTENDS STUDENT — A HOST IS A STUDENT WHO INITIATES A STUDY ROOM</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== ARCHITECTURE ============== -->
+    <section class="panel" id="arch" role="tabpanel">
+      <div class="panel-header">
+        <div class="panel-eyebrow">Section 03 · System</div>
+        <h1 class="panel-title">High-Level <em>Architecture</em></h1>
+        <p class="panel-desc">Three-tier architecture with a Next.js client, a dual-runtime backend on Railway (Express + FastAPI), and Supabase as the source of truth. AI work routes through OpenRouter, Gemini, and a local Whisper service.</p>
+      </div>
+
+      <div class="arch-canvas">
+        <div class="arch-svg-wrap">
+          <svg viewBox="0 0 960 660" xmlns="http://www.w3.org/2000/svg" width="100%">
+            <!-- Layer backgrounds -->
+            <rect class="arch-layer-bg" x="20" y="40" width="920" height="100" rx="2"/>
+            <text class="arch-layer-label" x="32" y="32">CLIENT TIER</text>
+
+            <rect class="arch-layer-bg" x="20" y="180" width="920" height="180" rx="2"/>
+            <text class="arch-layer-label" x="32" y="172">SERVICE TIER · RAILWAY</text>
+
+            <rect class="arch-layer-bg" x="20" y="400" width="920" height="100" rx="2"/>
+            <text class="arch-layer-label" x="32" y="392">DATA &amp; STORAGE</text>
+
+            <rect class="arch-layer-bg" x="20" y="540" width="920" height="100" rx="2"/>
+            <text class="arch-layer-label" x="32" y="532">EXTERNAL SERVICES</text>
+
+            <!-- Client tier -->
+            <g transform="translate(60,60)">
+              <rect class="arch-svc arch-svc-accent" width="200" height="60" rx="2"/>
+              <text class="arch-svc-title" x="100" y="26">Next.js 15 App</text>
+              <text class="arch-svc-sub" x="100" y="42">App Router · TS · Tailwind</text>
+              <text class="arch-svc-sub" x="100" y="54">shadcn/ui · Vercel</text>
+            </g>
+            <g transform="translate(380,60)">
+              <rect class="arch-svc" width="200" height="60" rx="2"/>
+              <text class="arch-svc-title" x="100" y="26">Mobile Browser</text>
+              <text class="arch-svc-sub" x="100" y="42">PWA · responsive</text>
+            </g>
+            <g transform="translate(700,60)">
+              <rect class="arch-svc" width="200" height="60" rx="2"/>
+              <text class="arch-svc-title" x="100" y="26">Realtime WS Client</text>
+              <text class="arch-svc-sub" x="100" y="42">Supabase Realtime</text>
+            </g>
+
+            <!-- Service tier -->
+            <g transform="translate(60,210)">
+              <rect class="arch-svc arch-svc-accent" width="220" height="130" rx="2"/>
+              <text class="arch-svc-title" x="110" y="24">Express.js API</text>
+              <text class="arch-svc-sub" x="110" y="42">Auth · Workspaces</text>
+              <text class="arch-svc-sub" x="110" y="58">Resources · Quizzes</text>
+              <text class="arch-svc-sub" x="110" y="74">Study Rooms · Chattie</text>
+              <text class="arch-svc-sub" x="110" y="98">────</text>
+              <text class="arch-svc-sub" x="110" y="114">Node · TypeScript</text>
+            </g>
+            <g transform="translate(370,210)">
+              <rect class="arch-svc arch-svc-accent" width="220" height="130" rx="2"/>
+              <text class="arch-svc-title" x="110" y="24">FastAPI ML Service</text>
+              <text class="arch-svc-sub" x="110" y="42">PDF / PPTX extraction</text>
+              <text class="arch-svc-sub" x="110" y="58">Whisper transcription</text>
+              <text class="arch-svc-sub" x="110" y="74">Flashcard NLP (NLTK)</text>
+              <text class="arch-svc-sub" x="110" y="98">────</text>
+              <text class="arch-svc-sub" x="110" y="114">Python · officeparser</text>
+            </g>
+            <g transform="translate(680,210)">
+              <rect class="arch-svc" width="220" height="130" rx="2"/>
+              <text class="arch-svc-title" x="110" y="24">Background Jobs</text>
+              <text class="arch-svc-sub" x="110" y="42">Resource indexing</text>
+              <text class="arch-svc-sub" x="110" y="58">Embedding generation</text>
+              <text class="arch-svc-sub" x="110" y="74">Email dispatch</text>
+              <text class="arch-svc-sub" x="110" y="98">────</text>
+              <text class="arch-svc-sub" x="110" y="114">Concurrent runner</text>
+            </g>
+
+            <!-- Data tier -->
+            <g transform="translate(60,420)">
+              <rect class="arch-svc arch-svc-accent" width="260" height="60" rx="2"/>
+              <text class="arch-svc-title" x="130" y="26">Supabase</text>
+              <text class="arch-svc-sub" x="130" y="42">PostgreSQL + pgvector · Auth · Realtime</text>
+            </g>
+            <g transform="translate(360,420)">
+              <rect class="arch-svc" width="240" height="60" rx="2"/>
+              <text class="arch-svc-title" x="120" y="26">UploadThing</text>
+              <text class="arch-svc-sub" x="120" y="42">File storage (PDF · PPTX · audio)</text>
+            </g>
+            <g transform="translate(640,420)">
+              <rect class="arch-svc" width="260" height="60" rx="2"/>
+              <text class="arch-svc-title" x="130" y="26">pgvector embeddings</text>
+              <text class="arch-svc-sub" x="130" y="42">RAG retrieval store · Chattie</text>
+            </g>
+
+            <!-- External -->
+            <g transform="translate(60,560)">
+              <rect class="arch-svc" width="180" height="60" rx="2"/>
+              <text class="arch-svc-title" x="90" y="26">OpenRouter</text>
+              <text class="arch-svc-sub" x="90" y="42">Llama 3.1 8B · quizzes</text>
+            </g>
+            <g transform="translate(280,560)">
+              <rect class="arch-svc" width="180" height="60" rx="2"/>
+              <text class="arch-svc-title" x="90" y="26">Gemini API</text>
+              <text class="arch-svc-sub" x="90" y="42">Embeddings · Chattie</text>
+            </g>
+            <g transform="translate(500,560)">
+              <rect class="arch-svc" width="180" height="60" rx="2"/>
+              <text class="arch-svc-title" x="90" y="26">Whisper (local)</text>
+              <text class="arch-svc-sub" x="90" y="42">Audio transcription</text>
+            </g>
+            <g transform="translate(720,560)">
+              <rect class="arch-svc" width="180" height="60" rx="2"/>
+              <text class="arch-svc-title" x="90" y="26">Resend</text>
+              <text class="arch-svc-sub" x="90" y="42">Transactional email</text>
+            </g>
+
+            <!-- Flows -->
+            <path class="arch-flow arch-flow-accent" d="M 160 120 L 170 210" marker-end="url(#arrowAccent)"/>
+            <path class="arch-flow" d="M 480 120 L 480 210" marker-end="url(#arrow)"/>
+            <path class="arch-flow" d="M 800 120 L 530 420" marker-end="url(#arrow)"/>
+
+            <path class="arch-flow arch-flow-accent" d="M 170 340 L 190 420" marker-end="url(#arrowAccent)"/>
+            <path class="arch-flow" d="M 480 340 L 480 420" marker-end="url(#arrow)"/>
+            <path class="arch-flow" d="M 790 340 L 770 420" marker-end="url(#arrow)"/>
+
+            <path class="arch-flow" d="M 170 480 L 150 560" marker-end="url(#arrow)"/>
+            <path class="arch-flow" d="M 280 480 L 370 560" marker-end="url(#arrow)"/>
+            <path class="arch-flow" d="M 480 480 L 590 560" marker-end="url(#arrow)"/>
+            <path class="arch-flow" d="M 770 480 L 810 560" marker-end="url(#arrow)"/>
+
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+              </marker>
+              <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#c2410c"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <div class="arch-stack">
+        <div class="arch-tier">
+          <h5>Frontend</h5>
+          <p>Next.js 15</p>
+          <small>App Router · TypeScript · Tailwind · shadcn/ui · Vercel deployment</small>
+        </div>
+        <div class="arch-tier">
+          <h5>API Layer</h5>
+          <p>Express.js</p>
+          <small>Node · TypeScript · auth, workspaces, AI orchestration · Railway</small>
+        </div>
+        <div class="arch-tier">
+          <h5>ML Microservice</h5>
+          <p>FastAPI</p>
+          <small>Python · Whisper tiny · NLTK + TF-IDF · officeparser · Railway</small>
+        </div>
+        <div class="arch-tier">
+          <h5>Database</h5>
+          <p>Supabase</p>
+          <small>PostgreSQL + pgvector · Auth · Realtime · row-level isolation</small>
+        </div>
+        <div class="arch-tier">
+          <h5>Storage</h5>
+          <p>UploadThing</p>
+          <small>External file storage for PDFs, PPTX, audio recordings</small>
+        </div>
+        <div class="arch-tier">
+          <h5>Quiz LLM</h5>
+          <p>OpenRouter</p>
+          <small>Llama 3.1 8B Instruct · single-call generation pipeline</small>
+        </div>
+        <div class="arch-tier">
+          <h5>RAG Pipeline</h5>
+          <p>Gemini</p>
+          <small>text-embedding-004 + Gemini 2.0 Flash for Chattie</small>
+        </div>
+        <div class="arch-tier">
+          <h5>Email</h5>
+          <p>Resend</p>
+          <small>Transactional email via noreply@mail.lakshitha.me · Namecheap DNS</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== SPRINT PLANNER ============== -->
+    <section class="panel" id="sprints" role="tabpanel">
+      <div class="panel-header">
+        <div class="panel-eyebrow">Section 04 · Delivery</div>
+        <h1 class="panel-title">Sprint <em>Planner</em></h1>
+        <p class="panel-desc">Eight two-week sprints across January to May 2026. Built around an Agile cadence with continuous testing — sprint 8 is currently active (E2E automation and manual testing in flight).</p>
+      </div>
+
+      <div class="sprint-grid">
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 01</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">Foundation &amp; Auth</h3>
+          <p class="sprint-dates">06 Jan — 19 Jan 2026</p>
+          <ul class="sprint-tasks">
+            <li>Repo, monorepo workspaces, concurrently runner</li>
+            <li>Next.js 15 + Tailwind + shadcn baseline</li>
+            <li>Supabase Auth (migrated from Clerk/OTP)</li>
+            <li>Domain setup · lakshitha.me · Resend DNS</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Working login + project skeleton</b></div>
+        </article>
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 02</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">Workspace Hub &amp; Design System</h3>
+          <p class="sprint-dates">20 Jan — 02 Feb 2026</p>
+          <ul class="sprint-tasks">
+            <li>Workspace CRUD · isolation rules</li>
+            <li>Glassmorphism design tokens</li>
+            <li>Dashboard shell · sidebar nav</li>
+            <li>Aura color (scoped indicator only)</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Workspace creation flow</b></div>
+        </article>
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 03</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">Resource Pipeline</h3>
+          <p class="sprint-dates">03 Feb — 16 Feb 2026</p>
+          <ul class="sprint-tasks">
+            <li>UploadThing integration</li>
+            <li>FastAPI extraction service (PDF, PPTX, audio)</li>
+            <li>Whisper tiny local transcription</li>
+            <li>YouTube transcript extraction</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Multi-format ingestion working</b></div>
+        </article>
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 04</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">AI Summarization</h3>
+          <p class="sprint-dates">17 Feb — 02 Mar 2026</p>
+          <ul class="sprint-tasks">
+            <li>OpenRouter integration · Llama 3.1 8B</li>
+            <li>Multi-format summary outputs</li>
+            <li>Source reference linking</li>
+            <li>Resource status state machine</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Summary feature live</b></div>
+        </article>
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 05</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">Flashcards &amp; Chattie RAG</h3>
+          <p class="sprint-dates">03 Mar — 16 Mar 2026</p>
+          <ul class="sprint-tasks">
+            <li>NLTK + TF-IDF flashcard generator</li>
+            <li>Gemini embeddings into pgvector</li>
+            <li>Chattie chat UI + retrieval</li>
+            <li>Source-cited responses</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>RAG chatbot operational</b></div>
+        </article>
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 06</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">Quiz Generator</h3>
+          <p class="sprint-dates">17 Mar — 30 Mar 2026</p>
+          <ul class="sprint-tasks">
+            <li>Architecture pivot: local → hybrid → full API</li>
+            <li>Single-call OpenRouter pipeline</li>
+            <li>MCQ + scenario question types</li>
+            <li>Removed deprecated T5/WordNet code</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Quiz generation flow</b></div>
+        </article>
+
+        <article class="sprint-card done">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 07</span>
+            <span class="sprint-status done">Complete</span>
+          </div>
+          <h3 class="sprint-title">Study Rooms (Realtime)</h3>
+          <p class="sprint-dates">31 Mar — 13 Apr 2026</p>
+          <ul class="sprint-tasks">
+            <li>Supabase Realtime channels</li>
+            <li>Synchronized question delivery</li>
+            <li>Live leaderboard</li>
+            <li>Email invitations via Resend</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Collaborative quiz sessions</b></div>
+        </article>
+
+        <article class="sprint-card active">
+          <div class="sprint-head">
+            <span class="sprint-num">Sprint 08 · Current</span>
+            <span class="sprint-status active">In Progress</span>
+          </div>
+          <h3 class="sprint-title">Testing &amp; Hardening</h3>
+          <p class="sprint-dates">14 Apr — 11 May 2026</p>
+          <ul class="sprint-tasks">
+            <li>Playwright E2E suite (TC-AUTH-01 → TC-SR-10)</li>
+            <li>GitHub Actions CI pipeline</li>
+            <li>Quiz question count truncation fix</li>
+            <li>Manual UAT · viva preparation</li>
+            <li>Final report writing &amp; submission</li>
+          </ul>
+          <div class="sprint-deliverable">Deliverable · <b>Production-ready FYP submission</b></div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ============== GANTT ============== -->
+    <section class="panel" id="gantt" role="tabpanel">
+      <div class="panel-header">
+        <div class="panel-eyebrow">Section 05 · Schedule</div>
+        <h1 class="panel-title">Gantt <em>Chart</em></h1>
+        <p class="panel-desc">Five-month project timeline. Today is May 9, 2026 — testing automation and manual UAT are the active workstream until the final submission window.</p>
+      </div>
+
+      <div class="gantt-wrap">
+        <table class="gantt-table">
+          <thead>
+            <tr>
+              <th>Workstream</th>
+              <th class="month-th" colspan="1">Jan</th>
+              <th class="month-th" colspan="1">Feb</th>
+              <th class="month-th" colspan="1">Mar</th>
+              <th class="month-th" colspan="1">Apr</th>
+              <th class="month-th" colspan="1">May</th>
+            </tr>
+          </thead>
+          <tbody id="ganttBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+
+        <div class="legend-strip">
+          <div class="legend-pill"><span class="swatch" style="background:var(--done)"></span> Completed</div>
+          <div class="legend-pill"><span class="swatch" style="background:var(--accent)"></span> Active (Testing — Auto + Manual)</div>
+          <div class="legend-pill"><span class="swatch" style="background:white;border:1px dashed var(--ink)"></span> Planned</div>
+          <div class="legend-pill"><span class="swatch" style="background:var(--accent);border-radius:50%;width:10px;height:10px"></span> Today · May 9, 2026</div>
+        </div>
+      </div>
+
+      <div class="gantt-summary">
+        <div class="gantt-stat">
+          <div class="gantt-stat-num">125<em>d</em></div>
+          <div class="gantt-stat-label">Project duration</div>
+        </div>
+        <div class="gantt-stat">
+          <div class="gantt-stat-num">7<em>/8</em></div>
+          <div class="gantt-stat-label">Sprints complete</div>
+        </div>
+        <div class="gantt-stat">
+          <div class="gantt-stat-num">~88<em>%</em></div>
+          <div class="gantt-stat-label">Progress today</div>
+        </div>
+        <div class="gantt-stat">
+          <div class="gantt-stat-num">11<em>·</em>5</div>
+          <div class="gantt-stat-label">Submission window</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-row">
+      <span>EZY NOTEZ · PUSL3190 · UNIVERSITY OF PLYMOUTH</span>
+      <span>v1.0 · Generated for FYP Documentation</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---------- Tabs ----------
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.panel');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+      tabBtns.forEach(b => b.classList.toggle('active', b === btn));
+      panels.forEach(p => p.classList.toggle('active', p.id === target));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // ---------- Gantt rendering ----------
+  // Project window: Jan 6 - May 11, 2026 = ~125 days
+  const PROJECT_START = new Date(2026, 0, 6);
+  const PROJECT_END = new Date(2026, 4, 11);
+  const TOTAL_DAYS = (PROJECT_END - PROJECT_START) / (1000 * 60 * 60 * 24);
+  const TODAY = new Date(2026, 4, 9);
+
+  const tasks = [
+    { label: 'Sprint 1 — Foundation & Auth', sub: 'Repo · Next.js · Supabase Auth', start: [2026, 0, 6], end: [2026, 0, 19], status: 'done' },
+    { label: 'Sprint 2 — Workspace & Design', sub: 'Hub · design tokens · dashboard', start: [2026, 0, 20], end: [2026, 1, 2], status: 'done' },
+    { label: 'Sprint 3 — Resource Pipeline', sub: 'Upload · extraction · Whisper', start: [2026, 1, 3], end: [2026, 1, 16], status: 'done' },
+    { label: 'Sprint 4 — AI Summarization', sub: 'OpenRouter · Llama 3.1', start: [2026, 1, 17], end: [2026, 2, 2], status: 'done' },
+    { label: 'Sprint 5 — Flashcards & Chattie', sub: 'NLTK · Gemini RAG · pgvector', start: [2026, 2, 3], end: [2026, 2, 16], status: 'done' },
+    { label: 'Sprint 6 — Quiz Generator', sub: 'Architecture pivot · single-call', start: [2026, 2, 17], end: [2026, 2, 30], status: 'done' },
+    { label: 'Sprint 7 — Study Rooms', sub: 'Realtime · leaderboard · email', start: [2026, 2, 31], end: [2026, 3, 13], status: 'done' },
+    { label: 'Sprint 8 — Testing (Auto + Manual)', sub: 'Playwright E2E · CI · UAT', start: [2026, 3, 14], end: [2026, 4, 11], status: 'active' },
+    { label: 'Report Writing & Submission', sub: 'Final report · viva prep', start: [2026, 3, 20], end: [2026, 4, 11], status: 'active' }
+  ];
+
+  const ganttBody = document.getElementById('ganttBody');
+  const todayPct = ((TODAY - PROJECT_START) / (1000 * 60 * 60 * 24)) / TOTAL_DAYS * 100;
+
+  tasks.forEach(t => {
+    const start = new Date(...t.start);
+    const end = new Date(...t.end);
+    const startPct = ((start - PROJECT_START) / (1000 * 60 * 60 * 24)) / TOTAL_DAYS * 100;
+    const endPct = ((end - PROJECT_START) / (1000 * 60 * 60 * 24)) / TOTAL_DAYS * 100;
+    const widthPct = endPct - startPct;
+
+    const tr = document.createElement('tr');
+    tr.className = 'gantt-row';
+    tr.innerHTML = `
+      <td class="gantt-label">
+        ${t.label}
+        <small>${t.sub}</small>
+      </td>
+      <td colspan="5">
+        <div class="gantt-track">
+          <div class="gantt-bar ${t.status}"
+               style="left:${startPct}%;width:${widthPct}%"
+               title="${t.label} · ${start.toLocaleDateString()} → ${end.toLocaleDateString()}">
+            ${widthPct > 8 ? t.label.split('—')[0].trim() : ''}
+          </div>
+        </div>
+      </td>
+    `;
+    ganttBody.appendChild(tr);
+  });
+
+  // Today marker — append to first track
+  const firstTrack = document.querySelector('.gantt-track');
+  if (firstTrack) {
+    // Add today marker spanning all rows by injecting into table layout
+    const allTracks = document.querySelectorAll('.gantt-track');
+    allTracks.forEach((track, idx) => {
+      const marker = document.createElement('div');
+      marker.className = 'today-marker';
+      marker.style.left = todayPct + '%';
+      if (idx !== 0) marker.style.setProperty('--label-vis', 'hidden');
+      track.appendChild(marker);
+    });
+    // Hide label on all but first
+    const style = document.createElement('style');
+    style.textContent = `
+      .gantt-row:not(:first-child) .today-marker::before { display: none; }
+      .gantt-row:not(:first-child) .today-marker::after { display: none; }
+    `;
+    document.head.appendChild(style);
+  }
+</script>
+
+</body>
+</html>

@@ -20,9 +20,23 @@ const app = express();
 const port = Number(process.env.PORT) || 3001;
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
+const ALLOWED_ORIGINS = [
+  frontendUrl,
+  "http://localhost:3000",
+  "https://ezy-notez.vercel.app",
+  "https://ezynotez.lakshitha.me",
+];
+
 app.use(cors({
-  origin: [frontendUrl, "https://ezy-notez.vercel.app"],
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, Playwright)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin not allowed — ${origin}`));
+    }
+  },
+  credentials: true,
 }));
 app.use(express.json());
 app.use(cookieParser());

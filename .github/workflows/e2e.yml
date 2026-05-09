@@ -13,15 +13,23 @@
 #   VERCEL_PRODUCTION_URL      Production frontend URL (used on push to main and
 #                              manual runs when base_url input is blank)
 #                              e.g. https://ezy-notez.vercel.app
+#
+# ── Optional secrets (strongly recommended) ──────────────────────────────────
+#   EXPRESS_URL                Railway Express backend URL — used to warm up the
+#                              service before tests run, defeating Railway cold
+#                              starts that cause workspace API timeouts.
+#                              e.g. https://ezy-notez-backend.up.railway.app
+#   FASTAPI_URL                Railway ML (FastAPI) service URL — warmed up in
+#                              parallel with Express so AI features are ready.
+#                              e.g. https://ezy-notez-ml.up.railway.app
+#
+#   Add both under: repo → Settings → Secrets and variables → Actions → New secret
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: E2E Tests
 
 on:
   pull_request:
-    branches: [main]
-
-  push:
     branches: [main]
 
   # Manual pre-deploy gate — run with run_slow=true to include AI-generation tests.
@@ -38,7 +46,7 @@ on:
 
 # Cancel in-flight runs on the same ref/event so a new push supersedes old ones.
 concurrency:
-  group: e2e-${{ github.ref }}-${{ github.event_name }}
+  group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -143,14 +151,62 @@ jobs:
           if [ -z "$VERCEL_BYPASS" ] && [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "::warning::VERCEL_AUTOMATION_BYPASS_SECRET is not set. If Vercel Deployment Protection is enabled on preview URLs, the auth setup will hit Vercel's SSO wall and time out. Enable 'Protection Bypass for Automation' in your Vercel project settings and add the generated secret as VERCEL_AUTOMATION_BYPASS_SECRET."
           fi
+          if [ -z "$EXPRESS_URL" ]; then
+            echo "::warning::EXPRESS_URL secret is not set — Railway backend warm-up will be skipped. Tests that hit the backend may be flaky on cold start."
+          fi
+          if [ -z "$FASTAPI_URL" ]; then
+            echo "::warning::FASTAPI_URL secret is not set — ML service warm-up will be skipped."
+          fi
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
           E2E_TEST_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          EXPRESS_URL: ${{ secrets.EXPRESS_URL }}
+          FASTAPI_URL: ${{ secrets.FASTAPI_URL }}
 
-      # ── 5. Setup Node 20 ─────────────────────────────────────────────────────
+      # ── 5. Warm up Railway services (defeat cold start) ──────────────────────
+      # Railway (hobby/free tier) suspends idle services. The first request after
+      # sleep can take 20-40 s, which causes workspace API calls to timeout and
+      # fails every test that depends on the backend. We poll /health on both
+      # services here — before installing Node deps — so the dyno is warm by the
+      # time Playwright starts. continue-on-error: true so a missing secret or an
+      # unreachable service doesn't block the run; it will just be flaky instead
+      # of completely broken.
+      - name: Warm up Railway services
+        continue-on-error: true
+        env:
+          EXPRESS_URL: ${{ secrets.EXPRESS_URL }}
+          FASTAPI_URL: ${{ secrets.FASTAPI_URL }}
+        run: |
+          warm_up() {
+            local name="$1"
+            local url="$2"
+            if [ -z "$url" ]; then
+              echo "[$name] URL not configured — skipping."
+              return 0
+            fi
+            echo "[$name] Warming up $url/health ..."
+            for i in $(seq 1 18); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "$url/health" 2>/dev/null || echo "000")
+              echo "[$name] attempt $i → HTTP $STATUS"
+              if [ "$STATUS" = "200" ]; then
+                echo "[$name] Service is warm."
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::warning::[$name] Did not return 200 after 180 s — tests may be flaky."
+            return 0
+          }
+
+          # Fire both warm-ups in parallel then wait for both to finish
+          warm_up "Express"  "$EXPRESS_URL"  &
+          warm_up "FastAPI"  "$FASTAPI_URL"  &
+          wait
+
+      # ── 6. Setup Node 20 ─────────────────────────────────────────────────────
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
