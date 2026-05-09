@@ -219,6 +219,79 @@ export default function StudyRoomLanding({ workspaceId }: StudyRoomLandingProps)
     };
   }, []);
 
+  // Realtime: refetch data when the current user joins a room (new row in
+  // study_room_participants). Covers OTP joins and email-invite accepts that
+  // don't change study_room_invites (e.g. the host re-joining their own room).
+  useEffect(() => {
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refetchAll = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          const [recent, hosted, st, pending] = await Promise.all([
+            getRecentRooms(workspaceId),
+            getHostedRooms(workspaceId),
+            getStudyRoomStats(workspaceId),
+            getPendingInvites(),
+          ]);
+          if (!mounted) return;
+          setRecentRooms(recent);
+          setHostedRooms(hosted);
+          setStats(st);
+          setPendingInvites(pending);
+        } catch (err) {
+          console.error("[StudyRoomLanding] participant refetch failed:", err);
+        }
+      }, 300);
+    };
+
+    const setup = async () => {
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id;
+      if (!userId || !mounted) return;
+
+      await ensureRealtimeAuth();
+      if (!mounted) return;
+
+      channel = supabase
+        .channel(`landing-participants:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "study_room_participants",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            refetchAll();
+          },
+        )
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            console.warn(
+              `[StudyRoomLanding] participants channel status: ${status}`,
+            );
+          }
+        });
+    };
+
+    void setup();
+
+    return () => {
+      mounted = false;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [workspaceId]);
+
   // Realtime: refetch room lists + stats when any study_rooms row in this
   // workspace transitions status (waiting -> in_progress -> completed).
   useEffect(() => {

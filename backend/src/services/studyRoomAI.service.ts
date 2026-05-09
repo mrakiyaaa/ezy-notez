@@ -7,6 +7,8 @@ import { callOpenRouter } from "../utils/openRouterClient";
 // ---------------------------------------------------------------------------
 
 const MODEL = "google/gemini-3-flash-preview-20251217";
+const MAX_CHARS = 4000;
+const MIN_LINE_WORDS = 8;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +31,59 @@ interface RawQuestion {
   correct_answer: string;
   explanation: string;
 }
+
+// ---------------------------------------------------------------------------
+// Text preprocessing
+// ---------------------------------------------------------------------------
+
+const URL_REGEX = /https?:\/\/\S+|www\.\S+/gi;
+const NUMERIC_DATE_REGEX =
+  /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\b/;
+const FILE_METADATA_REGEX = /\.(pdf|pptx?|docx?|xlsx?)\b|\b(slide|page)\s*\d+\b/i;
+const PURELY_NUMERIC_REGEX = /^\s*[\d\s.,]+\s*$/;
+const EXCESS_BLANK_LINES_REGEX = /\n{3,}/g;
+
+const stripUrlsFromLine = (line: string): string =>
+  line.replace(URL_REGEX, "").replace(/\s{2,}/g, " ").trim();
+
+const isMetadataLine = (line: string): boolean =>
+  PURELY_NUMERIC_REGEX.test(line) ||
+  NUMERIC_DATE_REGEX.test(line) ||
+  FILE_METADATA_REGEX.test(line) ||
+  line.trim().split(/\s+/).filter(Boolean).length < MIN_LINE_WORDS;
+
+const truncateAtSentenceBoundary = (text: string): string => {
+  if (text.length <= MAX_CHARS) return text;
+  const truncated = text.slice(0, MAX_CHARS);
+  const lastEnd = Math.max(
+    truncated.lastIndexOf(". "),
+    truncated.lastIndexOf("? "),
+    truncated.lastIndexOf("! "),
+    truncated.lastIndexOf(".\n"),
+    truncated.lastIndexOf("?\n"),
+    truncated.lastIndexOf("!\n"),
+  );
+  return lastEnd > 0
+    ? truncated.slice(0, lastEnd + 1).trimEnd()
+    : truncated.trimEnd();
+};
+
+/**
+ * Removes metadata noise (dates, page numbers, headers, URLs, file paths)
+ * from extracted resource text before it is sent to the LLM, so the model
+ * focuses on academic content rather than document formatting artefacts.
+ */
+export const preprocessText = (text: string): string => {
+  const filtered = text
+    .split("\n")
+    .map(stripUrlsFromLine)
+    .filter((line) => !isMetadataLine(line))
+    .join("\n");
+
+  const collapsed = filtered.replace(EXCESS_BLANK_LINES_REGEX, "\n\n").trim();
+
+  return truncateAtSentenceBoundary(collapsed);
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -108,16 +163,22 @@ export const generateRoomQuestions = async (
       ? existingQuestionTexts.map((q, i) => `${i + 1}. ${q}`).join("\n")
       : "none";
 
-  // ── Step 3: build prompts ─────────────────────────────────────────────────
+  // ── Step 3: preprocess resource text then build prompts ──────────────────
+  const processedContent = preprocessText(resourceContent);
+
   const systemPrompt =
     "You are an academic quiz generator. You generate multiple choice questions " +
     "strictly based on the provided study material. " +
+    "Generate questions about concepts, definitions, processes, and academic content only. " +
+    "Do not generate questions about dates, page numbers, file names, or document formatting. " +
     "Return ONLY a valid JSON array. No markdown, no explanation, no preamble.";
 
   const userPrompt =
     `Generate exactly ${questionCount} multiple choice questions based on the following study material.\n\n` +
     `Rules:\n` +
     `- Each question must be directly answerable from the material\n` +
+    `- Generate questions about concepts, definitions, processes, and academic content only\n` +
+    `- Do not generate questions about dates, page numbers, file names, or document formatting\n` +
     `- Options must be labeled A, B, C, D\n` +
     `- correct_answer must be exactly one of: "A", "B", "C", "D"\n` +
     `- explanation must explain why the correct answer is right and briefly why others are wrong\n` +
@@ -132,7 +193,7 @@ export const generateRoomQuestions = async (
     `    "explanation": "..."\n` +
     `  }\n` +
     `]\n\n` +
-    `Study material:\n${resourceContent}`;
+    `Study material:\n${processedContent}`;
 
   // ── Step 4: call OpenRouter ───────────────────────────────────────────────
   const rawResponse = await callOpenRouter(systemPrompt, userPrompt, MODEL);
