@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export default function WorkspacesPage() {
   const [dailyBriefing, setDailyBriefing] = useState<string[]>([]);
   const [briefingLoading, setBriefingLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -237,8 +238,9 @@ export default function WorkspacesPage() {
                     Your AI-powered learning space
                   </h1>
                 </div>
-                <div className="relative w-96 bg-bg-card/30 backdrop-blur-xl border border-fade-border rounded-full shadow-lg">
+                <div className="relative w-96 bg-bg-card/30 backdrop-blur-xl border border-fade-border rounded-full shadow-lg focus-within:border-blue-accent/50 transition-colors">
                   <input
+                    ref={searchInputRef}
                     type="text"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
@@ -248,6 +250,7 @@ export default function WorkspacesPage() {
                   <button
                     type="button"
                     aria-label="Search"
+                    onClick={() => searchInputRef.current?.focus()}
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-blue-accent hover:bg-blue-accent/90 flex items-center justify-center transition-colors"
                   >
                     <Search className="w-4 h-4 text-white" />
