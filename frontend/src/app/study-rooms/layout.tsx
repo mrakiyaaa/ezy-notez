@@ -3,18 +3,22 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Grainient from "@/components/ui/Grainient";
 import { getWorkspaceByIdApi } from "@/api/workspace.api";
+import { getStudyRoomById } from "@/services/studyRoom.service";
 import type { Workspace } from "@/types/workspace";
 
 function HeaderNav() {
   const searchParams = useSearchParams();
+  const params = useParams();
+  const pathname = usePathname();
   const fromWorkspaceId = searchParams.get("from");
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [roomTitle, setRoomTitle] = useState<string | null>(null);
 
   useEffect(() => {
     if (!fromWorkspaceId) return;
@@ -31,6 +35,18 @@ function HeaderNav() {
       });
     return () => { mounted = false; };
   }, [fromWorkspaceId]);
+
+  const roomId = params?.roomId as string | undefined;
+  const isSessionPage = pathname?.includes("/session") ?? false;
+
+  useEffect(() => {
+    if (!roomId || !isSessionPage) return;
+    let mounted = true;
+    getStudyRoomById(roomId)
+      .then((r) => { if (mounted) setRoomTitle(r.title); })
+      .catch(console.error);
+    return () => { mounted = false; };
+  }, [roomId, isSessionPage]);
 
   const auraHex = workspace?.aura || "#507DBC";
   const backHref = workspace
@@ -61,6 +77,14 @@ function HeaderNav() {
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:inline">{backLabel}</span>
         </Link>
+        {isSessionPage && roomTitle && (
+          <>
+            <div className="w-px h-4 bg-white/20 mx-3" />
+            <span className="text-text-secondary text-sm font-medium truncate max-w-[200px]">
+              {roomTitle}
+            </span>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-3">

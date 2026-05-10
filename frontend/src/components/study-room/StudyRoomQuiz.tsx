@@ -334,26 +334,38 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
   const optionLabels = ["A", "B", "C", "D"];
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-fade-border">
-        <h3 className="text-text-secondary text-sm font-medium truncate max-w-[200px]">
-          {room.title}
-        </h3>
-        <PointsCounter points={state.userPoints} />
+    <div className="flex h-full overflow-hidden">
+      {/* Left sidebar — participants */}
+      <aside className="w-56 shrink-0 border-r border-fade-border px-4 py-6 flex flex-col gap-4 overflow-y-auto">
         <div className="flex items-center gap-1.5 text-text-muted">
           <Users className="w-4 h-4" />
-          <span className="text-sm">{participants.length}</span>
+          <span className="text-sm font-medium">{participants.length}</span>
         </div>
-      </div>
-
-      {channelError && (
-        <div className="flex items-center gap-2 px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-300 text-sm">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          {channelError}
+        <div className="flex flex-col gap-3">
+          {participants.map((p) => (
+            <div key={p.id} className="flex items-center gap-2.5">
+              <ParticipantAvatar
+                participant={p}
+                size="sm"
+                showStatus={false}
+                showConfirmed
+              />
+              <span className="text-text-secondary text-sm truncate">{p.name}</span>
+            </div>
+          ))}
         </div>
-      )}
+      </aside>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 overflow-y-auto">
+      {/* Center column */}
+      <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
+        {channelError && (
+          <div className="flex items-center gap-2 px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-300 text-sm">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {channelError}
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         <div className="w-full max-w-2xl rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.25)]/60 backdrop-blur-sm p-6 mb-8"
           style={{ boxShadow: "0 4px 24px rgba(0, 0, 0, 0.2)" }}
         >
@@ -483,33 +495,22 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
           )}
         </div>
       </div>
-
-      <div className="border-t border-fade-border px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {participants.map((p) => (
-              <ParticipantAvatar
-                key={p.id}
-                participant={p}
-                size="sm"
-                showStatus={false}
-                showConfirmed
-              />
-            ))}
-          </div>
-
-          {isHost && !state.answerRevealed && (
-            <button
-              onClick={handleNextQuestion}
-              disabled={!allConfirmed}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-accent text-white text-sm font-medium transition-all duration-200 hover:bg-blue-accent/80 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next Question
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
-        </div>
       </div>
+
+      {/* Right sidebar — points */}
+      <aside className="w-56 shrink-0 border-l border-fade-border px-4 py-6 flex flex-col gap-4 overflow-y-auto">
+        <PointsCounter points={state.userPoints} />
+        {isHost && !state.answerRevealed && (
+          <button
+            onClick={handleNextQuestion}
+            disabled={!allConfirmed}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-accent text-white text-sm font-medium transition-all duration-200 hover:bg-blue-accent/80 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next Question
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+      </aside>
 
       {disconnectedUser && isHost && (
         <DisconnectModal
