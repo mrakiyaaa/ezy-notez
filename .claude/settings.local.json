@@ -41,7 +41,9 @@
       "Bash(npx eslint *)",
       "Bash(Select-String -Pattern \"documents|\\\\.github\")",
       "Bash(dir /B)",
-      "PowerShell(Copy-Item \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\extra-pages\\\\diagram.html\" \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\frontend\\\\public\\\\diagram.html\")"
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\extra-pages\\\\diagram.html\" \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\frontend\\\\public\\\\diagram.html\")",
+      "Bash(mkdir -p /mnt/user-data/outputs)",
+      "Read(//mnt/user-data/**)"
     ]
   },
   "enableAllProjectMcpServers": true,

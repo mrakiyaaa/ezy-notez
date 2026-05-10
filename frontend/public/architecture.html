@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EZY Notez · Architecture Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #0d0d0d;
+    --panel-2: #131313;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --text: #f5f5f5;
+    --text-muted: #8b8b8b;
+    --text-dim: #555;
+    --hover: rgba(255, 255, 255, 0.04);
+
+    --c-rest: #3b82f6;
+    --c-ai: #10b981;
+    --c-external: #f59e0b;
+    --c-realtime: #a855f7;
+
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 14px;
+
+    --sans: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  body.light {
+    --bg: #fafafa;
+    --panel: #ffffff;
+    --panel-2: #f5f5f5;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.14);
+    --text: #0a0a0a;
+    --text-muted: #525252;
+    --text-dim: #a3a3a3;
+    --hover: rgba(0, 0, 0, 0.03);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 3px;
+  }
+
+  .sidebar-header {
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .logo-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--c-rest) 0%, var(--c-realtime) 100%);
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .brand-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .brand-meta {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+    letter-spacing: 0.01em;
+  }
+
+  .section {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-family: var(--mono);
+  }
+
+  /* Color row */
+  .color-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+  }
+  .color-row label {
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--text);
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .color-input {
+    width: 38px;
+    height: 24px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+  }
+  .color-input::-webkit-color-swatch-wrapper { padding: 2px; }
+  .color-input::-webkit-color-swatch { border: none; border-radius: 3px; }
+  .color-input::-moz-color-swatch { border: none; border-radius: 3px; }
+
+  /* Toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-row label {
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .toggle {
+    width: 30px;
+    height: 17px;
+    background: var(--border-strong);
+    border-radius: 9px;
+    position: relative;
+    transition: background 0.18s ease;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 13px;
+    height: 13px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.18s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  body.light .toggle::after { background: #fff; }
+  .toggle.active {
+    background: var(--text);
+  }
+  .toggle.active::after {
+    transform: translateX(13px);
+    background: var(--bg);
+  }
+
+  /* Theme picker */
+  .seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg button {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .seg button.active {
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
+  body.light .seg button.active {
+    background: #fff;
+  }
+
+  /* Buttons */
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    width: 100%;
+  }
+  .btn:hover {
+    background: var(--hover);
+    border-color: var(--border-strong);
+  }
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .btn-primary:hover {
+    opacity: 0.92;
+    background: var(--text);
+  }
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .footer-section {
+    margin-top: auto;
+  }
+
+  .small-note {
+    font-size: 10.5px;
+    color: var(--text-dim);
+    line-height: 1.55;
+    margin-top: 10px;
+    font-family: var(--mono);
+  }
+
+  /* ── Canvas ──────────────────────────────────────────────── */
+  .canvas-wrap {
+    position: relative;
+    overflow: auto;
+    background: var(--bg);
+  }
+  .canvas-wrap.grid-on {
+    background-image: radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+  .canvas-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+  .canvas-wrap::-webkit-scrollbar-track { background: transparent; }
+  .canvas-wrap::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 5px;
+  }
+
+  .canvas-toolbar {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+  .tool-btn {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 5px;
+    display: grid;
+    place-items: center;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.12s ease;
+  }
+  .tool-btn:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  .zoom-display {
+    align-self: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 0 8px;
+    user-select: none;
+  }
+
+  #diagram {
+    display: block;
+    margin: 32px auto;
+    transition: filter 0.2s ease;
+  }
+
+  /* SVG node hover */
+  .node:hover .node-rect {
+    fill: var(--hover) !important;
+    stroke: var(--border-strong) !important;
+  }
+  .node {
+    cursor: pointer;
+  }
+  .layer-info-btn {
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+  }
+  .layer-info-btn:hover { opacity: 1; }
+
+  .flow-line {
+    transition: stroke-width 0.15s ease, opacity 0.2s ease;
+  }
+  .flow-group:hover .flow-line {
+    stroke-width: 2.5 !important;
+  }
+  .flow-group {
+    cursor: pointer;
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  body.light .modal { background: rgba(255, 255, 255, 0.55); }
+  .modal.open {
+    display: flex;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .modal-card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    max-width: 480px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+  .modal-eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .modal-title {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    margin-bottom: 6px;
+  }
+  .modal-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-bottom: 18px;
+  }
+  .modal-content {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .modal-content p { margin-bottom: 12px; color: var(--text-muted); }
+  .modal-content strong { color: var(--text); font-weight: 600; }
+  .modal-content code {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .pill-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin: 14px 0 6px;
+  }
+  .pill {
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+  }
+  .pill-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .pill-sub {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+
+  .modal-close {
+    margin-top: 22px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 500;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    z-index: 200;
+    font-family: var(--mono);
+  }
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Empty state for narrow screens */
+  @media (max-width: 900px) {
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+    .sidebar {
+      max-height: 320px;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+  }
+</style>
+</head>
+<body class="dark">
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="logo-mark">EN</div>
+        <div>
+          <div class="brand-title">Architecture Studio</div>
+          <div class="brand-meta">EZY Notez · PUSL3190</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Theme</div>
+      <div class="seg" id="theme-seg">
+        <button data-theme="dark" class="active">Dark</button>
+        <button data-theme="light">Light</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Transport Colors</div>
+      <div class="color-row">
+        <label><span class="swatch" id="sw-rest"></span>REST · HTTP · SQL</label>
+        <input type="color" class="color-input" id="c-rest" value="#3b82f6" />
+      </div>
+      <div class="color-row">
+        <label><span class="swatch" id="sw-ai"></span>AI · ML</label>
+        <input type="color" class="color-input" id="c-ai" value="#10b981" />
+      </div>
+      <div class="color-row">
+        <label><span class="swatch" id="sw-external"></span>External 3rd-party</label>
+        <input type="color" class="color-input" id="c-external" value="#f59e0b" />
+      </div>
+      <div class="color-row">
+        <label><span class="swatch" id="sw-realtime"></span>Realtime · P2P</label>
+        <input type="color" class="color-input" id="c-realtime" value="#a855f7" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Show Flows</div>
+      <div class="toggle-row" data-flow="rest">
+        <label>REST · HTTP · SQL</label>
+        <div class="toggle active"></div>
+      </div>
+      <div class="toggle-row" data-flow="ai">
+        <label>AI · ML</label>
+        <div class="toggle active"></div>
+      </div>
+      <div class="toggle-row" data-flow="external">
+        <label>External</label>
+        <div class="toggle active"></div>
+      </div>
+      <div class="toggle-row" data-flow="realtime">
+        <label>Realtime · P2P</label>
+        <div class="toggle active"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Display</div>
+      <div class="toggle-row" data-display="labels">
+        <label>Flow labels</label>
+        <div class="toggle active"></div>
+      </div>
+      <div class="toggle-row" data-display="numbers">
+        <label>Flow numbers</label>
+        <div class="toggle active"></div>
+      </div>
+      <div class="toggle-row" data-display="dashed">
+        <label>Direct (dashed) flows</label>
+        <div class="toggle active"></div>
+      </div>
+      <div class="toggle-row" data-display="grid">
+        <label>Background grid</label>
+        <div class="toggle active"></div>
+      </div>
+    </div>
+
+    <div class="section footer-section">
+      <div class="section-title">Export</div>
+      <div class="btn-row" style="margin-bottom: 8px;">
+        <button class="btn btn-primary" id="export-png">Export PNG</button>
+        <button class="btn btn-primary" id="export-svg">Export SVG</button>
+      </div>
+      <button class="btn" id="reset-config">Reset all</button>
+      <p class="small-note">PNG renders at 2× for sharp output. SVG is vector — scale to any size.</p>
+    </div>
+  </aside>
+
+  <main class="canvas-wrap grid-on" id="canvas-wrap">
+    <div class="canvas-toolbar">
+      <button class="tool-btn" id="zoom-out" title="Zoom out">−</button>
+      <span class="zoom-display" id="zoom-display">100%</span>
+      <button class="tool-btn" id="zoom-in" title="Zoom in">+</button>
+      <button class="tool-btn" id="zoom-fit" title="Fit to view">⊡</button>
+    </div>
+    <svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <span class="modal-eyebrow" id="modal-eyebrow"></span>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="modal-content" id="modal-content"></div>
+    <button class="btn modal-close" id="modal-close">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════════════════ */
+const DEFAULT_STATE = {
+  theme: "dark",
+  zoom: 1,
+  colors: {
+    rest: "#3b82f6",
+    ai: "#10b981",
+    external: "#f59e0b",
+    realtime: "#a855f7"
+  },
+  flows: { rest: true, ai: true, external: true, realtime: true },
+  display: { labels: true, numbers: true, dashed: true, grid: true }
+};
+const state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+/* ════════════════════════════════════════════════════════════════
+   DATA
+   ════════════════════════════════════════════════════════════════ */
+const data = {
+  layers: [
+    {
+      id: "client",
+      title: "Client (Browser)",
+      subtitle: "Next.js 16 · React 19 · TypeScript · Vercel Edge SSR",
+      detail: "Single SPA-like surface that handles UI, real-time subscriptions, file upload, and peer-to-peer voice signalling. The only tier that talks to all four other planes — Express, Supabase Realtime, Supabase Auth, UploadThing — and to other browsers via WebRTC.",
+      components: [
+        { id: "next", label: "Next.js 16", sub: "App Router · RSC · SSR" },
+        { id: "ui", label: "Tailwind 4 + shadcn", sub: "Radix · Lucide · Zustand" },
+        { id: "motion", label: "Framer Motion", sub: "Lottie Teddy · transitions" },
+        { id: "sb-client", label: "supabase-js", sub: "Realtime · Auth · JWT" },
+        { id: "webrtc", label: "WebRTC P2P", sub: "STUN · 6 peers · voice" },
+        { id: "upload", label: "@uploadthing/react", sub: "Direct browser upload" }
+      ]
+    },
+    {
+      id: "express",
+      title: "Express.js 5 Backend",
+      subtitle: "Railway · Node 20-alpine · Port 3001 · Docker",
+      detail: "Orchestration tier. Verifies JWTs, owns business logic, persists to Supabase, and delegates AI work to FastAPI or directly to OpenRouter. Runs Whisper, YouTube transcription, and TF-IDF flashcard generation as Python child_processes.",
+      components: [
+        { id: "auth-mw", label: "auth.middleware", sub: "JWT verify · cookie fallback · token rotation", wide: true },
+        { id: "r1", label: "/auth · /workspaces", sub: "register · login · slug" },
+        { id: "r2", label: "/resources · /summaries", sub: "PDF · audio · YouTube" },
+        { id: "r3", label: "/flashcards · /quiz", sub: "generate · attempt · CRUD" },
+        { id: "r4", label: "/chatie · /study-rooms", sub: "proxy · OTP · invites" },
+        { id: "socket", label: "Socket.IO", sub: "Live session events" },
+        { id: "spawn", label: "Python child_process", sub: "whisper · youtube · TF-IDF" }
+      ]
+    },
+    {
+      id: "fastapi",
+      title: "FastAPI ML Service",
+      subtitle: "Railway · Python 3.10-slim · uvicorn · Port 8000 · CPU PyTorch",
+      detail: "Unified Python ML microservice. Single FastAPI app exposing three router prefixes. Exists because long LLM calls would block Express's event loop, and because the heavy Python dependency stack is cleaner kept separate.",
+      components: [
+        { id: "quiz", label: "/quiz/*", sub: "4-stage pipeline · Llama 3.1 8B" },
+        { id: "chatie", label: "/chatie/*", sub: "RAG · embed-004 · Gemini 2.0" },
+        { id: "fc", label: "/flashcards/*", sub: "NLTK TF-IDF Q-gen" }
+      ]
+    },
+    {
+      id: "supabase",
+      title: "Supabase (PostgreSQL + pgvector)",
+      subtitle: "Managed Postgres · 17 tables · RLS · Realtime · Auth",
+      detail: "Hub of the system, not a spoke. Browser, Express, and FastAPI all connect to it for SQL, vector search, Realtime, and Auth. RLS policies keyed off auth.uid() and auth.jwt() are what make this safe.",
+      components: [
+        { id: "tables", label: "17 Tables", sub: "profiles · resources · quizzes …" },
+        { id: "pgvector", label: "pgvector", sub: "vector(768) · ivfflat · cosine" },
+        { id: "rls", label: "Row Level Security", sub: "auth.uid() · auth.jwt()" },
+        { id: "realtime", label: "Realtime", sub: "postgres_changes · broadcast" },
+        { id: "sb-auth", label: "Supabase Auth", sub: "JWT · OAuth · trigger" }
+      ]
+    }
+  ],
+  external: [
+    { id: "uploadthing", label: "UploadThing", sub: "File hosting", y: 380, kind: "external", caller: "express" },
+    { id: "resend",      label: "Resend",      sub: "Email invites", y: 470, kind: "external", caller: "express" },
+    { id: "whisper",     label: "YouTube · Whisper", sub: "Local transcripts", y: 560, kind: "external", caller: "express" },
+    { id: "openrouter",  label: "OpenRouter",  sub: "Llama 3.1 8B", y: 760, kind: "ai", caller: "fastapi" },
+    { id: "gemini",      label: "Google Gemini", sub: "embed-004 · 2.0 Flash", y: 850, kind: "ai", caller: "fastapi" }
+  ],
+  flows: [
+    /* Inter-layer (numbered) */
+    { id: 1, from: "client", to: "express", type: "rest", label: "REST + JWT", route: "center-left" },
+    { id: 4, from: "client", to: "express", type: "realtime", label: "Socket.IO", route: "center-right" },
+    { id: 2, from: "client", to: "supabase", type: "realtime", label: "Realtime WS", route: "bypass-left", lane: 0 },
+    { id: 5, from: "express", to: "fastapi", type: "rest", label: "HTTP POST", route: "center" },
+    { id: 7, from: "express", to: "supabase", type: "rest", label: "SQL", route: "bypass-left", lane: 1 },
+    { id: 11, from: "fastapi", to: "supabase", type: "rest", label: "Vector ops", route: "center" },
+
+    /* External (numbered) */
+    { id: 6,  from: "express", to: "uploadthing", type: "external", label: "fileUrl",  route: "external" },
+    { id: 8,  from: "express", to: "resend",      type: "external", label: "invites",  route: "external" },
+    { id: 12, from: "express", to: "whisper",     type: "external", label: "spawn",    route: "external" },
+    { id: 9,  from: "fastapi", to: "openrouter",  type: "ai",       label: "Llama",    route: "external" },
+    { id: 10, from: "fastapi", to: "gemini",      type: "ai",       label: "Gemini",   route: "external" },
+
+    /* Direct flows (dashed, no number) */
+    { from: "client",  to: "uploadthing", type: "external", label: "direct upload", dashed: true, route: "external-long" },
+    { from: "client",  to: "supabase",    type: "external", label: "Auth JWT",      dashed: true, route: "bypass-left", lane: 2 },
+    { from: "express", to: "openrouter",  type: "ai",       label: "summaries",     dashed: true, route: "external-long" }
+  ]
+};
+
+/* ════════════════════════════════════════════════════════════════
+   LAYOUT
+   ════════════════════════════════════════════════════════════════ */
+const L = {
+  width: 1480,
+  height: 1300,
+  padding: 60,
+  gutterLeft: 24,
+  laneStep: 14,
+
+  layers: {
+    client:   { x: 60, y: 60,   w: 1020, h: 220 },
+    express:  { x: 60, y: 340,  w: 1020, h: 320 },
+    fastapi:  { x: 60, y: 720,  w: 1020, h: 180 },
+    supabase: { x: 60, y: 960,  w: 1020, h: 220 }
+  },
+
+  externalCol: { x: 1140, w: 280, h: 70 }
+};
+
+/* ════════════════════════════════════════════════════════════════
+   THEME COLORS (resolved per render)
+   ════════════════════════════════════════════════════════════════ */
+function tc() {
+  if (state.theme === "dark") {
+    return {
+      bg: "#0a0a0a",
+      cardBg: "rgba(255,255,255,0.025)",
+      cardBorder: "rgba(255,255,255,0.10)",
+      nodeBg: "#181818",
+      nodeBorder: "rgba(255,255,255,0.10)",
+      text: "#f5f5f5",
+      textMuted: "#8b8b8b",
+      textDim: "#555",
+      badgeBg: "#0a0a0a"
+    };
+  }
+  return {
+    bg: "#ffffff",
+    cardBg: "rgba(0,0,0,0.02)",
+    cardBorder: "rgba(0,0,0,0.10)",
+    nodeBg: "#ffffff",
+    nodeBorder: "rgba(0,0,0,0.10)",
+    text: "#0a0a0a",
+    textMuted: "#525252",
+    textDim: "#a3a3a3",
+    badgeBg: "#ffffff"
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SVG HELPERS
+   ════════════════════════════════════════════════════════════════ */
+const SVG_NS = "http://www.w3.org/2000/svg";
+function ns(tag, attrs = {}) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) {
+    if (attrs[k] != null) el.setAttribute(k, attrs[k]);
+  }
+  return el;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ANCHOR LOOKUP
+   ════════════════════════════════════════════════════════════════ */
+function layerCenter(id) {
+  const p = L.layers[id];
+  return { x: p.x + p.w / 2, top: p.y, bottom: p.y + p.h, left: p.x, right: p.x + p.w };
+}
+function externalCenter(id) {
+  const ext = data.external.find((e) => e.id === id);
+  if (!ext) return null;
+  return {
+    x: L.externalCol.x,
+    y: ext.y + L.externalCol.h / 2,
+    yTop: ext.y,
+    yBottom: ext.y + L.externalCol.h
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RENDER
+   ════════════════════════════════════════════════════════════════ */
+function render() {
+  const svg = document.getElementById("diagram");
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", `0 0 ${L.width} ${L.height}`);
+  svg.setAttribute("width", L.width);
+  svg.setAttribute("height", L.height);
+  svg.style.width = L.width * state.zoom + "px";
+  svg.style.height = L.height * state.zoom + "px";
+
+  const c = tc();
+
+  /* Defs: arrow markers, one per transport type, recolored each render */
+  const defs = ns("defs");
+  ["rest", "ai", "external", "realtime"].forEach((type) => {
+    const m = ns("marker", {
+      id: `arrow-${type}`,
+      viewBox: "0 0 10 10",
+      refX: 8.5,
+      refY: 5,
+      markerWidth: 5,
+      markerHeight: 5,
+      orient: "auto-start-reverse"
+    });
+    m.appendChild(ns("path", { d: "M0,0 L10,5 L0,10 z", fill: state.colors[type] }));
+    defs.appendChild(m);
+  });
+  svg.appendChild(defs);
+
+  /* Layers */
+  data.layers.forEach((layer) => renderLayer(svg, layer, c));
+
+  /* External services */
+  data.external.forEach((ext) => renderExternal(svg, ext, c));
+
+  /* Flows — drawn after layers so they render on top */
+  data.flows.forEach((flow) => renderFlow(svg, flow, c));
+}
+
+function renderLayer(svg, layer, c) {
+  const pos = L.layers[layer.id];
+  const g = ns("g", { "data-layer": layer.id });
+
+  /* Card */
+  g.appendChild(
+    ns("rect", {
+      x: pos.x,
+      y: pos.y,
+      width: pos.w,
+      height: pos.h,
+      rx: 16,
+      ry: 16,
+      fill: c.cardBg,
+      stroke: c.cardBorder,
+      "stroke-width": 1
+    })
+  );
+
+  /* Title */
+  const t = ns("text", {
+    x: pos.x + 24,
+    y: pos.y + 32,
+    fill: c.text,
+    "font-size": 15,
+    "font-weight": 700,
+    "font-family": "Geist, system-ui, sans-serif",
+    "letter-spacing": "-0.01em"
+  });
+  t.textContent = layer.title;
+  g.appendChild(t);
+
+  /* Subtitle */
+  const s = ns("text", {
+    x: pos.x + 24,
+    y: pos.y + 51,
+    fill: c.textMuted,
+    "font-size": 11,
+    "font-family": "Geist Mono, ui-monospace, monospace"
+  });
+  s.textContent = layer.subtitle;
+  g.appendChild(s);
+
+  /* Info button (top-right) */
+  const ib = ns("g", {
+    transform: `translate(${pos.x + pos.w - 28}, ${pos.y + 26})`,
+    class: "layer-info-btn",
+    "data-info": layer.id
+  });
+  ib.appendChild(
+    ns("circle", {
+      cx: 0, cy: 0, r: 11,
+      fill: "none",
+      stroke: c.textMuted,
+      "stroke-width": 1
+    })
+  );
+  const it = ns("text", {
+    x: 0, y: 0,
+    "text-anchor": "middle",
+    "dominant-baseline": "central",
+    fill: c.textMuted,
+    "font-size": 12,
+    "font-weight": 600,
+    "font-style": "italic",
+    "font-family": "Geist, system-ui, sans-serif"
+  });
+  it.textContent = "i";
+  ib.appendChild(it);
+  ib.addEventListener("click", () => openLayerModal(layer));
+  g.appendChild(ib);
+
+  /* Components */
+  renderComponents(g, layer, pos, c);
+
+  svg.appendChild(g);
+}
+
+function renderComponents(g, layer, pos, c) {
+  const padding = 20;
+  const startY = pos.y + 78;
+  const availW = pos.w - 2 * padding;
+
+  if (layer.id === "express") {
+    /* Wide auth.middleware on top, then 6-col grid below */
+    const top = layer.components[0];
+    const rest = layer.components.slice(1);
+    g.appendChild(buildNode(top, pos.x + padding, startY, availW, 50, c));
+
+    const cols = rest.length;
+    const gap = 10;
+    const nw = (availW - gap * (cols - 1)) / cols;
+    const ny = startY + 60;
+    rest.forEach((comp, i) => {
+      const nx = pos.x + padding + i * (nw + gap);
+      g.appendChild(buildNode(comp, nx, ny, nw, 70, c));
+    });
+  } else {
+    const components = layer.components;
+    const cols = components.length;
+    const gap = 10;
+    const nw = (availW - gap * (cols - 1)) / cols;
+    const remH = pos.h - 95;
+    const nh = Math.min(remH, 92);
+    components.forEach((comp, i) => {
+      const nx = pos.x + padding + i * (nw + gap);
+      g.appendChild(buildNode(comp, nx, startY, nw, nh, c));
+    });
+  }
+}
+
+function buildNode(comp, x, y, w, h, c) {
+  const g = ns("g", { class: "node", "data-node": comp.id });
+
+  g.appendChild(
+    ns("rect", {
+      x, y, width: w, height: h,
+      rx: 8, ry: 8,
+      fill: c.nodeBg,
+      stroke: c.nodeBorder,
+      "stroke-width": 1,
+      class: "node-rect"
+    })
+  );
+
+  const label = ns("text", {
+    x: x + 13,
+    y: y + 23,
+    fill: c.text,
+    "font-size": 11.5,
+    "font-weight": 600,
+    "font-family": "Geist, system-ui, sans-serif",
+    "letter-spacing": "-0.005em"
+  });
+  label.textContent = comp.label;
+  g.appendChild(label);
+
+  if (comp.sub) {
+    const sub = ns("text", {
+      x: x + 13,
+      y: y + 41,
+      fill: c.textMuted,
+      "font-size": 9.5,
+      "font-family": "Geist Mono, ui-monospace, monospace"
+    });
+    sub.textContent = comp.sub;
+    g.appendChild(sub);
+  }
+
+  g.addEventListener("click", () => openNodeModal(comp));
+  return g;
+}
+
+function renderExternal(svg, ext, c) {
+  const x = L.externalCol.x;
+  const y = ext.y;
+  const w = L.externalCol.w;
+  const h = L.externalCol.h;
+
+  const g = ns("g", { class: "node", "data-external": ext.id });
+
+  /* Accent stripe on the left */
+  g.appendChild(
+    ns("rect", {
+      x, y, width: 3, height: h,
+      rx: 1.5, ry: 1.5,
+      fill: state.colors[ext.kind]
+    })
+  );
+
+  /* Card */
+  g.appendChild(
+    ns("rect", {
+      x: x + 4,
+      y, width: w - 4, height: h,
+      rx: 8, ry: 8,
+      fill: c.nodeBg,
+      stroke: c.nodeBorder,
+      "stroke-width": 1,
+      class: "node-rect"
+    })
+  );
+
+  const lbl = ns("text", {
+    x: x + 18,
+    y: y + 28,
+    fill: c.text,
+    "font-size": 13,
+    "font-weight": 600,
+    "font-family": "Geist, system-ui, sans-serif",
+    "letter-spacing": "-0.01em"
+  });
+  lbl.textContent = ext.label;
+  g.appendChild(lbl);
+
+  const sub = ns("text", {
+    x: x + 18,
+    y: y + 48,
+    fill: c.textMuted,
+    "font-size": 10.5,
+    "font-family": "Geist Mono, ui-monospace, monospace"
+  });
+  sub.textContent = ext.sub;
+  g.appendChild(sub);
+
+  /* Tag */
+  const tagX = x + w - 70;
+  g.appendChild(
+    ns("rect", {
+      x: tagX, y: y + 12, width: 56, height: 18,
+      rx: 9, ry: 9,
+      fill: "none",
+      stroke: c.cardBorder,
+      "stroke-width": 1
+    })
+  );
+  const tagT = ns("text", {
+    x: tagX + 28,
+    y: y + 21,
+    "text-anchor": "middle",
+    "dominant-baseline": "central",
+    fill: c.textMuted,
+    "font-size": 9,
+    "font-family": "Geist Mono, ui-monospace, monospace",
+    "letter-spacing": "0.05em"
+  });
+  tagT.textContent = "EXTERNAL";
+  g.appendChild(tagT);
+
+  g.addEventListener("click", () =>
+    openNodeModal({
+      label: ext.label,
+      sub: ext.sub,
+      detail: getExternalDetail(ext.id)
+    })
+  );
+
+  svg.appendChild(g);
+}
+
+function getExternalDetail(id) {
+  const detail = {
+    openrouter: "OpenRouter API. Used by FastAPI's /quiz pipeline (meta-llama/llama-3.1-8b-instruct) for question generation, and directly by Express /summaries for summary generation. Both paths converge on the same model.",
+    gemini: "Google Gemini API. Used by FastAPI's /chatie router for two purposes: text-embedding-004 (768-dim) for chunk embeddings, and gemini-2.0-flash for RAG chat with retrieved context.",
+    uploadthing: "Hosted file storage. Reached two ways — directly from the browser (uploads bypass Express) and from Express SDK for fileUrl handling. Stores PDF, PPTX, DOCX, audio.",
+    resend: "Transactional email. Used only by Express /study-rooms for token-link invite emails.",
+    whisper: "Two local processes: youtube-transcript-api for caption extraction (with regex fallback), and openai-whisper tiny (~75 MB) for audio transcription. Spawned as Python child_processes from Express."
+  };
+  return detail[id] || "";
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FLOWS
+   ════════════════════════════════════════════════════════════════ */
+function renderFlow(svg, flow, c) {
+  if (!state.flows[flow.type]) return;
+  if (flow.dashed && !state.display.dashed) return;
+
+  let pathD, labelPos;
+
+  if (flow.route === "center" || flow.route === "center-left" || flow.route === "center-right") {
+    const fromL = layerCenter(flow.from);
+    const toL = layerCenter(flow.to);
+    let xOffset = 0;
+    if (flow.route === "center-left") xOffset = -36;
+    if (flow.route === "center-right") xOffset = 36;
+    const x = fromL.x + xOffset;
+    pathD = `M ${x} ${fromL.bottom + 4} L ${x} ${toL.top - 6}`;
+    labelPos = { x, y: (fromL.bottom + toL.top) / 2 };
+  } else if (flow.route === "bypass-left") {
+    /* L-shape: down-out, vertical along left gutter, in-down */
+    const fromL = layerCenter(flow.from);
+    const toL = layerCenter(flow.to);
+    const lane = flow.lane || 0;
+    const gutter = L.gutterLeft + lane * L.laneStep;
+    const startX = fromL.left + 100;
+    const endX = toL.left + 100 + lane * 50;
+    pathD = [
+      `M ${startX} ${fromL.bottom + 2}`,
+      `L ${startX} ${fromL.bottom + 22}`,
+      `L ${gutter} ${fromL.bottom + 22}`,
+      `L ${gutter} ${toL.top - 22}`,
+      `L ${endX} ${toL.top - 22}`,
+      `L ${endX} ${toL.top - 4}`
+    ].join(" ");
+    labelPos = { x: gutter + 14, y: (fromL.bottom + toL.top) / 2, anchor: "start" };
+  } else if (flow.route === "external") {
+    /* Curve from layer right edge to external service */
+    const fromL = layerCenter(flow.from);
+    const tgt = externalCenter(flow.to);
+    if (!tgt) return;
+    const startX = fromL.right - 4;
+    const startY = tgt.y;
+    const endX = tgt.x - 4;
+    const endY = tgt.y;
+    /* Smooth horizontal connect */
+    const midX = (startX + endX) / 2;
+    pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+    labelPos = { x: midX, y: startY - 8, anchor: "middle" };
+  } else if (flow.route === "external-long") {
+    /* Long curve: client/express right edge down to a far external service */
+    const fromL = layerCenter(flow.from);
+    const tgt = externalCenter(flow.to);
+    if (!tgt) return;
+    const startX = fromL.right - 4;
+    const startY = fromL.y || (fromL.top + (fromL.bottom - fromL.top) / 2);
+    const sY = (fromL.top + fromL.bottom) / 2;
+    const endX = tgt.x - 4;
+    const endY = tgt.y;
+    pathD = `M ${startX} ${sY} C ${startX + 100} ${sY}, ${endX - 100} ${endY}, ${endX} ${endY}`;
+    labelPos = { x: (startX + endX) / 2 + 30, y: (sY + endY) / 2 - 6, anchor: "middle" };
+  }
+
+  if (!pathD) return;
+
+  const group = ns("g", { class: "flow-group", "data-flow": flow.id || flow.label });
+
+  const path = ns("path", {
+    d: pathD,
+    fill: "none",
+    stroke: state.colors[flow.type],
+    "stroke-width": 1.6,
+    "stroke-linejoin": "round",
+    "stroke-linecap": "round",
+    "marker-end": `url(#arrow-${flow.type})`,
+    class: "flow-line",
+    "stroke-dasharray": flow.dashed ? "5 4" : null,
+    opacity: flow.dashed ? 0.65 : 1
+  });
+  group.appendChild(path);
+
+  /* Number badge */
+  if (flow.id != null && state.display.numbers && !flow.dashed) {
+    const bg = ns("circle", {
+      cx: labelPos.x, cy: labelPos.y, r: 11,
+      fill: c.badgeBg,
+      stroke: state.colors[flow.type],
+      "stroke-width": 1.5
+    });
+    const txt = ns("text", {
+      x: labelPos.x, y: labelPos.y,
+      "text-anchor": "middle",
+      "dominant-baseline": "central",
+      fill: c.text,
+      "font-size": 10,
+      "font-weight": 700,
+      "font-family": "Geist, system-ui, sans-serif"
+    });
+    txt.textContent = flow.id;
+    group.appendChild(bg);
+    group.appendChild(txt);
+  }
+
+  /* Label */
+  if (flow.label && state.display.labels) {
+    const anchor = labelPos.anchor || "middle";
+    const lx = labelPos.x + (anchor === "start" ? 0 : (state.display.numbers && flow.id != null && !flow.dashed ? 18 : 0));
+    const ly = labelPos.y + 4;
+
+    /* Background rect for legibility */
+    const labelText = flow.label;
+    const charW = 6;
+    const padding = 6;
+    const tw = labelText.length * charW + padding * 2;
+    const th = 16;
+    const bgX = anchor === "start" ? lx : (anchor === "middle" ? lx - tw / 2 : lx - tw);
+
+    const labelBg = ns("rect", {
+      x: bgX, y: ly - 11,
+      width: tw, height: th,
+      rx: 4, ry: 4,
+      fill: c.bg,
+      stroke: c.cardBorder,
+      "stroke-width": 1,
+      opacity: 0.96
+    });
+    group.appendChild(labelBg);
+
+    const labelEl = ns("text", {
+      x: anchor === "start" ? lx + padding : lx + (anchor === "middle" ? 0 : -padding),
+      y: ly,
+      "text-anchor": anchor === "start" ? "start" : (anchor === "middle" ? "middle" : "end"),
+      "dominant-baseline": "central",
+      fill: c.textMuted,
+      "font-size": 9.5,
+      "font-weight": 500,
+      "font-family": "Geist Mono, ui-monospace, monospace",
+      "letter-spacing": "0.01em"
+    });
+    labelEl.textContent = labelText;
+    group.appendChild(labelEl);
+  }
+
+  svg.appendChild(group);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════════════════════ */
+function openLayerModal(layer) {
+  const m = document.getElementById("modal");
+  document.getElementById("modal-eyebrow").textContent = "LAYER";
+  document.getElementById("modal-title").textContent = layer.title;
+  document.getElementById("modal-sub").textContent = layer.subtitle;
+
+  let html = `<p>${layer.detail}</p><div class="pill-grid">`;
+  layer.components.forEach((c) => {
+    html += `<div class="pill"><div class="pill-name">${c.label}</div><div class="pill-sub">${c.sub || ""}</div></div>`;
+  });
+  html += "</div>";
+  document.getElementById("modal-content").innerHTML = html;
+  m.classList.add("open");
+}
+
+function openNodeModal(comp) {
+  const m = document.getElementById("modal");
+  document.getElementById("modal-eyebrow").textContent = "COMPONENT";
+  document.getElementById("modal-title").textContent = comp.label;
+  document.getElementById("modal-sub").textContent = comp.sub || "";
+  document.getElementById("modal-content").innerHTML = comp.detail
+    ? `<p>${comp.detail}</p>`
+    : "<p>Click anywhere outside to close.</p>";
+  m.classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EXPORT
+   ════════════════════════════════════════════════════════════════ */
+async function exportSVG() {
+  const svg = document.getElementById("diagram");
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+  /* Add background rect for export */
+  const bg = document.createElementNS(SVG_NS, "rect");
+  bg.setAttribute("x", "0");
+  bg.setAttribute("y", "0");
+  bg.setAttribute("width", L.width);
+  bg.setAttribute("height", L.height);
+  bg.setAttribute("fill", tc().bg);
+  clone.insertBefore(bg, clone.firstChild);
+
+  const ser = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([ser], { type: "image/svg+xml;charset=utf-8" });
+  download(blob, "ezy-notez-architecture.svg");
+  toast("SVG exported");
+}
+
+async function exportPNG() {
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+
+  const svg = document.getElementById("diagram");
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+  const bg = document.createElementNS(SVG_NS, "rect");
+  bg.setAttribute("x", "0");
+  bg.setAttribute("y", "0");
+  bg.setAttribute("width", L.width);
+  bg.setAttribute("height", L.height);
+  bg.setAttribute("fill", tc().bg);
+  clone.insertBefore(bg, clone.firstChild);
+
+  const ser = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([ser], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = L.width * scale;
+    canvas.height = L.height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((b) => {
+      download(b, "ezy-notez-architecture.png");
+      URL.revokeObjectURL(url);
+      toast("PNG exported (2×)");
+    }, "image/png");
+  };
+  img.onerror = () => {
+    toast("Export failed — try SVG instead");
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EVENTS
+   ════════════════════════════════════════════════════════════════ */
+function updateSwatches() {
+  document.getElementById("sw-rest").style.background = state.colors.rest;
+  document.getElementById("sw-ai").style.background = state.colors.ai;
+  document.getElementById("sw-external").style.background = state.colors.external;
+  document.getElementById("sw-realtime").style.background = state.colors.realtime;
+
+  document.getElementById("c-rest").value = state.colors.rest;
+  document.getElementById("c-ai").value = state.colors.ai;
+  document.getElementById("c-external").value = state.colors.external;
+  document.getElementById("c-realtime").value = state.colors.realtime;
+
+  /* Update CSS vars for sidebar */
+  document.documentElement.style.setProperty("--c-rest", state.colors.rest);
+  document.documentElement.style.setProperty("--c-ai", state.colors.ai);
+  document.documentElement.style.setProperty("--c-external", state.colors.external);
+  document.documentElement.style.setProperty("--c-realtime", state.colors.realtime);
+}
+
+function updateToggles() {
+  document.querySelectorAll(".toggle-row").forEach((row) => {
+    const flowKey = row.dataset.flow;
+    const dispKey = row.dataset.display;
+    const tog = row.querySelector(".toggle");
+    if (flowKey) tog.classList.toggle("active", state.flows[flowKey]);
+    if (dispKey) tog.classList.toggle("active", state.display[dispKey]);
+  });
+}
+
+function updateThemeUI() {
+  document.body.className = state.theme;
+  document.querySelectorAll("#theme-seg button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.theme === state.theme);
+  });
+  document.getElementById("canvas-wrap").classList.toggle("grid-on", state.display.grid);
+}
+
+function updateZoomUI() {
+  document.getElementById("zoom-display").textContent = Math.round(state.zoom * 100) + "%";
+}
+
+function attach() {
+  /* Theme */
+  document.querySelectorAll("#theme-seg button").forEach((b) => {
+    b.addEventListener("click", () => {
+      state.theme = b.dataset.theme;
+      updateThemeUI();
+      render();
+    });
+  });
+
+  /* Color pickers */
+  ["rest", "ai", "external", "realtime"].forEach((type) => {
+    document.getElementById(`c-${type}`).addEventListener("input", (e) => {
+      state.colors[type] = e.target.value;
+      updateSwatches();
+      render();
+    });
+  });
+
+  /* Flow toggles */
+  document.querySelectorAll(".toggle-row[data-flow]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const k = row.dataset.flow;
+      state.flows[k] = !state.flows[k];
+      updateToggles();
+      render();
+    });
+  });
+
+  /* Display toggles */
+  document.querySelectorAll(".toggle-row[data-display]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const k = row.dataset.display;
+      state.display[k] = !state.display[k];
+      updateToggles();
+      if (k === "grid") {
+        document.getElementById("canvas-wrap").classList.toggle("grid-on", state.display.grid);
+      }
+      render();
+    });
+  });
+
+  /* Zoom */
+  document.getElementById("zoom-in").addEventListener("click", () => {
+    state.zoom = Math.min(2, state.zoom + 0.1);
+    updateZoomUI();
+    render();
+  });
+  document.getElementById("zoom-out").addEventListener("click", () => {
+    state.zoom = Math.max(0.4, state.zoom - 0.1);
+    updateZoomUI();
+    render();
+  });
+  document.getElementById("zoom-fit").addEventListener("click", () => {
+    const wrap = document.getElementById("canvas-wrap");
+    const wrapW = wrap.clientWidth - 64;
+    state.zoom = Math.max(0.4, Math.min(1.5, wrapW / L.width));
+    updateZoomUI();
+    render();
+  });
+
+  /* Export */
+  document.getElementById("export-png").addEventListener("click", exportPNG);
+  document.getElementById("export-svg").addEventListener("click", exportSVG);
+
+  /* Reset */
+  document.getElementById("reset-config").addEventListener("click", () => {
+    Object.assign(state, JSON.parse(JSON.stringify(DEFAULT_STATE)));
+    updateSwatches();
+    updateToggles();
+    updateThemeUI();
+    updateZoomUI();
+    render();
+    toast("Reset to defaults");
+  });
+
+  /* Modal */
+  document.getElementById("modal-close").addEventListener("click", closeModal);
+  document.getElementById("modal").addEventListener("click", (e) => {
+    if (e.target.id === "modal") closeModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════════════ */
+function init() {
+  attach();
+  updateSwatches();
+  updateToggles();
+  updateThemeUI();
+  updateZoomUI();
+  render();
+
+  /* Auto-fit on first load if screen is narrower than diagram */
+  setTimeout(() => {
+    const wrap = document.getElementById("canvas-wrap");
+    if (wrap.clientWidth < L.width + 80) {
+      const wrapW = wrap.clientWidth - 64;
+      state.zoom = Math.max(0.5, Math.min(1, wrapW / L.width));
+      updateZoomUI();
+      render();
+    }
+  }, 50);
+}
+
+init();
+</script>
+</body>
+</html>
