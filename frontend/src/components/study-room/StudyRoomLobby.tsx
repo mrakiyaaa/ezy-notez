@@ -10,7 +10,7 @@ import {
   sendLobbyInvites,
   getStudyRoomById,
 } from "@/services/studyRoom.service";
-import { supabase } from "@/lib/supabase/client";
+import { supabase, ensureRealtimeAuth } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import ParticipantAvatar from "./ParticipantAvatar";
 import VoicePanel from "./VoicePanel";
@@ -76,127 +76,141 @@ export default function StudyRoomLobby({
   useEffect(() => {
     if (!room?.id) return;
 
-    const channel = supabase.channel(`study-room:${room.id}`);
-    channelRef.current = channel;
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
 
-    channel
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "study_room_participants",
-          filter: `room_id=eq.${room.id}`,
-        },
-        () => {
-          getLobbyParticipants(room.id)
-            .then((fresh) =>
-              setParticipants((prev) => {
-                const existing = new Set(prev.map((p) => p.user_id));
-                const added = fresh.filter((p) => !existing.has(p.user_id));
-                return added.length > 0 ? [...prev, ...added] : prev;
-              }),
-            )
-            .catch((err) =>
-              console.error("[Lobby] participant INSERT resync failed:", err),
-            );
-        },
-      )
-      .on("broadcast", { event: "participant:joined" }, (payload) => {
-        try {
-          const data = payload.payload as {
-            userId?: string;
-            displayName?: string;
-            isHost?: boolean;
-            joinedAt?: string;
-          };
-          if (!data?.userId) return;
+    const setupChannel = async () => {
+      // Realtime needs the user's JWT before subscribe(); without this the
+      // socket stays on the anon apikey and RLS-protected postgres_changes
+      // events (and authenticated broadcasts) are dropped on cold load.
+      await ensureRealtimeAuth();
+      if (cancelled) return;
 
-          const newParticipant: Participant = {
-            id: data.userId,
-            user_id: data.userId,
-            name: data.displayName ?? "Unknown",
-            is_host: data.isHost ?? false,
-            status: "connected",
-            points: 0,
-            has_confirmed: false,
-          };
+      channel = supabase.channel(`study-room:${room.id}`);
+      channelRef.current = channel;
 
-          setParticipants((prev) => {
-            if (prev.some((p) => p.user_id === data.userId)) return prev;
-            return [...prev, newParticipant];
-          });
-        } catch (err) {
-          console.error("[Lobby] participant:joined handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "participant:disconnected" }, (payload) => {
-        try {
-          const data = payload.payload as { userId?: string };
-          if (data?.userId) {
-            setParticipants((prev) =>
-              prev.filter((p) => p.user_id !== data.userId),
-            );
-          }
-          setDisconnectBanner("A participant has disconnected");
-          setTimeout(() => setDisconnectBanner(null), 5000);
-        } catch (err) {
-          console.error("[Lobby] participant:disconnected handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "quiz:started" }, (payload) => {
-        try {
-          const data = payload.payload as { question?: unknown };
-          if (data?.question) {
-            try {
-              sessionStorage.setItem(
-                `ezn_room_first_question_${room.id}`,
-                JSON.stringify(data.question),
+      channel
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "study_room_participants",
+            filter: `room_id=eq.${room.id}`,
+          },
+          () => {
+            getLobbyParticipants(room.id)
+              .then((fresh) =>
+                setParticipants((prev) => {
+                  const existing = new Set(prev.map((p) => p.user_id));
+                  const added = fresh.filter((p) => !existing.has(p.user_id));
+                  return added.length > 0 ? [...prev, ...added] : prev;
+                }),
+              )
+              .catch((err) =>
+                console.error("[Lobby] participant INSERT resync failed:", err),
               );
-            } catch {
-              // sessionStorage may be unavailable in some contexts — not fatal
-            }
+          },
+        )
+        .on("broadcast", { event: "participant:joined" }, (payload) => {
+          try {
+            const data = payload.payload as {
+              userId?: string;
+              displayName?: string;
+              isHost?: boolean;
+              joinedAt?: string;
+            };
+            if (!data?.userId) return;
+
+            const newParticipant: Participant = {
+              id: data.userId,
+              user_id: data.userId,
+              name: data.displayName ?? "Unknown",
+              is_host: data.isHost ?? false,
+              status: "connected",
+              points: 0,
+              has_confirmed: false,
+            };
+
+            setParticipants((prev) => {
+              if (prev.some((p) => p.user_id === data.userId)) return prev;
+              return [...prev, newParticipant];
+            });
+          } catch (err) {
+            console.error("[Lobby] participant:joined handler error:", err);
           }
-          goToSession();
-        } catch (err) {
-          console.error("[Lobby] quiz:started handler error:", err);
-          goToSession();
-        }
-      })
-      .subscribe((status) => {
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          setChannelError(
-            "Lost connection to room. Please refresh the page.",
-          );
-        } else if (status === "SUBSCRIBED") {
-          setChannelError(null);
-          // Resync participants once the channel is established to close the
-          // race window where a participant:joined broadcast may have fired
-          // before this subscription was active.
-          getLobbyParticipants(room.id)
-            .then(setParticipants)
-            .catch((err) =>
-              console.error("[Lobby] resync after SUBSCRIBED failed:", err),
+        })
+        .on("broadcast", { event: "participant:disconnected" }, (payload) => {
+          try {
+            const data = payload.payload as { userId?: string };
+            if (data?.userId) {
+              setParticipants((prev) =>
+                prev.filter((p) => p.user_id !== data.userId),
+              );
+            }
+            setDisconnectBanner("A participant has disconnected");
+            setTimeout(() => setDisconnectBanner(null), 5000);
+          } catch (err) {
+            console.error("[Lobby] participant:disconnected handler error:", err);
+          }
+        })
+        .on("broadcast", { event: "quiz:started" }, (payload) => {
+          try {
+            const data = payload.payload as { question?: unknown };
+            if (data?.question) {
+              try {
+                sessionStorage.setItem(
+                  `ezn_room_first_question_${room.id}`,
+                  JSON.stringify(data.question),
+                );
+              } catch {
+                // sessionStorage may be unavailable in some contexts — not fatal
+              }
+            }
+            goToSession();
+          } catch (err) {
+            console.error("[Lobby] quiz:started handler error:", err);
+            goToSession();
+          }
+        })
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            setChannelError(
+              "Lost connection to room. Please refresh the page.",
             );
-          // Resync room status — if the host already started the room while
-          // this client was disconnected/subscribing, the quiz:started
-          // broadcast was missed. Navigate to /session in that case.
-          getStudyRoomById(room.id)
-            .then((r) => {
-              if (r.status === "in_progress") goToSession();
-            })
-            .catch((err) =>
-              console.error("[Lobby] room status resync failed:", err),
-            );
-        }
-      });
+          } else if (status === "SUBSCRIBED") {
+            setChannelError(null);
+            // Resync participants once the channel is established to close the
+            // race window where a participant:joined broadcast may have fired
+            // before this subscription was active.
+            getLobbyParticipants(room.id)
+              .then(setParticipants)
+              .catch((err) =>
+                console.error("[Lobby] resync after SUBSCRIBED failed:", err),
+              );
+            // Resync room status — if the host already started the room while
+            // this client was disconnected/subscribing, the quiz:started
+            // broadcast was missed. Navigate to /session in that case.
+            getStudyRoomById(room.id)
+              .then((r) => {
+                if (r.status === "in_progress") goToSession();
+              })
+              .catch((err) =>
+                console.error("[Lobby] room status resync failed:", err),
+              );
+          }
+        });
+    };
+
+    void setupChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
       channelRef.current = null;
     };
   }, [room.id, goToSession]);

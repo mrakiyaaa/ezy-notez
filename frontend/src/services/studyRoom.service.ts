@@ -80,14 +80,14 @@ export async function submitAnswer(
   roomId: string,
   questionId: string,
   answer: number
-): Promise<{ correct: boolean; points: number }> {
+): Promise<{ is_correct: boolean; points_earned: number; allConfirmed: boolean }> {
   try {
     const answerLetter = ["A", "B", "C", "D"][answer] ?? "A";
     const response = await apiClient.post(`/study-rooms/${roomId}/answer`, {
       question_id: questionId,
       selected_answer: answerLetter,
     });
-    return response.data.data as { correct: boolean; points: number };
+    return response.data.data as { is_correct: boolean; points_earned: number; allConfirmed: boolean };
   } catch (error) {
     throw new Error(extractErrorMessage(error, "Failed to submit answer"));
   }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Users, ChevronRight, AlertTriangle } from "lucide-react";
+import { Users, ChevronRight, AlertTriangle, LogOut, Check, X } from "lucide-react";
 import type { StudyRoom, Participant, StudyRoomQuestion } from "@/types/studyRoom";
 import {
   getCurrentQuestion,
@@ -10,7 +10,7 @@ import {
   nextQuestion as nextQuestionService,
   getLobbyParticipants,
 } from "@/services/studyRoom.service";
-import { supabase } from "@/lib/supabase/client";
+import { supabase, ensureRealtimeAuth } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import PointsCounter from "./PointsCounter";
 import ParticipantAvatar from "./ParticipantAvatar";
@@ -26,6 +26,7 @@ interface QuizState {
   selectedAnswer: number | null;
   confirmedAnswer: number | null;
   answerRevealed: boolean;
+  revealedCorrectIndex: number | null;
   userPoints: number;
   isCorrect: boolean | null;
   explanation: string | null;
@@ -41,6 +42,7 @@ type QuizAction =
       explanation: string;
       pointsEarned: number;
     }
+  | { type: "ADD_POINTS"; points: number }
   | { type: "NEXT_QUESTION"; question: StudyRoomQuestion };
 
 function quizReducer(state: QuizState, action: QuizAction): QuizState {
@@ -52,6 +54,7 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
         selectedAnswer: null,
         confirmedAnswer: null,
         answerRevealed: false,
+        revealedCorrectIndex: null,
         isCorrect: null,
         explanation: null,
       };
@@ -64,10 +67,13 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
       return {
         ...state,
         answerRevealed: true,
+        revealedCorrectIndex: action.correctAnswer,
         isCorrect: state.confirmedAnswer === action.correctAnswer,
         explanation: action.explanation,
         userPoints: state.userPoints + action.pointsEarned,
       };
+    case "ADD_POINTS":
+      return { ...state, userPoints: state.userPoints + action.points };
     case "NEXT_QUESTION":
       return {
         ...state,
@@ -75,6 +81,7 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
         selectedAnswer: null,
         confirmedAnswer: null,
         answerRevealed: false,
+        revealedCorrectIndex: null,
         isCorrect: null,
         explanation: null,
       };
@@ -113,6 +120,7 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
     selectedAnswer: null,
     confirmedAnswer: null,
     answerRevealed: false,
+    revealedCorrectIndex: null,
     userPoints: 0,
     isCorrect: null,
     explanation: null,
@@ -122,8 +130,8 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
   const [isLoading, setIsLoading] = useState(true);
   const [disconnectedUser, setDisconnectedUser] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [allConfirmed, setAllConfirmed] = useState(false);
   const [channelError, setChannelError] = useState<string | null>(null);
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const isHost = !!currentUserId && room.host_id === currentUserId;
@@ -134,6 +142,13 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
   useEffect(() => {
     currentQuestionIdRef.current = state.currentQuestion?.id ?? null;
   }, [state.currentQuestion?.id]);
+
+  // Track isHost in a ref so the realtime effect doesn't need to resubscribe
+  // when auth resolves and isHost flips from false → true mid-mount.
+  const isHostRef = useRef(isHost);
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -168,124 +183,134 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
   }, [room.id]);
 
   useEffect(() => {
-    const channel = supabase.channel(`study-room:${room.id}`);
-    channelRef.current = channel;
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
 
-    channel
-      .on("broadcast", { event: "answer:confirmed" }, (payload) => {
-        try {
-          const data = payload.payload as {
-            userId?: string;
-            allConfirmed?: boolean;
-          };
-          const userId = data?.userId;
-          if (userId) {
-            setParticipants((prev) =>
-              prev.map((p) =>
-                p.user_id === userId ? { ...p, has_confirmed: true } : p
-              )
-            );
+    const setupChannel = async () => {
+      // Realtime needs the user's JWT before subscribe(); without this the
+      // socket stays on the anon apikey and RLS-protected postgres_changes
+      // events (and authenticated broadcasts) are dropped on cold load.
+      await ensureRealtimeAuth();
+      if (cancelled) return;
+
+      channel = supabase.channel(`study-room:${room.id}`);
+      channelRef.current = channel;
+
+      channel
+        .on("broadcast", { event: "answer:confirmed" }, (payload) => {
+          try {
+            const data = payload.payload as {
+              userId?: string;
+              allConfirmed?: boolean;
+              correctAnswer?: string;
+              explanation?: string;
+            };
+            const userId = data?.userId;
+            if (userId) {
+              setParticipants((prev) =>
+                prev.map((p) =>
+                  p.user_id === userId ? { ...p, has_confirmed: true } : p
+                )
+              );
+            }
+            if (data?.allConfirmed) {
+              // Reveal answer immediately when all participants have confirmed.
+              // correctAnswer is the letter (A–D) sent by the backend.
+              const rawCorrect = data.correctAnswer ?? "";
+              const correctIndex =
+                typeof rawCorrect === "string" && isNaN(Number(rawCorrect))
+                  ? CORRECT_ANSWER_INDEX[rawCorrect] ?? 0
+                  : Number(rawCorrect || 0);
+              dispatch({
+                type: "REVEAL_ANSWER",
+                correctAnswer: correctIndex,
+                explanation: data.explanation ?? "",
+                pointsEarned: 0, // Points are added via ADD_POINTS from submitAnswer response
+              });
+            }
+          } catch (err) {
+            console.error("[Quiz] answer:confirmed handler error:", err);
           }
-          if (data?.allConfirmed) {
-            setAllConfirmed(true);
-          }
-        } catch (err) {
-          console.error("[Quiz] answer:confirmed handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "question:next" }, (payload) => {
-        try {
-          const data = payload.payload as {
-            question?: StudyRoomQuestion;
-            previousAnswer?: { correct_answer: string | number; explanation: string };
-          };
-
-          const prevAnswer = data?.previousAnswer;
-          const rawCorrect = prevAnswer?.correct_answer;
-          const correctIndex =
-            typeof rawCorrect === "string" && isNaN(Number(rawCorrect))
-              ? CORRECT_ANSWER_INDEX[rawCorrect] ?? 0
-              : Number(rawCorrect ?? 0);
-
-          dispatch({
-            type: "REVEAL_ANSWER",
-            correctAnswer: correctIndex,
-            explanation: prevAnswer?.explanation ?? "",
-            pointsEarned: 0,
-          });
-
-          if (data?.question) {
-            setTimeout(() => {
+        })
+        .on("broadcast", { event: "question:next" }, (payload) => {
+          try {
+            const data = payload.payload as {
+              question?: StudyRoomQuestion;
+            };
+            // Reveal already happened on answer:confirmed — just advance to next question.
+            if (data?.question) {
               dispatch({
                 type: "NEXT_QUESTION",
-                question: normaliseQuestion(data.question!),
+                question: normaliseQuestion(data.question),
               });
               setParticipants((prev) =>
                 prev.map((p) => ({ ...p, has_confirmed: false }))
               );
-              setAllConfirmed(false);
-            }, 2500);
+            }
+          } catch (err) {
+            console.error("[Quiz] question:next handler error:", err);
           }
-        } catch (err) {
-          console.error("[Quiz] question:next handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "participant:disconnected" }, (payload) => {
-        try {
-          const data = payload.payload as { userId?: string; name?: string };
-          if (data?.userId) {
-            setParticipants((prev) =>
-              prev.filter((p) => p.user_id !== data.userId),
-            );
+        })
+        .on("broadcast", { event: "participant:disconnected" }, (payload) => {
+          try {
+            const data = payload.payload as { userId?: string; name?: string };
+            if (data?.userId) {
+              setParticipants((prev) =>
+                prev.filter((p) => p.user_id !== data.userId),
+              );
+            }
+            if (isHostRef.current) {
+              setDisconnectedUser(data?.name ?? "A participant");
+            }
+          } catch (err) {
+            console.error("[Quiz] participant:disconnected handler error:", err);
           }
-          if (isHost) {
-            setDisconnectedUser(data?.name ?? "A participant");
+        })
+        .on("broadcast", { event: "room:ended" }, () => {
+          try {
+            goToResults();
+          } catch (err) {
+            console.error("[Quiz] room:ended handler error:", err);
           }
-        } catch (err) {
-          console.error("[Quiz] participant:disconnected handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "room:ended" }, () => {
-        try {
-          goToResults();
-        } catch (err) {
-          console.error("[Quiz] room:ended handler error:", err);
-        }
-      })
-      .subscribe((status) => {
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          setChannelError("Lost connection to room. Please refresh the page.");
-        } else if (status === "SUBSCRIBED") {
-          setChannelError(null);
-          // Resync current question so events missed during the mount window
-          // don't leave the client stuck on a stale question.
-          getCurrentQuestion(room.id)
-            .then((q) => {
-              const normalised = normaliseQuestion(q);
-              if (normalised.id !== currentQuestionIdRef.current) {
-                dispatch({ type: "SET_QUESTION", question: normalised });
-              }
-            })
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : "";
-              if (msg.includes("not in progress") || msg.includes("completed")) {
-                goToResults();
-              } else {
-                console.error("[Quiz] SUBSCRIBED resync failed:", err);
-              }
-            });
-        }
-      });
+        })
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            setChannelError("Lost connection to room. Please refresh the page.");
+          } else if (status === "SUBSCRIBED") {
+            setChannelError(null);
+            // Resync current question so events missed during the mount window
+            // don't leave the client stuck on a stale question.
+            getCurrentQuestion(room.id)
+              .then((q) => {
+                const normalised = normaliseQuestion(q);
+                if (normalised.id !== currentQuestionIdRef.current) {
+                  dispatch({ type: "SET_QUESTION", question: normalised });
+                }
+              })
+              .catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : "";
+                if (msg.includes("not in progress") || msg.includes("completed")) {
+                  goToResults();
+                } else {
+                  console.error("[Quiz] SUBSCRIBED resync failed:", err);
+                }
+              });
+          }
+        });
+    };
+
+    void setupChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [room.id, isHost, goToResults]);
+  }, [room.id, goToResults]);
 
   const handleSelectAnswer = (index: number) => {
     dispatch({ type: "SELECT_ANSWER", index });
@@ -296,11 +321,14 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
     dispatch({ type: "CONFIRM_ANSWER" });
 
     try {
-      await submitAnswer(
+      const result = await submitAnswer(
         room.id,
         state.currentQuestion.id,
         state.selectedAnswer
       );
+      if (result.points_earned > 0) {
+        dispatch({ type: "ADD_POINTS", points: result.points_earned });
+      }
     } catch (err) {
       console.error("[Quiz] Failed to submit answer:", err);
     }
@@ -337,9 +365,19 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
     <div className="flex h-full overflow-hidden">
       {/* Left sidebar — participants */}
       <aside className="w-56 shrink-0 border-r border-fade-border px-4 py-6 flex flex-col gap-4 overflow-y-auto">
-        <div className="flex items-center gap-1.5 text-text-muted">
-          <Users className="w-4 h-4" />
-          <span className="text-sm font-medium">{participants.length}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-text-muted">
+            <Users className="w-4 h-4" />
+            <span className="text-sm font-medium">{participants.length}</span>
+          </div>
+          <button
+            onClick={() => setLeaveConfirm(true)}
+            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+            title="Leave room"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Leave
+          </button>
         </div>
         <div className="flex flex-col gap-3">
           {participants.map((p) => (
@@ -386,11 +424,12 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
           {q.options.map((option, i) => {
             const isSelected = state.selectedAnswer === i;
             const isConfirmedSelection = state.confirmedAnswer === i;
-            const isCorrectOption = state.answerRevealed && i === q.correct_answer;
+            const correctIndex = state.revealedCorrectIndex ?? q.correct_answer;
+            const isCorrectOption = state.answerRevealed && i === correctIndex;
             const isWrongOption =
               state.answerRevealed &&
               isConfirmedSelection &&
-              i !== q.correct_answer;
+              i !== correctIndex;
 
             let bgColor = "rgba(255, 255, 255, 0.02)";
             let borderColor = "var(--color-fade-border)";
@@ -448,11 +487,13 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 transition-all duration-200"
                   style={{ backgroundColor: labelBg, color: labelColor }}
                 >
-                  {state.answerRevealed && isCorrectOption
-                    ? "✓"
-                    : state.answerRevealed && isWrongOption
-                    ? "✗"
-                    : optionLabels[i]}
+                  {state.answerRevealed && isCorrectOption ? (
+                    <Check className="w-4 h-4" />
+                  ) : state.answerRevealed && isWrongOption ? (
+                    <X className="w-4 h-4" />
+                  ) : (
+                    optionLabels[i]
+                  )}
                 </span>
                 <span
                   className="flex-1 text-sm leading-relaxed transition-colors duration-200"
@@ -497,19 +538,23 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
       </div>
       </div>
 
-      {/* Right sidebar — points */}
+      {/* Right sidebar — points + next-question control */}
       <aside className="w-56 shrink-0 border-l border-fade-border px-4 py-6 flex flex-col gap-4 overflow-y-auto">
         <PointsCounter points={state.userPoints} />
-        {isHost && !state.answerRevealed && (
+        {isHost ? (
+          // Host: show Next Question button; enabled only after reveal
           <button
             onClick={handleNextQuestion}
-            disabled={!allConfirmed}
+            disabled={!state.answerRevealed}
             className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-accent text-white text-sm font-medium transition-all duration-200 hover:bg-blue-accent/80 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next Question
             <ChevronRight className="w-4 h-4" />
           </button>
-        )}
+        ) : state.answerRevealed ? (
+          // Guest: waiting for host to advance during reveal phase
+          <p className="text-center text-xs text-text-muted">Waiting for host...</p>
+        ) : null}
       </aside>
 
       {disconnectedUser && isHost && (
@@ -518,6 +563,59 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
           onContinue={() => setDisconnectedUser(null)}
           onWait={() => setDisconnectedUser(null)}
         />
+      )}
+
+      {leaveConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setLeaveConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl p-6 flex flex-col gap-5"
+            style={{
+              background: "rgba(255, 255, 255, 0.07)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              boxShadow: "0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-red-500/15 border border-red-500/20">
+                <LogOut className="w-4 h-4 text-red-400" />
+              </div>
+              <h3 className="text-text-primary font-semibold text-base leading-snug">
+                Leave the quiz?
+              </h3>
+            </div>
+            <p className="text-sm text-text-muted leading-relaxed">
+              You&apos;ll lose your progress and won&apos;t be able to rejoin this session.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setLeaveConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-text-secondary transition-all duration-150"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/study-rooms")}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-150"
+                style={{ background: "rgba(239,68,68,0.85)", border: "1px solid rgba(239,68,68,0.4)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,1)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.85)"; }}
+              >
+                Leave Room
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

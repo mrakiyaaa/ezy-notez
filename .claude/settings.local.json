@@ -43,7 +43,8 @@
       "Bash(dir /B)",
       "PowerShell(Copy-Item \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\extra-pages\\\\diagram.html\" \"c:\\\\Users\\\\alakshitha\\\\Desktop\\\\Projects\\\\ezy-notez\\\\frontend\\\\public\\\\diagram.html\")",
       "Bash(mkdir -p /mnt/user-data/outputs)",
-      "Read(//mnt/user-data/**)"
+      "Read(//mnt/user-data/**)",
+      "Bash(findstr /i \"gemini google openrouter\")"
     ]
   },
   "enableAllProjectMcpServers": true,

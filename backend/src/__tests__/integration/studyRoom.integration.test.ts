@@ -104,17 +104,17 @@ const PARTICIPANT_ROW = {
 };
 
 const openRouterResponse = (content: string) => ({
-  data: { choices: [{ message: { content } }] },
+  data: { candidates: [{ content: { parts: [{ text: content }] } }] },
 });
 
 beforeEach(() => {
   jest.clearAllMocks();
-  process.env.OPENROUTER_API_KEY = "test-key-integration";
+  process.env.GEMINI_API_KEY = "test-key-integration";
   (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
 });
 
 afterEach(() => {
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.GEMINI_API_KEY;
 });
 
 // ---------------------------------------------------------------------------
