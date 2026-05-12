@@ -10,7 +10,7 @@ import {
   nextQuestion as nextQuestionService,
   getLobbyParticipants,
 } from "@/services/studyRoom.service";
-import { supabase } from "@/lib/supabase/client";
+import { supabase, ensureRealtimeAuth } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import PointsCounter from "./PointsCounter";
 import ParticipantAvatar from "./ParticipantAvatar";
@@ -135,6 +135,13 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
     currentQuestionIdRef.current = state.currentQuestion?.id ?? null;
   }, [state.currentQuestion?.id]);
 
+  // Track isHost in a ref so the realtime effect doesn't need to resubscribe
+  // when auth resolves and isHost flips from false → true mid-mount.
+  const isHostRef = useRef(isHost);
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
@@ -168,124 +175,138 @@ export default function StudyRoomQuiz({ room, fromWorkspaceId }: StudyRoomQuizPr
   }, [room.id]);
 
   useEffect(() => {
-    const channel = supabase.channel(`study-room:${room.id}`);
-    channelRef.current = channel;
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
 
-    channel
-      .on("broadcast", { event: "answer:confirmed" }, (payload) => {
-        try {
-          const data = payload.payload as {
-            userId?: string;
-            allConfirmed?: boolean;
-          };
-          const userId = data?.userId;
-          if (userId) {
-            setParticipants((prev) =>
-              prev.map((p) =>
-                p.user_id === userId ? { ...p, has_confirmed: true } : p
-              )
-            );
-          }
-          if (data?.allConfirmed) {
-            setAllConfirmed(true);
-          }
-        } catch (err) {
-          console.error("[Quiz] answer:confirmed handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "question:next" }, (payload) => {
-        try {
-          const data = payload.payload as {
-            question?: StudyRoomQuestion;
-            previousAnswer?: { correct_answer: string | number; explanation: string };
-          };
+    const setupChannel = async () => {
+      // Realtime needs the user's JWT before subscribe(); without this the
+      // socket stays on the anon apikey and RLS-protected postgres_changes
+      // events (and authenticated broadcasts) are dropped on cold load.
+      await ensureRealtimeAuth();
+      if (cancelled) return;
 
-          const prevAnswer = data?.previousAnswer;
-          const rawCorrect = prevAnswer?.correct_answer;
-          const correctIndex =
-            typeof rawCorrect === "string" && isNaN(Number(rawCorrect))
-              ? CORRECT_ANSWER_INDEX[rawCorrect] ?? 0
-              : Number(rawCorrect ?? 0);
+      channel = supabase.channel(`study-room:${room.id}`);
+      channelRef.current = channel;
 
-          dispatch({
-            type: "REVEAL_ANSWER",
-            correctAnswer: correctIndex,
-            explanation: prevAnswer?.explanation ?? "",
-            pointsEarned: 0,
-          });
-
-          if (data?.question) {
-            setTimeout(() => {
-              dispatch({
-                type: "NEXT_QUESTION",
-                question: normaliseQuestion(data.question!),
-              });
+      channel
+        .on("broadcast", { event: "answer:confirmed" }, (payload) => {
+          try {
+            const data = payload.payload as {
+              userId?: string;
+              allConfirmed?: boolean;
+            };
+            const userId = data?.userId;
+            if (userId) {
               setParticipants((prev) =>
-                prev.map((p) => ({ ...p, has_confirmed: false }))
+                prev.map((p) =>
+                  p.user_id === userId ? { ...p, has_confirmed: true } : p
+                )
               );
-              setAllConfirmed(false);
-            }, 2500);
+            }
+            if (data?.allConfirmed) {
+              setAllConfirmed(true);
+            }
+          } catch (err) {
+            console.error("[Quiz] answer:confirmed handler error:", err);
           }
-        } catch (err) {
-          console.error("[Quiz] question:next handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "participant:disconnected" }, (payload) => {
-        try {
-          const data = payload.payload as { userId?: string; name?: string };
-          if (data?.userId) {
-            setParticipants((prev) =>
-              prev.filter((p) => p.user_id !== data.userId),
-            );
-          }
-          if (isHost) {
-            setDisconnectedUser(data?.name ?? "A participant");
-          }
-        } catch (err) {
-          console.error("[Quiz] participant:disconnected handler error:", err);
-        }
-      })
-      .on("broadcast", { event: "room:ended" }, () => {
-        try {
-          goToResults();
-        } catch (err) {
-          console.error("[Quiz] room:ended handler error:", err);
-        }
-      })
-      .subscribe((status) => {
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          setChannelError("Lost connection to room. Please refresh the page.");
-        } else if (status === "SUBSCRIBED") {
-          setChannelError(null);
-          // Resync current question so events missed during the mount window
-          // don't leave the client stuck on a stale question.
-          getCurrentQuestion(room.id)
-            .then((q) => {
-              const normalised = normaliseQuestion(q);
-              if (normalised.id !== currentQuestionIdRef.current) {
-                dispatch({ type: "SET_QUESTION", question: normalised });
-              }
-            })
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : "";
-              if (msg.includes("not in progress") || msg.includes("completed")) {
-                goToResults();
-              } else {
-                console.error("[Quiz] SUBSCRIBED resync failed:", err);
-              }
+        })
+        .on("broadcast", { event: "question:next" }, (payload) => {
+          try {
+            const data = payload.payload as {
+              question?: StudyRoomQuestion;
+              previousAnswer?: { correct_answer: string | number; explanation: string };
+            };
+
+            const prevAnswer = data?.previousAnswer;
+            const rawCorrect = prevAnswer?.correct_answer;
+            const correctIndex =
+              typeof rawCorrect === "string" && isNaN(Number(rawCorrect))
+                ? CORRECT_ANSWER_INDEX[rawCorrect] ?? 0
+                : Number(rawCorrect ?? 0);
+
+            dispatch({
+              type: "REVEAL_ANSWER",
+              correctAnswer: correctIndex,
+              explanation: prevAnswer?.explanation ?? "",
+              pointsEarned: 0,
             });
-        }
-      });
+
+            if (data?.question) {
+              setTimeout(() => {
+                dispatch({
+                  type: "NEXT_QUESTION",
+                  question: normaliseQuestion(data.question!),
+                });
+                setParticipants((prev) =>
+                  prev.map((p) => ({ ...p, has_confirmed: false }))
+                );
+                setAllConfirmed(false);
+              }, 2500);
+            }
+          } catch (err) {
+            console.error("[Quiz] question:next handler error:", err);
+          }
+        })
+        .on("broadcast", { event: "participant:disconnected" }, (payload) => {
+          try {
+            const data = payload.payload as { userId?: string; name?: string };
+            if (data?.userId) {
+              setParticipants((prev) =>
+                prev.filter((p) => p.user_id !== data.userId),
+              );
+            }
+            if (isHostRef.current) {
+              setDisconnectedUser(data?.name ?? "A participant");
+            }
+          } catch (err) {
+            console.error("[Quiz] participant:disconnected handler error:", err);
+          }
+        })
+        .on("broadcast", { event: "room:ended" }, () => {
+          try {
+            goToResults();
+          } catch (err) {
+            console.error("[Quiz] room:ended handler error:", err);
+          }
+        })
+        .subscribe((status) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            setChannelError("Lost connection to room. Please refresh the page.");
+          } else if (status === "SUBSCRIBED") {
+            setChannelError(null);
+            // Resync current question so events missed during the mount window
+            // don't leave the client stuck on a stale question.
+            getCurrentQuestion(room.id)
+              .then((q) => {
+                const normalised = normaliseQuestion(q);
+                if (normalised.id !== currentQuestionIdRef.current) {
+                  dispatch({ type: "SET_QUESTION", question: normalised });
+                }
+              })
+              .catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : "";
+                if (msg.includes("not in progress") || msg.includes("completed")) {
+                  goToResults();
+                } else {
+                  console.error("[Quiz] SUBSCRIBED resync failed:", err);
+                }
+              });
+          }
+        });
+    };
+
+    void setupChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [room.id, isHost, goToResults]);
+  }, [room.id, goToResults]);
 
   const handleSelectAnswer = (index: number) => {
     dispatch({ type: "SELECT_ANSWER", index });

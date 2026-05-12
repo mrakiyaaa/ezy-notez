@@ -9,8 +9,8 @@
  *   - proceeds with fewer questions when deduplication reduces the count
  *
  * generateInsights:
- *   - returns a positive string without calling OpenRouter when all answers correct
- *   - returns the fallback string (never throws) when OpenRouter call fails
+ *   - returns a positive string without calling Gemini when all answers correct
+ *   - returns the fallback string (never throws) when Gemini call fails
  */
 
 jest.mock("../../config/supabase", () => ({
@@ -33,9 +33,9 @@ import {
 const mockFrom = supabaseAdmin.from as jest.Mock;
 const mockAxiosPost = axios.post as jest.Mock;
 
-/** Returns a mock OpenRouter chat-completion response shape. */
-const openRouterResponse = (content: string) => ({
-  data: { choices: [{ message: { content } }] },
+/** Returns a mock Gemini generateContent response shape. */
+const geminiResponse = (content: string) => ({
+  data: { candidates: [{ content: { parts: [{ text: content }] } }] },
 });
 
 /** A minimal valid JSON array of one question. */
@@ -66,12 +66,12 @@ const TWO_QUESTION_JSON = JSON.stringify([
 
 beforeEach(() => {
   jest.clearAllMocks();
-  process.env.OPENROUTER_API_KEY = "test-key-unit";
+  process.env.GEMINI_API_KEY = "test-key-unit";
   (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
 });
 
 afterEach(() => {
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.GEMINI_API_KEY;
 });
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ describe("generateRoomQuestions", () => {
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse(ONE_QUESTION_JSON));
+    mockAxiosPost.mockResolvedValue(geminiResponse(ONE_QUESTION_JSON));
 
     const result = await generateRoomQuestions("room-1", "Study material text.", 1, "ws-1");
 
@@ -144,7 +144,7 @@ describe("generateRoomQuestions", () => {
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse(TWO_QUESTION_JSON));
+    mockAxiosPost.mockResolvedValue(geminiResponse(TWO_QUESTION_JSON));
 
     const result = await generateRoomQuestions("room-1", "Study material text.", 2, "ws-1");
 
@@ -153,42 +153,42 @@ describe("generateRoomQuestions", () => {
     expect(result[0].question).toBe("What organelle performs photosynthesis?");
   });
 
-  it("returns [] gracefully when OpenRouter returns invalid JSON (no throw)", async () => {
+  it("returns [] gracefully when Gemini returns invalid JSON (no throw)", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "used_questions") return makeQueryChain([]);
       if (table === "study_rooms") return makeQueryChain([]);
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse("This is not JSON at all !!!"));
+    mockAxiosPost.mockResolvedValue(geminiResponse("This is not JSON at all !!!"));
 
     await expect(
       generateRoomQuestions("room-1", "Study material.", 2, "ws-1"),
     ).resolves.toEqual([]);
   });
 
-  it("returns [] gracefully when OpenRouter returns a JSON object (not an array)", async () => {
+  it("returns [] gracefully when Gemini returns a JSON object (not an array)", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "used_questions") return makeQueryChain([]);
       if (table === "study_rooms") return makeQueryChain([]);
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse('{"error": "oops"}'));
+    mockAxiosPost.mockResolvedValue(geminiResponse('{"error": "oops"}'));
 
     await expect(
       generateRoomQuestions("room-1", "Study material.", 2, "ws-1"),
     ).resolves.toEqual([]);
   });
 
-  it("returns [] when OpenRouter returns an empty JSON array", async () => {
+  it("returns [] when Gemini returns an empty JSON array", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "used_questions") return makeQueryChain([]);
       if (table === "study_rooms") return makeQueryChain([]);
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse("[]"));
+    mockAxiosPost.mockResolvedValue(geminiResponse("[]"));
 
     await expect(
       generateRoomQuestions("room-1", "Study material.", 2, "ws-1"),
@@ -208,7 +208,7 @@ describe("generateRoomQuestions", () => {
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse(ONE_QUESTION_JSON));
+    mockAxiosPost.mockResolvedValue(geminiResponse(ONE_QUESTION_JSON));
 
     await expect(
       generateRoomQuestions("room-1", "Study material.", 1, "ws-1"),
@@ -243,7 +243,7 @@ describe("generateRoomQuestions", () => {
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse(TWO_QUESTION_JSON));
+    mockAxiosPost.mockResolvedValue(geminiResponse(TWO_QUESTION_JSON));
 
     // Requested 2, but only 1 is unique — should still resolve (not throw)
     const result = await generateRoomQuestions("room-1", "Study material.", 2, "ws-1");
@@ -257,7 +257,7 @@ describe("generateRoomQuestions", () => {
       return makeQueryChain(null);
     });
 
-    mockAxiosPost.mockResolvedValue(openRouterResponse(ONE_QUESTION_JSON));
+    mockAxiosPost.mockResolvedValue(geminiResponse(ONE_QUESTION_JSON));
 
     await expect(
       generateRoomQuestions("room-1", "Study material.", 1, "ws-1"),
@@ -270,7 +270,7 @@ describe("generateRoomQuestions", () => {
 // ---------------------------------------------------------------------------
 
 describe("generateInsights", () => {
-  it("returns a positive message without calling OpenRouter when all answers are correct", async () => {
+  it("returns a positive message without calling Gemini when all answers are correct", async () => {
     const answers = [
       {
         question_id: "q-1",
@@ -302,7 +302,7 @@ describe("generateInsights", () => {
     expect(result).toMatch(/excellent|correct|great/i);
   });
 
-  it("returns OpenRouter insights string for users with incorrect answers", async () => {
+  it("returns Gemini insights string for users with incorrect answers", async () => {
     const answers = [
       {
         question_id: "q-1",
@@ -318,7 +318,7 @@ describe("generateInsights", () => {
 
     mockFrom.mockReturnValue(makeQueryChain(answers));
     mockAxiosPost.mockResolvedValue(
-      openRouterResponse(
+      geminiResponse(
         "You should revise the topic of photosynthesis, particularly light-dependent reactions.",
       ),
     );
@@ -329,7 +329,7 @@ describe("generateInsights", () => {
     expect(result).toContain("photosynthesis");
   });
 
-  it("returns fallback string and never throws when OpenRouter call fails", async () => {
+  it("returns fallback string and never throws when Gemini call fails", async () => {
     const answers = [
       {
         question_id: "q-1",
@@ -379,12 +379,12 @@ describe("generateInsights", () => {
 
     mockFrom.mockReturnValue(makeQueryChain(answers));
     mockAxiosPost.mockResolvedValue(
-      openRouterResponse("Revise photosynthesis."),
+      geminiResponse("Revise photosynthesis."),
     );
 
     const result = await generateInsights("user-1", "room-1");
 
-    // Should not throw; should call OpenRouter with the first element of the array
+    // Should not throw; should call Gemini with the first element of the array
     expect(mockAxiosPost).toHaveBeenCalledTimes(1);
     expect(typeof result).toBe("string");
     expect(result.length).toBeGreaterThan(0);

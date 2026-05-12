@@ -1,12 +1,12 @@
 import { createHash } from "crypto";
 import { supabaseAdmin } from "../config/supabase";
-import { callOpenRouter } from "../utils/openRouterClient";
+import { callGemini } from "../utils/geminiClient";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const MODEL = "google/gemini-3-flash-preview-20251217";
+const MODEL = "gemini-2.5-flash";
 const MAX_CHARS = 4000;
 const MIN_LINE_WORDS = 8;
 
@@ -98,6 +98,18 @@ const stripFences = (raw: string): string =>
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/```\s*$/, "")
     .trim();
+
+/**
+ * Extract the first balanced JSON array substring from a model response.
+ * Gemini sometimes prepends/appends prose despite the prompt — this lets us
+ * recover the array instead of failing JSON.parse.
+ */
+const extractJsonArray = (raw: string): string => {
+  const start = raw.indexOf("[");
+  const end = raw.lastIndexOf("]");
+  if (start === -1 || end === -1 || end <= start) return raw;
+  return raw.slice(start, end + 1);
+};
 
 // ---------------------------------------------------------------------------
 // generateRoomQuestions
@@ -195,18 +207,18 @@ export const generateRoomQuestions = async (
     `]\n\n` +
     `Study material:\n${processedContent}`;
 
-  // ── Step 4: call OpenRouter ───────────────────────────────────────────────
-  const rawResponse = await callOpenRouter(systemPrompt, userPrompt, MODEL);
+  // ── Step 4: call Gemini ───────────────────────────────────────────────────
+  const rawResponse = await callGemini(systemPrompt, userPrompt, MODEL);
 
   // ── Step 5: parse JSON ────────────────────────────────────────────────────
-  const cleaned = stripFences(rawResponse);
+  const cleaned = extractJsonArray(stripFences(rawResponse));
 
   let questions: RawQuestion[];
   try {
     questions = JSON.parse(cleaned);
   } catch (parseErr) {
     console.warn(
-      "[studyRoomAI] Failed to parse OpenRouter response — returning empty array.\n",
+      "[studyRoomAI] Failed to parse Gemini response — returning empty array.\n",
       (parseErr as Error).message,
       "\nRaw (first 300 chars):",
       cleaned.slice(0, 300),
@@ -216,13 +228,13 @@ export const generateRoomQuestions = async (
 
   if (!Array.isArray(questions)) {
     console.warn(
-      `[studyRoomAI] OpenRouter response is not a JSON array (got ${typeof questions}) — returning empty array.`,
+      `[studyRoomAI] Gemini response is not a JSON array (got ${typeof questions}) — returning empty array.`,
     );
     return [];
   }
 
   if (questions.length === 0) {
-    console.warn("[studyRoomAI] OpenRouter returned an empty questions array.");
+    console.warn("[studyRoomAI] Gemini returned an empty questions array.");
     return [];
   }
 
@@ -311,7 +323,7 @@ interface AnswerJoinRow {
  *
  * Never throws — always returns a string.
  * Returns a positive message if the user answered everything correctly.
- * Returns a fallback string if the OpenRouter call fails.
+ * Returns a fallback string if the Gemini call fails.
  */
 export const generateInsights = async (
   userId: string,
@@ -368,8 +380,8 @@ export const generateInsights = async (
       `Identify the weak topics and suggest what the student should revise. ` +
       `Be specific to the subject matter.`;
 
-    // ── Call OpenRouter ───────────────────────────────────────────────────
-    const insights = await callOpenRouter(systemPrompt, userPrompt, MODEL);
+    // ── Call Gemini ───────────────────────────────────────────────────────
+    const insights = await callGemini(systemPrompt, userPrompt, MODEL);
     return insights;
   } catch (err) {
     console.error("[studyRoomAI] generateInsights failed:", err);
