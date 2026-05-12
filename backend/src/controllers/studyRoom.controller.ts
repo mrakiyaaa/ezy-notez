@@ -291,7 +291,9 @@ export const submitAnswerHandler = async (
     if (!selected_answer) return sendError(res, 400, "selected_answer is required");
 
     const result = await submitAnswer(userId, roomId, question_id, String(selected_answer));
-    broadcastAnswerConfirmed(roomId, question_id, userId, result.allConfirmed);
+    broadcastAnswerConfirmed(roomId, question_id, userId, result.allConfirmed).catch((e) =>
+      console.warn("[studyRoom:answer] Broadcast failed:", e),
+    );
     sendSuccess(res, result);
   } catch (err) {
     console.error("[studyRoom:answer]", err);

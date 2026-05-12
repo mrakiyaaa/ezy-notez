@@ -110,7 +110,9 @@ export const broadcastQuizStarted = async (
   send(roomId, "quiz:started", {
     question: {
       id: firstQuestion.id,
-      question: firstQuestion.question,
+      // Map DB column "question" → frontend field "question_text"
+      question_text: firstQuestion.question,
+      question_number: firstQuestion.order_index + 1,
       options: firstQuestion.options,
       order_index: firstQuestion.order_index,
     },
@@ -120,14 +122,35 @@ export const broadcastQuizStarted = async (
 
 /**
  * Broadcast when a participant submits an answer.
+ * When allConfirmed=true, includes the correct answer letter and explanation
+ * so the frontend can reveal results immediately without a separate fetch.
+ * Async; safe to call without await.
  */
-export const broadcastAnswerConfirmed = (
+export const broadcastAnswerConfirmed = async (
   roomId: string,
   questionId: string,
   userId: string,
   allConfirmed: boolean,
-): void => {
-  send(roomId, "answer:confirmed", { questionId, userId, allConfirmed });
+): Promise<void> => {
+  let correctAnswer: string | undefined;
+  let explanation: string | undefined;
+
+  if (allConfirmed) {
+    const { data: q } = await supabaseAdmin
+      .from("study_room_questions")
+      .select("correct_answer, explanation")
+      .eq("id", questionId)
+      .single();
+    correctAnswer = q?.correct_answer ?? undefined;
+    explanation = q?.explanation ?? undefined;
+  }
+
+  send(roomId, "answer:confirmed", {
+    questionId,
+    userId,
+    allConfirmed,
+    ...(allConfirmed && { correctAnswer, explanation }),
+  });
 };
 
 /**
@@ -149,7 +172,9 @@ export const broadcastNextQuestion = async (
   send(roomId, "question:next", {
     question: {
       id: nextQuestion.id,
-      question: nextQuestion.question,
+      // Map DB column "question" → frontend field "question_text"
+      question_text: nextQuestion.question,
+      question_number: nextQuestion.order_index + 1,
       options: nextQuestion.options,
       order_index: nextQuestion.order_index,
     },
