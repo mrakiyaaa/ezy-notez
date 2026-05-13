@@ -1,12 +1,14 @@
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, X } from "lucide-react";
 import type { Summary } from "@/types/summary";
 
 interface ProcessingPhaseProps {
   summaries: Summary[];
+  onCancel: () => void;
 }
 
 export default function ProcessingPhase({
   summaries,
+  onCancel,
 }: ProcessingPhaseProps) {
   const completedCount = summaries.filter(
     (summary) => summary.status === "ready"
@@ -46,6 +48,13 @@ export default function ProcessingPhase({
           {completedCount} / {summaries.length} complete
         </div>
       )}
+      <button
+        onClick={onCancel}
+        className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-text-muted border border-white/10 hover:bg-white/5 hover:text-text-primary hover:border-white/20 transition-all duration-150"
+      >
+        <X className="w-3.5 h-3.5" />
+        Cancel
+      </button>
     </div>
   );
 }
