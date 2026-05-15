@@ -24,53 +24,57 @@ function getSupabaseAdmin() {
 }
 
 async function globalTeardown(): Promise<void> {
-  if (process.env.E2E_KEEP_SEED === "true") {
-    console.log("[global-teardown] E2E_KEEP_SEED=true — skipping cleanup.");
-    return;
-  }
-
-  if (!fs.existsSync(SEED_FILE)) {
-    console.log("[global-teardown] No seed file. Nothing to clean.");
-    return;
-  }
-
-  const seed: SeedData = JSON.parse(fs.readFileSync(SEED_FILE, "utf8"));
-  const supabase = getSupabaseAdmin();
-
   try {
-    const { error: wsError } = await supabase
-      .from("workspaces")
-      .delete()
-      .eq("user_id", seed.userId);
-    if (wsError) {
-      console.warn(`[global-teardown] workspace delete: ${wsError.message}`);
+    if (process.env.E2E_KEEP_SEED === "true") {
+      console.log("[global-teardown] E2E_KEEP_SEED=true — skipping cleanup.");
+      return;
     }
-  } catch (err) {
-    console.warn("[global-teardown] workspace delete failed:", err);
-  }
 
-  try {
-    const { error: userError } = await supabase.auth.admin.deleteUser(
-      seed.userId
-    );
-    if (userError) {
-      console.warn(`[global-teardown] user delete: ${userError.message}`);
+    if (!fs.existsSync(SEED_FILE)) {
+      console.log("[global-teardown] No seed file. Nothing to clean.");
+      return;
     }
-  } catch (err) {
-    console.warn("[global-teardown] user delete failed:", err);
-  }
 
-  for (const file of [SEED_FILE, AUTH_FILE]) {
-    if (fs.existsSync(file)) {
-      try {
-        fs.unlinkSync(file);
-      } catch (err) {
-        console.warn(`[global-teardown] could not remove ${file}:`, err);
+    const seed: SeedData = JSON.parse(fs.readFileSync(SEED_FILE, "utf8"));
+    const supabase = getSupabaseAdmin();
+
+    try {
+      const { error: wsError } = await supabase
+        .from("workspaces")
+        .delete()
+        .eq("user_id", seed.userId);
+      if (wsError) {
+        console.warn(`[global-teardown] workspace delete: ${wsError.message}`);
+      }
+    } catch (err) {
+      console.warn("[global-teardown] workspace delete failed:", err);
+    }
+
+    try {
+      const { error: userError } = await supabase.auth.admin.deleteUser(
+        seed.userId
+      );
+      if (userError) {
+        console.warn(`[global-teardown] user delete: ${userError.message}`);
+      }
+    } catch (err) {
+      console.warn("[global-teardown] user delete failed:", err);
+    }
+
+    for (const file of [SEED_FILE, AUTH_FILE]) {
+      if (fs.existsSync(file)) {
+        try {
+          fs.unlinkSync(file);
+        } catch (err) {
+          console.warn(`[global-teardown] could not remove ${file}:`, err);
+        }
       }
     }
-  }
 
-  console.log("[global-teardown] Cleanup complete.");
+    console.log("[global-teardown] Cleanup complete.");
+  } catch (error) {
+    console.error("[global-teardown] fatal error:", error);
+  }
 }
 
 export default globalTeardown;

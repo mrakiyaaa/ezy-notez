@@ -1,5 +1,8 @@
 import { defineConfig, devices, ReporterDescription } from "@playwright/test";
 import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config({ path: path.join(__dirname, ".env.test") });
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
@@ -13,8 +16,9 @@ const isCI = !!process.env.CI;
 
 const reporters: ReporterDescription[] = [
   ["list"],
-  ["html", { outputFolder: "tests/e2e/results/html-report", open: "never" }],
+  ["html", { open: "never" }],
 ];
+
 if (isCI) {
   reporters.push(["github"]);
   reporters.push(["junit", { outputFile: "tests/e2e/results/junit.xml" }]);
@@ -22,11 +26,11 @@ if (isCI) {
 
 export default defineConfig({
   testDir: "./tests/e2e/specs",
-  outputDir: "./tests/e2e/results/artifacts",
+  outputDir: "tests/e2e/results",
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: isCI ? 2 : "50%",
+  workers: isCI ? 1 : "50%",
   // 60 s per test — AI-backed endpoints (summarization, quiz, flashcards, chat)
   // legitimately take 30–60 s on cold Railway dynos.
   timeout: 60_000,
@@ -34,7 +38,14 @@ export default defineConfig({
   reporter: reporters,
   globalSetup: require.resolve("./tests/e2e/setup/global-setup"),
   globalTeardown: require.resolve("./tests/e2e/setup/global-teardown"),
+  webServer: {
+    command: "npm run dev",
+    url: BASE_URL,
+    reuseExistingServer: !isCI,
+    timeout: 120 * 1000,
+  },
   use: {
+    headless: true,
     baseURL: BASE_URL,
     actionTimeout: 15_000,
     navigationTimeout: 30_000,

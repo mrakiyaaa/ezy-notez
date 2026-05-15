@@ -1,0 +1,4 @@
+tests/e2e/results/
+tests/e2e/setup/.auth-state.json
+tests/e2e/setup/.seed-data.json
+.env.test
