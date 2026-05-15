@@ -112,21 +112,25 @@ async function findOrCreateTestWorkspace(
 }
 
 async function globalSetup(): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const userId = await findOrCreateTestUser(supabase);
-  const workspaceId = await findOrCreateTestWorkspace(supabase, userId);
+  try {
+    const supabase = getSupabaseAdmin();
+    const userId = await findOrCreateTestUser(supabase);
+    const workspaceId = await findOrCreateTestWorkspace(supabase, userId);
 
-  const seed: SeedData = {
-    userId,
-    workspaceId,
-    email: TEST_USER.email,
-  };
+    const seed: SeedData = {
+      userId,
+      workspaceId,
+      email: TEST_USER.email,
+    };
 
-  fs.writeFileSync(SEED_FILE, JSON.stringify(seed, null, 2), "utf8");
+    fs.writeFileSync(SEED_FILE, JSON.stringify(seed, null, 2), "utf8");
 
-  console.log(
-    `[global-setup] Seed ready  user=${userId}  workspace=${workspaceId}`
-  );
+    console.log(
+      `[global-setup] Seed ready  user=${userId}  workspace=${workspaceId}`
+    );
+  } catch (error) {
+    console.error("[global-setup] error:", error);
+  }
 }
 
 export default globalSetup;

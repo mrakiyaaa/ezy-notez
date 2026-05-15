@@ -40,7 +40,7 @@ jest.mock("axios", () => ({
 jest.mock("../../services/studyRoomRealtime.service", () => ({
   broadcastParticipantJoined: jest.fn().mockResolvedValue(undefined),
   broadcastQuizStarted: jest.fn().mockResolvedValue(undefined),
-  broadcastAnswerConfirmed: jest.fn(),
+  broadcastAnswerConfirmed: jest.fn().mockResolvedValue(undefined),
   broadcastNextQuestion: jest.fn().mockResolvedValue(undefined),
   broadcastRoomEnded: jest.fn(),
 }));

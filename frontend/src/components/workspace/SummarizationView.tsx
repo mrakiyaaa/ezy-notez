@@ -303,6 +303,22 @@ export default function SummarizationView({
     }
   };
 
+  const handleCancelProcessing = async () => {
+    stopPolling();
+    const pending = summaries.filter(
+      (s) => s.status === "pending" || s.status === "processing"
+    );
+    try {
+      await Promise.all(pending.map((s) => deleteSummaryApi(s.id)));
+      setSummaries((prev) =>
+        prev.filter((s) => s.status !== "pending" && s.status !== "processing")
+      );
+    } catch {
+      // best-effort cleanup
+    }
+    setPhase("configure");
+  };
+
   const handleBackToHome = () => {
     setPhase("configure");
     setError(null);
@@ -342,7 +358,7 @@ export default function SummarizationView({
     if (phase === "processing") {
       return (
         <div className="h-full overflow-y-auto">
-          <ProcessingPhase summaries={summaries} />
+          <ProcessingPhase summaries={summaries} onCancel={handleCancelProcessing} />
         </div>
       );
     }

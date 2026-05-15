@@ -8,9 +8,10 @@
     "start": "next start --port 3000",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report tests/e2e/results/html-report"
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report tests/e2e/results",
+    "test:e2e:slow": "playwright test --grep @slow"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.19.0",
