@@ -37,14 +37,18 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: prod         # selects the "prod" stage in frontend/Dockerfile
+      args:
+        # NEXT_PUBLIC_* vars must be passed at BUILD time so Next.js can inline
+        # them into the client bundle. Set BACKEND_PUBLIC_URL in your .env to
+        # the public URL of the backend (e.g. https://api.yourapp.com).
+        - NEXT_PUBLIC_API_URL=${BACKEND_PUBLIC_URL}/api
+        - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     container_name: ezynotes-frontend
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:3001/api
-      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     depends_on:
       backend:
         condition: service_healthy
