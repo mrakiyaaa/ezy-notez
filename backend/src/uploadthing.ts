@@ -14,7 +14,7 @@ export const uploadRouter = {
     audio: { maxFileSize: "64MB", maxFileCount: 10 },
   })
     .onUploadComplete(({ file }) => {
-      return { url: file.ufsUrl, name: file.name, size: file.size, key: file.key };
+      return { url: file.url, name: file.name, size: file.size, key: file.key };
     }),
 } satisfies FileRouter;
 

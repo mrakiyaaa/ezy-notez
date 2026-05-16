@@ -28,7 +28,17 @@ FROM base AS builder
 RUN npm install --legacy-peer-deps
 COPY . .
 
+# NEXT_PUBLIC_* vars are inlined at build time by Next.js.
+# They must be passed as build args here — runtime env vars arrive too late.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
 # ─────────────────────────────────────────────
