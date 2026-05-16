@@ -12,12 +12,16 @@ function LoginPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     setError("");
+    setEmailNotConfirmed(false);
 
     if (!email.trim() || !password.trim()) {
       setError("Please fill in all fields.");
@@ -32,15 +36,44 @@ function LoginPageContent() {
     setIsLoading(false);
 
     if (signInError) {
-      setError(
+      const code = (signInError as { code?: string }).code;
+      if (
+        code === "email_not_confirmed" ||
+        signInError.message.toLowerCase().includes("not confirmed")
+      ) {
+        setEmailNotConfirmed(true);
+        setError("Your email hasn't been confirmed yet. Check your inbox for a confirmation link.");
+      } else if (
+        code === "invalid_credentials" ||
         signInError.message === "Invalid login credentials"
-          ? "Incorrect email or password. Please try again."
-          : signInError.message
-      );
+      ) {
+        setError("Incorrect email or password. Please try again.");
+      } else {
+        setError(signInError.message);
+      }
       return;
     }
 
     router.push(redirectTo);
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) {
+      setError("Enter your email address above first.");
+      return;
+    }
+    setIsResending(true);
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+    });
+    setIsResending(false);
+    if (resendError) {
+      setError(resendError.message);
+    } else {
+      setEmailNotConfirmed(false);
+      setError("Confirmation email sent — check your inbox.");
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -87,20 +120,51 @@ function LoginPageContent() {
             <label className="block text-xs font-medium uppercase tracking-widest text-white/40">
               Password
             </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/8 bg-white/3 px-4 py-3 pr-11 text-sm text-text-primary outline-none transition-colors placeholder:text-white/25 focus:border-blue-accent/50"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (
-            <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
-              {error}
-            </p>
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+              <p>{error}</p>
+              {emailNotConfirmed && (
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={isResending}
+                  className="mt-1.5 font-medium underline underline-offset-2 hover:opacity-80 disabled:opacity-50"
+                >
+                  {isResending ? "Sending…" : "Resend confirmation email"}
+                </button>
+              )}
+            </div>
           )}
 
           <button

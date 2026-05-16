@@ -12,23 +12,59 @@ export const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
+// ─── Token cache ─────────────────────────────────────────
+// Supabase acquires an exclusive Web Lock on every getSession() call.
+// Firing multiple concurrent requests each calling getSession() races
+// for the same lock and triggers the 10s timeout error.
+//
+// Strategy:
+//   1. onAuthStateChange keeps cachedToken current without any lock.
+//   2. Before the first auth event arrives, deduplicate concurrent
+//      getSession() calls into one shared promise (one lock acquisition).
+//   3. The 401 handler sets cachedToken immediately after a refresh so
+//      retried requests don't need another lock round-trip.
+
+let cachedToken: string | null = null;
+let tokenInitialized = false;
+let sessionFetch: Promise<string | null> | null = null;
+
+if (typeof window !== "undefined") {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    cachedToken = session?.access_token ?? null;
+    tokenInitialized = true;
+  });
+}
+
+async function getToken(): Promise<string | null> {
+  // Fast path: auth state already known, no lock needed.
+  if (tokenInitialized) return cachedToken;
+
+  // Slow path: coalesce concurrent callers into one getSession() call.
+  if (!sessionFetch) {
+    sessionFetch = supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        cachedToken = data.session?.access_token ?? null;
+        tokenInitialized = true;
+        return cachedToken;
+      })
+      .finally(() => {
+        sessionFetch = null;
+      });
+  }
+  return sessionFetch;
+}
+
 // ─── Request interceptor ─────────────────────────────────
-// Attach the Supabase access token as a Bearer header so the
-// Express backend can validate it (it already reads Authorization).
 apiClient.interceptors.request.use(async (config) => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
+  const token = await getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
 // ─── 401 response interceptor ────────────────────────────
-// On 401, refresh the Supabase session and replay the request.
-// If refresh fails, redirect to login.
-
 type QueueEntry = {
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -68,18 +104,22 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Use Supabase client-side refresh instead of the old backend endpoint
         const { data, error: refreshError } =
           await supabase.auth.refreshSession();
 
-        if (refreshError || !data.session) throw refreshError ?? new Error("No session");
+        if (refreshError || !data.session)
+          throw refreshError ?? new Error("No session");
 
-        // Attach the fresh token and replay
+        // Update cache immediately so queued retries use the new token.
+        cachedToken = data.session.access_token;
+
         originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error);
+        cachedToken = null;
+        tokenInitialized = false;
         if (typeof window !== "undefined") {
           window.location.href = "/auth/login";
         }
