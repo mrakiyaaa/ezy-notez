@@ -586,6 +586,18 @@ The ML service calls OpenRouter and Gemini directly — no local model weights a
 </details>
 
 <details>
+<summary><strong>Auth — "Navigator LockManager lock timed out" error</strong></summary>
+
+This happens when multiple API requests fire simultaneously on page load, each calling `supabase.auth.getSession()` and competing for the same exclusive Web Lock. The axios interceptor now caches the token via `onAuthStateChange` and deduplicates concurrent session fetches into a single lock acquisition — no action needed.
+</details>
+
+<details>
+<summary><strong>Login — "Invalid login credentials" despite correct password</strong></summary>
+
+Supabase (v2, security-hardened) returns the same error for both wrong credentials and an unconfirmed email address. If you are confident the password is correct, check your inbox for a confirmation email sent at sign-up. The login page will display a **Resend confirmation email** option when this case is detected.
+</details>
+
+<details>
 <summary><strong>Summarization — slow first run</strong></summary>
 
 `distilbart-cnn-12-6` (~500 MB) downloads on first summarization. The service automatically falls back to `sumy LSA` on low-memory environments (< ~1.2 GB free RAM).
@@ -667,6 +679,6 @@ SQL files live in `supabase/`. Run them **in order** against your Supabase proje
 
 <br/>
 
-*Last updated: May 2026 &nbsp;·&nbsp; Status: Active Development*
+*Last updated: May 2026 &nbsp;·&nbsp; Status: Active Development &nbsp;·&nbsp; v1.1.0*
 
 </div>
